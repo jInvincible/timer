@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lander Timer Web v1.5.3</title>
+  <title>Lander Timer Web v1.5.4</title>
   <style>
     * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     body { background-color: #f4f6f9; margin: 0; padding: 20px; }
@@ -67,6 +67,7 @@
   window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('tgToken').value = localStorage.getItem('tg_token') || '';
     document.getElementById('tgChatId').value = localStorage.getItem('tg_chat_id') || '';
+    checkAndUpdateTimers(); // Kiểm tra ngay khi tải trang
     render();
   });
 
@@ -154,7 +155,6 @@
   }
 
   function setAlarm(idx) {
-    // Đọc trực tiếp giá trị đang hiển thị trên các ô input ngay lập tức trước khi tính toán
     const hInput = document.getElementById(`h-${idx}`);
     const mInput = document.getElementById(`m-${idx}`);
     const sInput = document.getElementById(`s-${idx}`);
@@ -194,8 +194,8 @@
     render();
   }
 
-  // Vòng lặp kiểm tra thời gian thực
-  setInterval(() => {
+  // Hàm xử lý kiểm tra và quét thời gian cốt lõi (dùng chung cho cả setInterval và visibilitychange)
+  function checkAndUpdateTimers() {
     const now = Date.now();
     let stateChanged = false;
 
@@ -213,15 +213,22 @@
           el.innerText = `Time Remaining: ${h}:${m}:${s}`;
           el.style.color = remainSecs <= 30 ? 'red' : 'black';
 
-          // Gửi thông báo trước 60 giây
-          if (remainSecs === 60 && !c.warned60s) {
+          // Gửi thông báo trước 60 giây (bất kể tab đang active hay chạy ngầm)
+          if (remainSecs <= 60 && !c.warned60s) {
             c.warned60s = true;
             stateChanged = true;
-            sendTelegram(`${c.name}: Sắp đến giờ! (Còn 60 giây)`);
+            sendTelegram(`${c.name}: Sắp đến giờ! (Còn ${remainSecs} giây)`);
           }
         } else {
           el.innerText = "Done!";
           el.style.color = 'green';
+
+          // Nếu mốc thời gian đã trôi qua khi tab đang chạy ngầm, đảm bảo gửi bù thông báo nếu chưa gửi
+          if (!c.warned60s) {
+            c.warned60s = true;
+            stateChanged = true;
+            sendTelegram(`${c.name}: Đã đến thời điểm hẹn (hoặc quá hạn khi tab chạy ngầm)!`);
+          }
 
           // Xử lý Auto-Set Next tự động lặp lại
           if (c.auto && !c.processed) {
@@ -252,7 +259,17 @@
     if (stateChanged) {
       saveCards();
     }
-  }, 200);
+  }
+
+  // Vòng lặp đếm ngược thông thường
+  setInterval(checkAndUpdateTimers, 200);
+
+  // KHI USER QUAY LẠI TAB: Lập tức kích hoạt kiểm tra bù giờ ngay lập tức
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      checkAndUpdateTimers();
+    }
+  });
 </script>
 </body>
 </html>
