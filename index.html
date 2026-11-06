@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lander Timer Web v1.5</title>
+  <title>Lander Timer Web v1.5.1</title>
   <style>
     * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     body { background-color: #f4f6f9; margin: 0; padding: 20px; }
@@ -60,9 +60,8 @@
   <div class="grid-container" id="cardContainer"></div>
 
 <script>
-  // Đọc cài đặt Telegram và danh sách Cards từ localStorage
   let cards = JSON.parse(localStorage.getItem('lander_cards')) || [
-    { id: 1, name: 'Alarm 1', h: 0, m: 5, s: 0, target: null, delay: null, auto: false, offset: 15 }
+    { id: 1, name: 'Alarm 1', h: 0, m: 5, s: 0, target: null, delay: null, auto: false, offset: 15, warned10s: false, triggered: false }
   ];
 
   window.addEventListener('DOMContentLoaded', () => {
@@ -85,19 +84,13 @@
   function sendTelegram(msg) {
     const token = document.getElementById('tgToken').value.trim();
     const chatId = document.getElementById('tgChatId').value.trim();
-    if (!token || !chatId) {
-      console.warn('Thiếu Telegram Bot Token hoặc Chat ID!');
-      return;
-    }
+    if (!token || !chatId) return;
 
     fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ chat_id: chatId, text: msg })
-    })
-    .then(res => res.json())
-    .then(data => console.log('Telegram API Response:', data))
-    .catch(err => console.error('Lỗi gửi Telegram:', err));
+    }).catch(err => console.error('Lỗi gửi Telegram:', err));
   }
 
   function render() {
@@ -133,7 +126,14 @@
   }
 
   function addCard() {
-    cards.push({ id: Date.now(), name: `Alarm ${cards.length + 1}`, h: 0, m: 5, s: 0, target: null, delay: null, auto: false, offset: 15 });
+    cards.push({ 
+      id: Date.now(), 
+      name: `Alarm ${cards.length + 1}`, 
+      h: 0, m: 5, s: 0, 
+      target: null, delay: null, 
+      auto: false, offset: 15, 
+      warned10s: false, triggered: false 
+    });
     saveCards(); 
     render();
   }
@@ -154,13 +154,15 @@
   }
 
   function setAlarm(idx) {
-    const totalSecs = (cards[idx].h * 3600) + (cards[idx].m * 60) + cards[idx].s;
+    const totalSecs = (Number(cards[idx].h) * 3600) + (Number(cards[idx].m) * 60) + Number(cards[idx].s);
     if (totalSecs <= 0) return;
+
+    // Reset toàn bộ cờ trạng thái thông báo để tránh bị kẹt hoặc lặp
     cards[idx].delay = totalSecs;
     cards[idx].target = Date.now() + totalSecs * 1000;
     cards[idx].warned10s = false;
     cards[idx].triggered = false;
-    cards[idx].processed = false;
+    
     saveCards(); 
     render();
   }
@@ -170,7 +172,6 @@
     cards[idx].delay = null;
     cards[idx].warned10s = false;
     cards[idx].triggered = false;
-    cards[idx].processed = false;
     saveCards(); 
     render();
   }
@@ -181,20 +182,23 @@
       c.delay = null; 
       c.warned10s = false;
       c.triggered = false;
-      c.processed = false;
     });
     saveCards(); 
     render();
   }
 
-  // Vòng lặp đếm ngược mỗi 100ms
+  // Vòng lặp kiểm tra toàn cục chống cộng dồn interval
   setInterval(() => {
     const now = Date.now();
+    let stateChanged = false;
+
     cards.forEach((c, idx) => {
       const el = document.getElementById(`remain-${idx}`);
       if (!el) return;
+
       if (c.target) {
         const remainSecs = Math.ceil((c.target - now) / 1000);
+
         if (remainSecs > 0) {
           const h = String(Math.floor(remainSecs / 3600)).padStart(2, '0');
           const m = String(Math.floor((remainSecs % 3600) / 60)).padStart(2, '0');
@@ -202,34 +206,36 @@
           el.innerText = `Time Remaining: ${h}:${m}:${s}`;
           el.style.color = remainSecs <= 30 ? 'red' : 'black';
 
-          // Cảnh báo 10s trước khi hết giờ
+          // Gửi thông báo 10 giây cuối (chỉ gửi đúng 1 lần duy nhất nhờ cờ warned10s)
           if (remainSecs === 10 && !c.warned10s) {
-            sendTelegram(`${c.name}: Sắp đến giờ! (10s left)`);
             c.warned10s = true;
-            saveCards();
+            stateChanged = true;
+            sendTelegram(`${c.name}: Sắp đến giờ! (10s left)`);
           }
         } else {
           el.innerText = "Done!";
           el.style.color = 'green';
-          
-          // Thông báo khi hết giờ
-          if (!c.triggered) {
-            sendTelegram(`${c.name}: Đến giờ!`);
-            c.triggered = true;
-            saveCards();
-          }
 
-          // Xử lý Auto-Set Next
-          if (c.auto && !c.processed) {
-            c.processed = true;
-            setTimeout(() => {
+          // Gửi thông báo khi hết giờ (chỉ gửi đúng 1 lần duy nhất nhờ cờ triggered)
+          if (!c.triggered) {
+            c.triggered = true;
+            stateChanged = true;
+            sendTelegram(`${c.name}: Đến giờ!`);
+
+            // Xử lý Auto-Set Next tự động lặp lại an toàn không bị chồng lấn
+            if (c.auto) {
               const baseDelay = c.delay || 0;
-              const nextTotalSecs = baseDelay + (c.offset || 0);
+              const offset = c.offset || 0;
+              const nextTotalSecs = baseDelay + offset;
+
               c.h = Math.floor(nextTotalSecs / 3600);
               c.m = Math.floor((nextTotalSecs % 3600) / 60);
               c.s = nextTotalSecs % 60;
-              setAlarm(idx);
-            }, 1000);
+              c.target = Date.now() + nextTotalSecs * 1000;
+              c.delay = nextTotalSecs;
+              c.warned10s = false;
+              c.triggered = false; // Reset lại cờ cho chu kỳ tiếp theo
+            }
           }
         }
       } else {
@@ -237,7 +243,11 @@
         el.style.color = 'black';
       }
     });
-  }, 100);
+
+    if (stateChanged) {
+      saveCards();
+    }
+  }, 200); // Tăng tần suất quét lên 200ms để tối ưu hiệu năng trình duyệt
 </script>
 </body>
 </html>
