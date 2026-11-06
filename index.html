@@ -1,35 +1,49 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <!-- Import Firebase SDK từ CDN -->
-  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
   <meta charset="UTF-8">
-  <title>Lander Timer Web v1.0</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lander Timer Web v1.5</title>
   <style>
     * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     body { background-color: #f4f6f9; margin: 0; padding: 20px; }
-    .top-bar { display: flex; gap: 10px; align-items: center; margin-bottom: 20px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .top-bar { 
+      display: flex; 
+      gap: 10px; 
+      align-items: center; 
+      margin-bottom: 20px; 
+      background: white; 
+      padding: 15px; 
+      border-radius: 8px; 
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
+      flex-wrap: wrap;
+    }
     button { padding: 8px 14px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
     .btn-add { background: #007bff; color: white; }
     .btn-wipe { background: #6c757d; color: white; }
     .btn-set { background: #28a745; color: white; }
     .btn-close { background: #dc3545; color: white; }
+    .btn-edit { background: #e9ecef; border: 1px solid #ced4da; padding: 2px 6px; font-size: 0.85em; }
     
-    .grid-container { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; }
-    @media (max-width: 1024px) { .grid-container { grid-template-columns: repeat(2, 1fr); } }
+    .grid-container { 
+      display: grid; 
+      grid-template-columns: repeat(4, 1fr); 
+      gap: 15px; 
+    }
+    @media (max-width: 1200px) { .grid-container { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 900px) { .grid-container { grid-template-columns: repeat(2, 1fr); } }
     @media (max-width: 600px) { .grid-container { grid-template-columns: 1fr; } }
     
     .card { background: white; border-radius: 8px; padding: 15px; border: 1px solid #e0e0e0; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
     .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
     .card-title { font-size: 1.1em; font-weight: bold; font-style: italic; }
-    .time-target { font-weight: bold; font-size: 1.1em; text-align: center; margin: 5px 0; }
-    .time-remaining { text-align: center; margin-bottom: 10px; font-size: 0.95em; }
+    .time-target { font-weight: bold; font-size: 1.1em; text-align: center; margin: 5px 0; color: #333; }
+    .time-remaining { text-align: center; margin-bottom: 10px; font-size: 0.95em; font-weight: 500; }
     .input-group { display: flex; justify-content: center; align-items: center; gap: 5px; margin-bottom: 10px; }
-    .input-group input { width: 45px; text-align: center; padding: 4px; }
+    .input-group input { width: 45px; text-align: center; padding: 4px; border: 1px solid #ccc; border-radius: 4px; }
     .actions { display: flex; justify-content: center; gap: 6px; margin-bottom: 10px; }
     .auto-set { font-size: 0.85em; display: flex; align-items: center; gap: 5px; justify-content: center; background: #f8f9fa; padding: 6px; border-radius: 4px; }
-    .auto-set input[type="number"] { width: 50px; text-align: center; }
+    .auto-set input[type="number"] { width: 50px; text-align: center; border: 1px solid #ccc; border-radius: 4px; }
   </style>
 </head>
 <body>
@@ -37,52 +51,106 @@
   <div class="top-bar">
     <button class="btn-add" onclick="addCard()">+ Add Card</button>
     <button class="btn-wipe" onclick="wipeAll()">🧹 Wipe All</button>
-    <div style="margin-left: auto; display: flex; gap: 10px;">
-      <input type="text" id="tgToken" placeholder="Telegram Bot Token" style="width: 200px;" onchange="saveSettings()">
-      <input type="text" id="tgChatId" placeholder="Telegram Chat ID" style="width: 140px;" onchange="saveSettings()">
+    <div style="margin-left: auto; display: flex; gap: 10px; flex-wrap: wrap;">
+      <input type="text" id="tgToken" placeholder="Telegram Bot Token" style="width: 250px; padding: 6px; border: 1px solid #ccc; border-radius: 4px;" onchange="saveSettings()">
+      <input type="text" id="tgChatId" placeholder="Telegram Chat ID" style="width: 140px; padding: 6px; border: 1px solid #ccc; border-radius: 4px;" onchange="saveSettings()">
     </div>
   </div>
 
   <div class="grid-container" id="cardContainer"></div>
 
 <script>
-  // 1. Cấu hình Firebase của bạn
-  const firebaseConfig = {
-    databaseURL: "https://lander-timer-sync-default-rtdb.asia-southeast1.firebasedatabase.app"
-  };
-  firebase.initializeApp(firebaseConfig);
-  const dbRef = firebase.database().ref('timer_cards');
+  // Đọc cài đặt Telegram và danh sách Cards từ localStorage
+  let cards = JSON.parse(localStorage.getItem('lander_cards')) || [
+    { id: 1, name: 'Alarm 1', h: 0, m: 5, s: 0, target: null, delay: null, auto: false, offset: 15 }
+  ];
 
-  let cards = [];
-  let isLocalChange = false;
-
-  // 2. Lắng nghe dữ liệu thời gian thực từ tất cả các kết nối
-  dbRef.on('value', (snapshot) => {
-    const data = snapshot.val();
-    if (data) {
-      cards = data;
-      render(); // Vẽ lại giao diện khi có người thay đổi
-    } else {
-      // Dữ liệu mẫu ban đầu nếu database trống
-      cards = [{ id: 1, name: 'Alarm 1', h: 0, m: 5, s: 0, target: null, delay: null, auto: false, offset: 15 }];
-      saveCards();
-    }
+  window.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('tgToken').value = localStorage.getItem('tg_token') || '';
+    document.getElementById('tgChatId').value = localStorage.getItem('tg_chat_id') || '';
+    render();
   });
 
-  // 3. Hàm lưu trạng thái đồng bộ lên Firebase Server
-  function saveCards() {
-    dbRef.set(cards);
+  function saveSettings() {
+    const token = document.getElementById('tgToken').value.trim();
+    const chatId = document.getElementById('tgChatId').value.trim();
+    localStorage.setItem('tg_token', token);
+    localStorage.setItem('tg_chat_id', chatId);
   }
 
-  // Các hàm tương tác giữ nguyên logic nhưng gọi saveCards() để đồng bộ cho toàn bộ kết nối:
+  function saveCards() {
+    localStorage.setItem('lander_cards', JSON.stringify(cards));
+  }
+
+  function sendTelegram(msg) {
+    const token = document.getElementById('tgToken').value.trim();
+    const chatId = document.getElementById('tgChatId').value.trim();
+    if (!token || !chatId) {
+      console.warn('Thiếu Telegram Bot Token hoặc Chat ID!');
+      return;
+    }
+
+    fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text: msg })
+    })
+    .then(res => res.json())
+    .then(data => console.log('Telegram API Response:', data))
+    .catch(err => console.error('Lỗi gửi Telegram:', err));
+  }
+
+  function render() {
+    const container = document.getElementById('cardContainer');
+    container.innerHTML = '';
+    cards.forEach((c, idx) => {
+      const cardEl = document.createElement('div');
+      cardEl.className = 'card';
+      cardEl.innerHTML = `
+        <div class="card-header">
+          <span class="card-title">${c.name}</span>
+          <button class="btn-edit" onclick="renameCard(${idx})">✎</button>
+        </div>
+        <div class="time-target">Target Time: ${c.target ? new Date(c.target).toLocaleTimeString() : 'None'}</div>
+        <div class="time-remaining" id="remain-${idx}">Time Remaining: --</div>
+        <div class="input-group">
+          H: <input type="number" value="${c.h}" onkeydown="if(event.key==='Enter') setAlarm(${idx})" onchange="cards[${idx}].h=+this.value; saveCards();">
+          M: <input type="number" value="${c.m}" onkeydown="if(event.key==='Enter') setAlarm(${idx})" onchange="cards[${idx}].m=+this.value; saveCards();">
+          S: <input type="number" value="${c.s}" onkeydown="if(event.key==='Enter') setAlarm(${idx})" onchange="cards[${idx}].s=+this.value; saveCards();">
+        </div>
+        <div class="actions">
+          <button class="btn-set" onclick="setAlarm(${idx})">⏰ Set</button>
+          <button class="btn-wipe" onclick="wipeAlarm(${idx})">🧹 Wipe</button>
+          <button class="btn-close" onclick="removeCard(${idx})">✖ Close</button>
+        </div>
+        <div class="auto-set">
+          <input type="checkbox" ${c.auto ? 'checked' : ''} onchange="cards[${idx}].auto=this.checked; saveCards();"> Auto-Set Next
+          + <input type="number" value="${c.offset}" onchange="cards[${idx}].offset=+this.value; saveCards();"> s
+        </div>
+      `;
+      container.appendChild(cardEl);
+    });
+  }
+
   function addCard() {
     cards.push({ id: Date.now(), name: `Alarm ${cards.length + 1}`, h: 0, m: 5, s: 0, target: null, delay: null, auto: false, offset: 15 });
-    saveCards();
+    saveCards(); 
+    render();
   }
 
   function removeCard(idx) {
     cards.splice(idx, 1);
-    saveCards();
+    saveCards(); 
+    render();
+  }
+
+  function renameCard(idx) {
+    const name = prompt("Nhập tên mới:", cards[idx].name);
+    if (name && name.trim() !== "") { 
+      cards[idx].name = name.trim(); 
+      saveCards(); 
+      render(); 
+    }
   }
 
   function setAlarm(idx) {
@@ -92,21 +160,34 @@
     cards[idx].target = Date.now() + totalSecs * 1000;
     cards[idx].warned10s = false;
     cards[idx].triggered = false;
-    saveCards();
+    cards[idx].processed = false;
+    saveCards(); 
+    render();
   }
 
   function wipeAlarm(idx) {
     cards[idx].target = null;
     cards[idx].delay = null;
-    saveCards();
+    cards[idx].warned10s = false;
+    cards[idx].triggered = false;
+    cards[idx].processed = false;
+    saveCards(); 
+    render();
   }
 
   function wipeAll() {
-    cards.forEach(c => { c.target = null; c.delay = null; });
-    saveCards();
+    cards.forEach(c => { 
+      c.target = null; 
+      c.delay = null; 
+      c.warned10s = false;
+      c.triggered = false;
+      c.processed = false;
+    });
+    saveCards(); 
+    render();
   }
 
-  // Vòng lặp đếm ngược thời gian thực trên giao diện
+  // Vòng lặp đếm ngược mỗi 100ms
   setInterval(() => {
     const now = Date.now();
     cards.forEach((c, idx) => {
@@ -120,9 +201,36 @@
           const s = String(remainSecs % 60).padStart(2, '0');
           el.innerText = `Time Remaining: ${h}:${m}:${s}`;
           el.style.color = remainSecs <= 30 ? 'red' : 'black';
+
+          // Cảnh báo 10s trước khi hết giờ
+          if (remainSecs === 10 && !c.warned10s) {
+            sendTelegram(`${c.name}: Sắp đến giờ! (10s left)`);
+            c.warned10s = true;
+            saveCards();
+          }
         } else {
           el.innerText = "Done!";
           el.style.color = 'green';
+          
+          // Thông báo khi hết giờ
+          if (!c.triggered) {
+            sendTelegram(`${c.name}: Đến giờ!`);
+            c.triggered = true;
+            saveCards();
+          }
+
+          // Xử lý Auto-Set Next
+          if (c.auto && !c.processed) {
+            c.processed = true;
+            setTimeout(() => {
+              const baseDelay = c.delay || 0;
+              const nextTotalSecs = baseDelay + (c.offset || 0);
+              c.h = Math.floor(nextTotalSecs / 3600);
+              c.m = Math.floor((nextTotalSecs % 3600) / 60);
+              c.s = nextTotalSecs % 60;
+              setAlarm(idx);
+            }, 1000);
+          }
         }
       } else {
         el.innerText = "Time Remaining: --";
@@ -130,44 +238,6 @@
       }
     });
   }, 100);
-
-  // Hàm lưu cấu hình vào localStorage
-  function saveSettings() {
-    const tokenInput = document.getElementById('tgToken');
-    const chatIdInput = document.getElementById('tgChatId');
-    if (tokenInput && chatIdInput) {
-      localStorage.setItem('tg_token', tokenInput.value.trim());
-      localStorage.setItem('tg_chat_id', chatIdInput.value.trim());
-    }
-  }
-
-  function render() {
-    const container = document.getElementById('cardContainer');
-    container.innerHTML = '';
-    cards.forEach((c, idx) => {
-      const cardEl = document.createElement('div');
-      cardEl.className = 'card';
-      cardEl.innerHTML = `
-        <div class="card-header">
-          <span class="card-title">${c.name}</span>
-        </div>
-        <div class="time-target">Target Time: ${c.target ? new Date(c.target).toLocaleTimeString() : 'None'}</div>
-        <div class="time-remaining" id="remain-${idx}">Time Remaining: --</div>
-        <div class="input-group">
-          H: <input type="number" value="${c.h}" onchange="cards[${idx}].h=+this.value; saveCards();">
-          M: <input type="number" value="${c.m}" onchange="cards[${idx}].m=+this.value; saveCards();">
-          S: <input type="number" value="${c.s}" onchange="cards[${idx}].s=+this.value; saveCards();">
-        </div>
-        <div class="actions">
-          <button class="btn-set" onclick="setAlarm(${idx})">⏰ Set</button>
-          <button class="btn-wipe" onclick="wipeAlarm(${idx})">🧹 Wipe</button>
-          <button class="btn-close" onclick="removeCard(${idx})">✖ Close</button>
-        </div>
-      `;
-      container.appendChild(cardEl);
-    });
-  }
 </script>
-  
 </body>
 </html>
