@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lander Timer Web v1.5.2</title>
+  <title>Lander Timer Web v1.5.3</title>
   <style>
     * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     body { background-color: #f4f6f9; margin: 0; padding: 20px; }
@@ -107,9 +107,9 @@
         <div class="time-target">Target Time: ${c.target ? new Date(c.target).toLocaleTimeString() : 'None'}</div>
         <div class="time-remaining" id="remain-${idx}">Time Remaining: --</div>
         <div class="input-group">
-          H: <input type="number" value="${c.h}" onkeydown="if(event.key==='Enter') setAlarm(${idx})" onchange="cards[${idx}].h=+this.value; saveCards();">
-          M: <input type="number" value="${c.m}" onkeydown="if(event.key==='Enter') setAlarm(${idx})" onchange="cards[${idx}].m=+this.value; saveCards();">
-          S: <input type="number" value="${c.s}" onkeydown="if(event.key==='Enter') setAlarm(${idx})" onchange="cards[${idx}].s=+this.value; saveCards();">
+          H: <input type="number" id="h-${idx}" value="${c.h}" oninput="cards[${idx}].h=+this.value; saveCards();" onkeydown="if(event.key==='Enter') setAlarm(${idx})">
+          M: <input type="number" id="m-${idx}" value="${c.m}" oninput="cards[${idx}].m=+this.value; saveCards();" onkeydown="if(event.key==='Enter') setAlarm(${idx})">
+          S: <input type="number" id="s-${idx}" value="${c.s}" oninput="cards[${idx}].s=+this.value; saveCards();" onkeydown="if(event.key==='Enter') setAlarm(${idx})">
         </div>
         <div class="actions">
           <button class="btn-set" onclick="setAlarm(${idx})">⏰ Set</button>
@@ -154,12 +154,23 @@
   }
 
   function setAlarm(idx) {
-    const totalSecs = (Number(cards[idx].h) * 3600) + (Number(cards[idx].m) * 60) + Number(cards[idx].s);
+    // Đọc trực tiếp giá trị đang hiển thị trên các ô input ngay lập tức trước khi tính toán
+    const hInput = document.getElementById(`h-${idx}`);
+    const mInput = document.getElementById(`m-${idx}`);
+    const sInput = document.getElementById(`s-${idx}`);
+
+    if (hInput && mInput && sInput) {
+      cards[idx].h = Number(hInput.value) || 0;
+      cards[idx].m = Number(mInput.value) || 0;
+      cards[idx].s = Number(sInput.value) || 0;
+    }
+
+    const totalSecs = (cards[idx].h * 3600) + (cards[idx].m * 60) + cards[idx].s;
     if (totalSecs <= 0) return;
 
     cards[idx].delay = totalSecs;
     cards[idx].target = Date.now() + totalSecs * 1000;
-    cards[idx].warned60s = false; // Reset cờ thông báo 60s
+    cards[idx].warned60s = false;
     
     saveCards(); 
     render();
@@ -202,7 +213,7 @@
           el.innerText = `Time Remaining: ${h}:${m}:${s}`;
           el.style.color = remainSecs <= 30 ? 'red' : 'black';
 
-          // Gửi thông báo đúng trước 60 giây (chỉ gửi 1 lần duy nhất)
+          // Gửi thông báo trước 60 giây
           if (remainSecs === 60 && !c.warned60s) {
             c.warned60s = true;
             stateChanged = true;
@@ -211,8 +222,6 @@
         } else {
           el.innerText = "Done!";
           el.style.color = 'green';
-
-          // Đã lược bỏ hoàn toàn lệnh gọi sendTelegram ở mốc 0 giây (Done!)
 
           // Xử lý Auto-Set Next tự động lặp lại
           if (c.auto && !c.processed) {
@@ -227,9 +236,10 @@
               c.s = nextTotalSecs % 60;
               c.target = Date.now() + nextTotalSecs * 1000;
               c.delay = nextTotalSecs;
-              c.warned60s = false; // Reset lại cờ 60s cho chu kỳ tiếp theo
+              c.warned60s = false;
               c.processed = false;
               saveCards();
+              render();
             }, 1000);
           }
         }
