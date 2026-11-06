@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Lander Timer Web v1.0</title>
+  <style>
+    * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background-color: #f4f6f9; margin: 0; padding: 20px; }
+    .top-bar { display: flex; gap: 10px; align-items: center; margin-bottom: 20px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    button { padding: 8px 14px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+    .btn-add { background: #007bff; color: white; }
+    .btn-wipe { background: #6c757d; color: white; }
+    .btn-set { background: #28a745; color: white; }
+    .btn-close { background: #dc3545; color: white; }
+    
+    .grid-container { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; }
+    @media (max-width: 1024px) { .grid-container { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 600px) { .grid-container { grid-template-columns: 1fr; } }
+    
+    .card { background: white; border-radius: 8px; padding: 15px; border: 1px solid #e0e0e0; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .card-title { font-size: 1.1em; font-weight: bold; font-style: italic; }
+    .time-target { font-weight: bold; font-size: 1.1em; text-align: center; margin: 5px 0; }
+    .time-remaining { text-align: center; margin-bottom: 10px; font-size: 0.95em; }
+    .input-group { display: flex; justify-content: center; align-items: center; gap: 5px; margin-bottom: 10px; }
+    .input-group input { width: 45px; text-align: center; padding: 4px; }
+    .actions { display: flex; justify-content: center; gap: 6px; margin-bottom: 10px; }
+    .auto-set { font-size: 0.85em; display: flex; align-items: center; gap: 5px; justify-content: center; background: #f8f9fa; padding: 6px; border-radius: 4px; }
+    .auto-set input[type="number"] { width: 50px; text-align: center; }
+  </style>
+</head>
+<body>
+
+  <div class="top-bar">
+    <button class="btn-add" onclick="addCard()">+ Add Card</button>
+    <button class="btn-wipe" onclick="wipeAll()">🧹 Wipe All</button>
+    <div style="margin-left: auto; display: flex; gap: 10px;">
+      <input type="text" id="tgToken" placeholder="Telegram Bot Token" style="width: 200px;" onchange="saveSettings()">
+      <input type="text" id="tgChatId" placeholder="Telegram Chat ID" style="width: 140px;" onchange="saveSettings()">
+    </div>
+  </div>
+
+  <div class="grid-container" id="cardContainer"></div>
+
+<script>
+  let cards = JSON.parse(localStorage.getItem('lander_cards')) || [
+    { id: 1, name: 'Alarm 1', h: 0, m: 5, s: 0, target: null, delay: null, auto: false, offset: 15 }
+  ];
+
+  document.getElementById('tgToken').value = localStorage.getItem('tg_token') || '';
+  document.getElementById('tgChatId').value = localStorage.getItem('tg_chat_id') || '';
+
+  function saveSettings() {
+    localStorage.setItem('tg_token', document.getElementById('tgToken').value.trim());
+    localStorage.setItem('tg_chat_id', document.getElementById('tgChatId').value.trim());
+  }
+
+  function saveCards() {
+    localStorage.setItem('lander_cards', JSON.stringify(cards));
+  }
+
+  function sendTelegram(msg) {
+    const token = document.getElementById('tgToken').value.trim();
+    const chatId = document.getElementById('tgChatId').value.trim();
+    if (!token || !chatId) return;
+
+    fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text: msg })
+    }).catch(err => console.error(err));
+  }
+
+  function render() {
+    const container = document.getElementById('cardContainer');
+    container.innerHTML = '';
+    cards.forEach((c, idx) => {
+      const cardEl = document.createElement('div');
+      cardEl.className = 'card';
+      cardEl.innerHTML = `
+        <div class="card-header">
+          <span class="card-title">${c.name}</span>
+          <button onclick="renameCard(${idx})">✎</button>
+        </div>
+        <div class="time-target">Target Time: ${c.target ? new Date(c.target).toLocaleTimeString() : 'None'}</div>
+        <div class="time-remaining" id="remain-${idx}">Time Remaining: --</div>
+        <div class="input-group">
+          H: <input type="number" value="${c.h}" onkeydown="if(event.key==='Enter') setAlarm(${idx})" onchange="cards[${idx}].h=+this.value; saveCards();">
+          M: <input type="number" value="${c.m}" onkeydown="if(event.key==='Enter') setAlarm(${idx})" onchange="cards[${idx}].m=+this.value; saveCards();">
+          S: <input type="number" value="${c.s}" onkeydown="if(event.key==='Enter') setAlarm(${idx})" onchange="cards[${idx}].s=+this.value; saveCards();">
+        </div>
+        <div class="actions">
+          <button class="btn-set" onclick="setAlarm(${idx})">⏰ Set</button>
+          <button class="btn-wipe" onclick="wipeAlarm(${idx})">🧹 Wipe</button>
+          <button class="btn-close" onclick="removeCard(${idx})">✖ Close</button>
+        </div>
+        <div class="auto-set">
+          <input type="checkbox" ${c.auto ? 'checked' : ''} onchange="cards[${idx}].auto=this.checked; saveCards();"> Auto-Set Next
+          + <input type="number" value="${c.offset}" onchange="cards[${idx}].offset=+this.value; saveCards();"> s
+        </div>
+      `;
+      container.appendChild(cardEl);
+    });
+  }
+
+  function addCard() {
+    cards.push({ id: Date.now(), name: `Alarm ${cards.length + 1}`, h: 0, m: 5, s: 0, target: null, delay: null, auto: false, offset: 15 });
+    saveCards(); render();
+  }
+
+  function removeCard(idx) {
+    cards.splice(idx, 1);
+    saveCards(); render();
+  }
+
+  function renameCard(idx) {
+    const name = prompt("Nhập tên mới:", cards[idx].name);
+    if (name) { cards[idx].name = name; saveCards(); render(); }
+  }
+
+  function setAlarm(idx) {
+    const totalSecs = (cards[idx].h * 3600) + (cards[idx].m * 60) + cards[idx].s;
+    if (totalSecs <= 0) return;
+    cards[idx].delay = totalSecs;
+    cards[idx].target = Date.now() + totalSecs * 1000;
+    cards[idx].warned10s = false;
+    cards[idx].triggered = false;
+    saveCards(); render();
+  }
+
+  function wipeAlarm(idx) {
+    cards[idx].target = null;
+    cards[idx].delay = null;
+    saveCards(); render();
+  }
+
+  function wipeAll() {
+    cards.forEach(c => { c.target = null; c.delay = null; });
+    saveCards(); render();
+  }
+
+  // Loop update 100ms
+  setInterval(() => {
+    const now = Date.now();
+    cards.forEach((c, idx) => {
+      const el = document.getElementById(`remain-${idx}`);
+      if (!el) return;
+      if (c.target) {
+        const remainSecs = Math.ceil((c.target - now) / 1000);
+        if (remainSecs > 0) {
+          const h = String(Math.floor(remainSecs / 3600)).padStart(2, '0');
+          const m = String(Math.floor((remainSecs % 3600) / 60)).padStart(2, '0');
+          const s = String(remainSecs % 60).padStart(2, '0');
+          el.innerText = `Time Remaining: ${h}:${m}:${s}`;
+          el.style.color = remainSecs <= 30 ? 'red' : 'black';
+
+          if (remainSecs === 10 && !c.warned10s) {
+            sendTelegram(`${c.name}: Sắp đến giờ! (10s left)`);
+            c.warned10s = true;
+          }
+        } else {
+          el.innerText = "Done!";
+          el.style.color = 'green';
+          if (!c.triggered) {
+            sendTelegram(`${c.name}: Đến giờ!`);
+            c.triggered = true;
+          }
+
+          if (c.auto && !c.processed) {
+            c.processed = true;
+            setTimeout(() => {
+              c.h = Math.floor(c.delay / 3600);
+              c.m = Math.floor((c.delay % 3600) / 60);
+              c.s = c.delay % 60;
+              cards[idx].s += c.offset; // Cộng offset
+              setAlarm(idx);
+              c.processed = false;
+            }, 1000);
+          }
+        }
+      } else {
+        el.innerText = "Time Remaining: --";
+        el.style.color = 'black';
+      }
+    });
+  }, 100);
+
+  render();
+</script>
+</body>
+</html>
