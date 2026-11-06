@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
+  <!-- Import Firebase SDK từ CDN -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
   <meta charset="UTF-8">
   <title>Lander Timer Web v1.0</title>
   <style>
@@ -43,79 +46,43 @@
   <div class="grid-container" id="cardContainer"></div>
 
 <script>
-  let cards = JSON.parse(localStorage.getItem('lander_cards')) || [
-    { id: 1, name: 'Alarm 1', h: 0, m: 5, s: 0, target: null, delay: null, auto: false, offset: 15 }
-  ];
+  // 1. Cấu hình Firebase của bạn
+  const firebaseConfig = {
+    databaseURL: "https://lander-timer-sync-default-rtdb.asia-southeast1.firebasedatabase.app"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const dbRef = firebase.database().ref('timer_cards');
 
-  document.getElementById('tgToken').value = localStorage.getItem('tg_token') || '';
-  document.getElementById('tgChatId').value = localStorage.getItem('tg_chat_id') || '';
+  let cards = [];
+  let isLocalChange = false;
 
-  function saveSettings() {
-    localStorage.setItem('tg_token', document.getElementById('tgToken').value.trim());
-    localStorage.setItem('tg_chat_id', document.getElementById('tgChatId').value.trim());
-  }
+  // 2. Lắng nghe dữ liệu thời gian thực từ tất cả các kết nối
+  dbRef.on('value', (snapshot) => {
+    const data = snapshot.val();
+    if (data) {
+      cards = data;
+      render(); // Vẽ lại giao diện khi có người thay đổi
+    } else {
+      // Dữ liệu mẫu ban đầu nếu database trống
+      cards = [{ id: 1, name: 'Alarm 1', h: 0, m: 5, s: 0, target: null, delay: null, auto: false, offset: 15 }];
+      saveCards();
+    }
+  });
 
+  // 3. Hàm lưu trạng thái đồng bộ lên Firebase Server
   function saveCards() {
-    localStorage.setItem('lander_cards', JSON.stringify(cards));
+    dbRef.set(cards);
   }
 
-  function sendTelegram(msg) {
-    const token = document.getElementById('tgToken').value.trim();
-    const chatId = document.getElementById('tgChatId').value.trim();
-    if (!token || !chatId) return;
-
-    fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, text: msg })
-    }).catch(err => console.error(err));
-  }
-
-  function render() {
-    const container = document.getElementById('cardContainer');
-    container.innerHTML = '';
-    cards.forEach((c, idx) => {
-      const cardEl = document.createElement('div');
-      cardEl.className = 'card';
-      cardEl.innerHTML = `
-        <div class="card-header">
-          <span class="card-title">${c.name}</span>
-          <button onclick="renameCard(${idx})">✎</button>
-        </div>
-        <div class="time-target">Target Time: ${c.target ? new Date(c.target).toLocaleTimeString() : 'None'}</div>
-        <div class="time-remaining" id="remain-${idx}">Time Remaining: --</div>
-        <div class="input-group">
-          H: <input type="number" value="${c.h}" onkeydown="if(event.key==='Enter') setAlarm(${idx})" onchange="cards[${idx}].h=+this.value; saveCards();">
-          M: <input type="number" value="${c.m}" onkeydown="if(event.key==='Enter') setAlarm(${idx})" onchange="cards[${idx}].m=+this.value; saveCards();">
-          S: <input type="number" value="${c.s}" onkeydown="if(event.key==='Enter') setAlarm(${idx})" onchange="cards[${idx}].s=+this.value; saveCards();">
-        </div>
-        <div class="actions">
-          <button class="btn-set" onclick="setAlarm(${idx})">⏰ Set</button>
-          <button class="btn-wipe" onclick="wipeAlarm(${idx})">🧹 Wipe</button>
-          <button class="btn-close" onclick="removeCard(${idx})">✖ Close</button>
-        </div>
-        <div class="auto-set">
-          <input type="checkbox" ${c.auto ? 'checked' : ''} onchange="cards[${idx}].auto=this.checked; saveCards();"> Auto-Set Next
-          + <input type="number" value="${c.offset}" onchange="cards[${idx}].offset=+this.value; saveCards();"> s
-        </div>
-      `;
-      container.appendChild(cardEl);
-    });
-  }
-
+  // Các hàm tương tác giữ nguyên logic nhưng gọi saveCards() để đồng bộ cho toàn bộ kết nối:
   function addCard() {
     cards.push({ id: Date.now(), name: `Alarm ${cards.length + 1}`, h: 0, m: 5, s: 0, target: null, delay: null, auto: false, offset: 15 });
-    saveCards(); render();
+    saveCards();
   }
 
   function removeCard(idx) {
     cards.splice(idx, 1);
-    saveCards(); render();
-  }
-
-  function renameCard(idx) {
-    const name = prompt("Nhập tên mới:", cards[idx].name);
-    if (name) { cards[idx].name = name; saveCards(); render(); }
+    saveCards();
   }
 
   function setAlarm(idx) {
@@ -125,21 +92,21 @@
     cards[idx].target = Date.now() + totalSecs * 1000;
     cards[idx].warned10s = false;
     cards[idx].triggered = false;
-    saveCards(); render();
+    saveCards();
   }
 
   function wipeAlarm(idx) {
     cards[idx].target = null;
     cards[idx].delay = null;
-    saveCards(); render();
+    saveCards();
   }
 
   function wipeAll() {
     cards.forEach(c => { c.target = null; c.delay = null; });
-    saveCards(); render();
+    saveCards();
   }
 
-  // Loop update 100ms
+  // Vòng lặp đếm ngược thời gian thực trên giao diện
   setInterval(() => {
     const now = Date.now();
     cards.forEach((c, idx) => {
@@ -153,30 +120,9 @@
           const s = String(remainSecs % 60).padStart(2, '0');
           el.innerText = `Time Remaining: ${h}:${m}:${s}`;
           el.style.color = remainSecs <= 30 ? 'red' : 'black';
-
-          if (remainSecs === 10 && !c.warned10s) {
-            sendTelegram(`${c.name}: Sắp đến giờ! (10s left)`);
-            c.warned10s = true;
-          }
         } else {
           el.innerText = "Done!";
           el.style.color = 'green';
-          if (!c.triggered) {
-            sendTelegram(`${c.name}: Đến giờ!`);
-            c.triggered = true;
-          }
-
-          if (c.auto && !c.processed) {
-            c.processed = true;
-            setTimeout(() => {
-              c.h = Math.floor(c.delay / 3600);
-              c.m = Math.floor((c.delay % 3600) / 60);
-              c.s = c.delay % 60;
-              cards[idx].s += c.offset; // Cộng offset
-              setAlarm(idx);
-              c.processed = false;
-            }, 1000);
-          }
         }
       } else {
         el.innerText = "Time Remaining: --";
@@ -185,7 +131,33 @@
     });
   }, 100);
 
-  render();
+  function render() {
+    const container = document.getElementById('cardContainer');
+    container.innerHTML = '';
+    cards.forEach((c, idx) => {
+      const cardEl = document.createElement('div');
+      cardEl.className = 'card';
+      cardEl.innerHTML = `
+        <div class="card-header">
+          <span class="card-title">${c.name}</span>
+        </div>
+        <div class="time-target">Target Time: ${c.target ? new Date(c.target).toLocaleTimeString() : 'None'}</div>
+        <div class="time-remaining" id="remain-${idx}">Time Remaining: --</div>
+        <div class="input-group">
+          H: <input type="number" value="${c.h}" onchange="cards[${idx}].h=+this.value; saveCards();">
+          M: <input type="number" value="${c.m}" onchange="cards[${idx}].m=+this.value; saveCards();">
+          S: <input type="number" value="${c.s}" onchange="cards[${idx}].s=+this.value; saveCards();">
+        </div>
+        <div class="actions">
+          <button class="btn-set" onclick="setAlarm(${idx})">⏰ Set</button>
+          <button class="btn-wipe" onclick="wipeAlarm(${idx})">🧹 Wipe</button>
+          <button class="btn-close" onclick="removeCard(${idx})">✖ Close</button>
+        </div>
+      `;
+      container.appendChild(cardEl);
+    });
+  }
 </script>
+  
 </body>
 </html>
