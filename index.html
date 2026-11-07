@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lander Timer Web v1.6 (Firebase Sync)</title>
+  <title>Lander Timer Web v1.7 (Firebase Sync + Quick Bar)</title>
   <style>
     * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     body { background-color: #f4f6f9; margin: 0; padding: 20px; }
@@ -25,6 +25,34 @@
     .btn-close { background: #dc3545; color: white; }
     .btn-edit { background: #e9ecef; border: 1px solid #ced4da; padding: 2px 6px; font-size: 0.85em; }
     
+    /* Khu vực hiển thị nhanh 3 card sắp tới */
+    .quick-preview-bar {
+      display: flex;
+      gap: 8px;
+      flex-grow: 1;
+      justify-content: center;
+      align-items: center;
+      flex-wrap: wrap;
+      margin: 0 10px;
+    }
+    .preview-chip {
+      background: #e9ecef;
+      border: 1px solid #ced4da;
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-size: 0.85em;
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      font-weight: 500;
+    }
+    .preview-chip.urgent {
+      background: #ffe3e3;
+      border-color: #ff8787;
+      color: #c92a2a;
+    }
+    .preview-name { font-weight: bold; font-style: italic; }
+
     .grid-container { 
       display: grid; 
       grid-template-columns: repeat(4, 1fr); 
@@ -51,15 +79,19 @@
   <div class="top-bar">
     <button class="btn-add" onclick="addCard()">+ Add Card</button>
     <button class="btn-wipe" onclick="wipeAll()">🧹 Wipe All</button>
-    <div style="margin-left: auto; display: flex; gap: 10px; flex-wrap: wrap;">
-      <input type="text" id="tgToken" placeholder="Telegram Bot Token" style="width: 250px; padding: 6px; border: 1px solid #ccc; border-radius: 4px;" oninput="saveSettingsToFirebase()">
-      <input type="text" id="tgChatId" placeholder="Telegram Chat ID" style="width: 140px; padding: 6px; border: 1px solid #ccc; border-radius: 4px;" oninput="saveSettingsToFirebase()">
+    
+    <!-- KHU VỰC HIỂN THỊ NHANH 3 CARD GẦN ĐẾN GIỜ NHẤT -->
+    <div class="quick-preview-bar" id="quickPreviewBar"></div>
+
+    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+      <input type="text" id="tgToken" placeholder="Telegram Bot Token" style="width: 220px; padding: 6px; border: 1px solid #ccc; border-radius: 4px;" oninput="saveSettingsToFirebase()">
+      <input type="text" id="tgChatId" placeholder="Telegram Chat ID" style="width: 130px; padding: 6px; border: 1px solid #ccc; border-radius: 4px;" oninput="saveSettingsToFirebase()">
     </div>
   </div>
 
   <div class="grid-container" id="cardContainer"></div>
 
-<!-- Nhập các SDK Firebase Modular -->
+<!-- SDK Firebase Modular -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-app.js";
   import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-database.js";
@@ -83,7 +115,6 @@
 
   let isRemoteUpdating = false;
 
-  // Lắng nghe dữ liệu Cards từ Firebase Realtime Database
   onValue(ref(db, 'lander_cards'), (snapshot) => {
     const data = snapshot.val();
     if (data) {
@@ -94,7 +125,6 @@
     }
   });
 
-  // Lắng nghe cấu hình Telegram từ Firebase Realtime Database
   onValue(ref(db, 'telegram_config'), (snapshot) => {
     const config = snapshot.val();
     if (config) {
@@ -228,11 +258,12 @@
     render();
   };
 
-  // Vòng lặp đếm ngược và kiểm tra thời gian thực
+  // Cập nhật bộ đếm và thanh Quick Preview Bar
   function checkAndUpdateTimers() {
     const now = Date.now();
     let stateChanged = false;
 
+    // 1. Cập nhật từng card chính
     cards.forEach((c, idx) => {
       const el = document.getElementById(`remain-${idx}`);
       if (!el) return;
@@ -247,7 +278,6 @@
           el.innerText = `Time Remaining: ${h}:${m}:${s}`;
           el.style.color = remainSecs <= 30 ? 'red' : 'black';
 
-          // Gửi thông báo trước 60 giây
           if (remainSecs <= 60 && !c.warned60s) {
             c.warned60s = true;
             stateChanged = true;
@@ -263,7 +293,6 @@
             sendTelegram(`${c.name}: Đã đến thời điểm hẹn!`);
           }
 
-          // Xử lý Auto-Set Next tự động lặp lại
           if (c.auto && !c.processed) {
             c.processed = true;
             setTimeout(() => {
@@ -289,9 +318,48 @@
       }
     });
 
+    // 2. Lọc và cập nhật thanh Quick Preview Bar (3 card gần đến giờ nhất)
+    updateQuickPreviewBar(now);
+
     if (stateChanged) {
       saveCardsToFirebase();
     }
+  }
+
+  function updateQuickPreviewBar(now) {
+    const previewBar = document.getElementById('quickPreviewBar');
+    if (!previewBar) return;
+
+    // Lọc ra các card đang bật đếm ngược (có target)
+    let activeCards = cards.filter(c => c.target && (c.target - now > 0));
+
+    // Sắp xếp tăng dần theo thời gian target (card nào gần đến giờ nhất lên đầu)
+    activeCards.sort((a, b) => a.target - b.target);
+
+    // Lấy tối đa 3 card đầu tiên
+    let top3 = activeCards.slice(0, 3);
+
+    if (top3.length === 0) {
+      previewBar.innerHTML = `<span style="color: #adb5bd; font-size: 0.9em; font-style: italic;">Không có timer nào đang chạy</span>`;
+      return;
+    }
+
+    let html = '';
+    top3.forEach(c => {
+      const remainSecs = Math.ceil((c.target - now) / 1000);
+      const h = String(Math.floor(remainSecs / 3600)).padStart(2, '0');
+      const m = String(Math.floor((remainSecs % 3600) / 60)).padStart(2, '0');
+      const s = String(remainSecs % 60).padStart(2, '0');
+      const isUrgent = remainSecs <= 60; // Tô đỏ nhẹ nếu dưới 60 giây
+
+      html += `
+        <div class="preview-chip ${isUrgent ? 'urgent' : ''}">
+          <span class="preview-name">${c.name}:</span>
+          <span>${h}:${m}:${s}</span>
+        </div>
+      `;
+    });
+    previewBar.innerHTML = html;
   }
 
   setInterval(checkAndUpdateTimers, 200);
