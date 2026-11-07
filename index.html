@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lander Timer Web v3.5 (Clipboard Paste + AI Vision)</title>
+  <title>Lander Timer Web v3.6 (Floating Toast Preview + Controls)</title>
   <style>
     * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-    body { background-color: #f4f6f9; margin: 0; padding: 20px; }
+    body { background-color: #f4f6f9; margin: 0; padding: 20px; padding-bottom: 80px; }
     .top-bar { 
       display: flex; 
       gap: 10px; 
@@ -26,23 +26,67 @@
     .btn-close { background: #dc3545; color: white; }
     .btn-edit { background: #e9ecef; border: 1px solid #ced4da; padding: 2px 6px; font-size: 0.85em; }
     
-    .quick-preview-bar {
+    /* --- TOAST MENU NỔI GÓC DƯỚI BÊN PHẢI --- */
+    .toast-preview-container {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid #cbd5e1;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+      padding: 12px 16px;
+      border-radius: 12px;
+      z-index: 9999;
       display: flex;
+      flex-direction: column;
       gap: 8px;
-      flex-grow: 1;
-      justify-content: center;
+      backdrop-filter: blur(5px);
+      max-width: 380px;
+      min-width: 280px;
+    }
+    .toast-header {
+      display: flex;
+      justify-content: space-between;
       align-items: center;
-      flex-wrap: wrap;
-      margin: 0 10px;
+      font-size: 0.85em;
+      font-weight: bold;
+      color: #475569;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 6px;
+    }
+    .toast-controls {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .toast-btn-ctrl {
+      background: #e2e8f0;
+      border: none;
+      border-radius: 4px;
+      width: 22px;
+      height: 22px;
+      font-weight: bold;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9em;
+      padding: 0;
+    }
+    .toast-btn-ctrl:hover { background: #cbd5e1; }
+    .toast-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
     }
     .preview-chip {
-      background: #e9ecef;
-      border: 1px solid #ced4da;
-      padding: 5px 10px;
-      border-radius: 6px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      padding: 6px 10px;
+      border-radius: 8px;
       font-size: 0.85em;
       display: flex;
-      gap: 6px;
+      justify-content: space-between;
       align-items: center;
       font-weight: 500;
     }
@@ -82,16 +126,13 @@
     <button class="btn-add" onclick="addCard()">+ Add Card</button>
     <button class="btn-wipe" onclick="wipeAll()">🧹 Wipe All</button>
     
-    <!-- Upload từ Local Storage -->
     <label class="btn-ocr btn-upload" title="Hoặc nhấn Ctrl + V để dán ảnh trực tiếp từ Clipboard">
       🤖 AI Scan Image (Hoặc Ctrl+V)
       <input type="file" id="ocrFileinput" accept="image/*" style="display: none;" onchange="handleFileSelected(event)">
     </label>
     <span id="loadingOcr">⏳ AI đang đọc ảnh & tự động cập nhật...</span>
 
-    <div class="quick-preview-bar" id="quickPreviewBar"></div>
-
-    <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+    <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-left: auto;">
       <input type="text" id="geminiKey" placeholder="Gemini API Key" style="width: 150px; padding: 6px; border: 1px solid #ccc; border-radius: 4px;" oninput="saveSettingsToFirebase()">
       <input type="text" id="tgToken" placeholder="Telegram Token" style="width: 180px; padding: 6px; border: 1px solid #ccc; border-radius: 4px;" oninput="saveSettingsToFirebase()">
       <input type="text" id="tgChatId" placeholder="Chat ID" style="width: 110px; padding: 6px; border: 1px solid #ccc; border-radius: 4px;" oninput="saveSettingsToFirebase()">
@@ -99,6 +140,21 @@
   </div>
 
   <div class="grid-container" id="cardContainer"></div>
+
+  <!-- TOAST MENU NỔI HIỂN THỊ CÁC CARD SẮP ĐẾN GIỜ -->
+  <div class="toast-preview-container" id="toastPreviewContainer">
+    <div class="toast-header">
+      <span>🔔 SẮP ĐẾN GIỜ (${limitCount})</span>
+      <div class="toast-controls">
+        <button class="toast-btn-ctrl" onclick="adjustToastLimit(-1)" title="Giảm số lượng">-</button>
+        <span id="toastLimitDisplay" style="min-width: 16px; text-align: center;">3</span>
+        <button class="toast-btn-ctrl" onclick="adjustToastLimit(1)" title="Tăng số lượng">+</button>
+      </div>
+    </div>
+    <div class="toast-list" id="toastList">
+      <span style="color: #94a3b8; font-size: 0.85em; font-style: italic; text-align: center; padding: 4px;">Không có timer nào đang chạy</span>
+    </div>
+  </div>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-app.js";
@@ -121,8 +177,19 @@
     { id: 1, name: 'Orfen', h: 0, m: 5, s: 0, target: null, delay: null, auto: false, offset: 15, warned60s: false }
   ];
 
+  let limitCount = 3; // Mặc định hiển thị 3 card sắp đến giờ
   let isRemoteUpdating = false;
   let currentOcrImageBlob = null;
+
+  window.adjustToastLimit = function(delta) {
+    limitCount += delta;
+    if (limitCount < 1) limitCount = 1;
+    if (limitCount > 10) limitCount = 10;
+    document.getElementById('toastLimitDisplay').innerText = limitCount;
+    // Cập nhật lại tiêu đề toast
+    document.querySelector('.toast-header span').innerText = `🔔 SẮP ĐẾN GIỜ (${limitCount})`;
+    checkAndUpdateTimers();
+  };
 
   onValue(ref(db, 'lander_cards'), (snapshot) => {
     const data = snapshot.val();
@@ -170,7 +237,6 @@
     }).catch(err => console.error('Lỗi gửi Telegram:', err));
   };
 
-  // --- LẮNG NGHE SỰ KIỆN DÁN ẢNH TỪ CLIPBOARD (CTRL + V) ---
   document.addEventListener('paste', function(event) {
     const items = (event.clipboardData || event.originalEvent.clipboardData).items;
     for (let index in items) {
@@ -179,21 +245,19 @@
         let blob = item.getAsFile();
         console.log("[Clipboard] 📋 Phát hiện ảnh được dán từ Clipboard!");
         processAndSendAiOcr(blob);
-        event.preventDefault(); // Ngăn chặn sự kiện dán mặc định nếu có
+        event.preventDefault();
         break;
       }
     }
   });
 
-  // Xử lý khi chọn file từ nút bấm Local
   window.handleFileSelected = function(event) {
     const file = event.target.files[0];
     if (!file) return;
     processAndSendAiOcr(file);
-    event.target.value = ''; // Reset input để có thể chọn lại cùng 1 file
+    event.target.value = '';
   };
 
-  // --- HÀM XỬ LÝ CHUNG CHO CẢ LOCAL FILE VÀ CLIPBOARD BLOB ---
   async function processAndSendAiOcr(fileOrBlob) {
     const apiKey = document.getElementById('geminiKey').value.trim();
     if (!apiKey) {
@@ -268,7 +332,7 @@
   function parseAiDataAndSync(bossDataArray, apiResponseTimeSecs) {
     let updatedCount = 0;
     let addedCount = 0;
-    const baseLatencyOffset = 20; // 20 giây cơ bản
+    const baseLatencyOffset = 20; 
     const totalCompensationSecs = baseLatencyOffset + apiResponseTimeSecs;
 
     console.log(`[AI OCR] ⏱️ Tổng thời gian trừ bù (20s + ${apiResponseTimeSecs.toFixed(2)}s chờ API): -${totalCompensationSecs.toFixed(2)} giây`);
@@ -481,28 +545,28 @@
       }
     });
 
-    updateQuickPreviewBar(now);
+    updateToastPreview(now);
 
     if (stateChanged) {
       saveCardsToFirebase();
     }
   }
 
-  function updateQuickPreviewBar(now) {
-    const previewBar = document.getElementById('quickPreviewBar');
-    if (!previewBar) return;
+  function updateToastPreview(now) {
+    const toastList = document.getElementById('toastList');
+    if (!toastList) return;
 
     let activeCards = cards.filter(c => c.target && (c.target - now > 0));
     activeCards.sort((a, b) => a.target - b.target);
-    let top3 = activeCards.slice(0, 3);
+    let topCards = activeCards.slice(0, limitCount);
 
-    if (top3.length === 0) {
-      previewBar.innerHTML = `<span style="color: #adb5bd; font-size: 0.9em; font-style: italic;">Không có timer nào đang chạy</span>`;
+    if (topCards.length === 0) {
+      toastList.innerHTML = `<span style="color: #94a3b8; font-size: 0.85em; font-style: italic; text-align: center; padding: 4px;">Không có timer nào đang chạy</span>`;
       return;
     }
 
     let html = '';
-    top3.forEach(c => {
+    topCards.forEach(c => {
       const remainSecs = Math.ceil((c.target - now) / 1000);
       const h = String(Math.floor(remainSecs / 3600)).padStart(2, '0');
       const m = String(Math.floor((remainSecs % 3600) / 60)).padStart(2, '0');
@@ -516,7 +580,7 @@
         </div>
       `;
     });
-    previewBar.innerHTML = html;
+    toastList.innerHTML = html;
   }
 
   setInterval(checkAndUpdateTimers, 200);
