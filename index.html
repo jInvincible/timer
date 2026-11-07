@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lander Timer Web v3.3 (Auto Sync AI Vision)</title>
+  <title>Lander Timer Web v3.4 (Auto Subtraction Latency Compensation)</title>
   <style>
     * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     body { background-color: #f4f6f9; margin: 0; padding: 20px; }
@@ -248,10 +248,11 @@
   function parseAiDataAndSync(bossDataArray, apiResponseTimeSecs) {
     let updatedCount = 0;
     let addedCount = 0;
-    const baseLatencyOffset = 20; // 20 giây cơ bản (chụp/lưu file)
+    const baseLatencyOffset = 20; // 20 giây cơ bản
+    // Đã thay đổi logic: TRỪ (-) thay vì cộng (+) thời gian chờ và độ trễ
     const totalCompensationSecs = baseLatencyOffset + apiResponseTimeSecs;
 
-    console.log(`[AI OCR] ⏱️ Tổng thời gian bù giờ (20s + ${apiResponseTimeSecs.toFixed(2)}s chờ API): +${totalCompensationSecs.toFixed(2)} giây`);
+    console.log(`[AI OCR] ⏱️ Tổng thời gian trừ bù (20s + ${apiResponseTimeSecs.toFixed(2)}s chờ API): -${totalCompensationSecs.toFixed(2)} giây`);
 
     bossDataArray.forEach(item => {
       let bossName = item.name;
@@ -260,9 +261,10 @@
       let rawS = item.s || 0;
 
       let ocrTotalSecs = (rawH * 3600) + (rawM * 60) + rawS;
-      let finalTotalSecs = ocrTotalSecs + totalCompensationSecs;
+      let finalTotalSecs = ocrTotalSecs - totalCompensationSecs;
+      if (finalTotalSecs < 0) finalTotalSecs = 0; // Đảm bảo không âm
 
-      if (finalTotalSecs > 0) {
+      if (finalTotalSecs >= 0) {
         let newH = Math.floor(finalTotalSecs / 3600);
         let newM = Math.floor((finalTotalSecs % 3600) / 60);
         let newS = Math.floor(finalTotalSecs % 60);
@@ -277,7 +279,7 @@
           existingCard.target = Date.now() + finalTotalSecs * 1000;
           existingCard.warned60s = false;
           updatedCount++;
-          console.log(`[Sync Card] 🔄 Cập nhật Boss [${bossName}]: OCR đọc được [${rawH}h ${rawM}m ${rawS}s] -> Target mới sau bù giờ: ${newH}h ${newM}m ${newS}s`);
+          console.log(`[Sync Card] 🔄 Cập nhật Boss [${bossName}]: OCR đọc được [${rawH}h ${rawM}m ${rawS}s] -> Target mới sau trừ bù: ${newH}h ${newM}m ${newS}s`);
         } else {
           cards.push({
             id: Date.now() + Math.random(),
@@ -292,7 +294,7 @@
             warned60s: false
           });
           addedCount++;
-          console.log(`[Sync Card] ➕ Tạo mới Boss [${bossName}]: Target sau bù giờ: ${newH}h ${newM}m ${newS}s`);
+          console.log(`[Sync Card] ➕ Tạo mới Boss [${bossName}]: Target sau trừ bù: ${newH}h ${newM}m ${newS}s`);
         }
       }
     });
