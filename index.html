@@ -3,7 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lander Timer Web v1.7 (Firebase Sync + Quick Bar)</title>
+  <title>Lander Timer Web v1.8 (Firebase Sync + OCR)</title>
+  <!-- Tesseract.js cho tính năng OCR trực tiếp trên trình duyệt -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <style>
     * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     body { background-color: #f4f6f9; margin: 0; padding: 20px; }
@@ -18,14 +20,15 @@
       box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
       flex-wrap: wrap;
     }
-    button { padding: 8px 14px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+    button, .btn-upload { padding: 8px 14px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.9em; display: inline-flex; align-items: center; justify-content: center; }
     .btn-add { background: #007bff; color: white; }
     .btn-wipe { background: #6c757d; color: white; }
+    .btn-ocr { background: #6f42c1; color: white; }
     .btn-set { background: #28a745; color: white; }
     .btn-close { background: #dc3545; color: white; }
     .btn-edit { background: #e9ecef; border: 1px solid #ced4da; padding: 2px 6px; font-size: 0.85em; }
     
-    /* Khu vực hiển thị nhanh 3 card sắp tới */
+    /* Quick Preview Bar */
     .quick-preview-bar {
       display: flex;
       gap: 8px;
@@ -72,6 +75,8 @@
     .actions { display: flex; justify-content: center; gap: 6px; margin-bottom: 10px; }
     .auto-set { font-size: 0.85em; display: flex; align-items: center; gap: 5px; justify-content: center; background: #f8f9fa; padding: 6px; border-radius: 4px; }
     .auto-set input[type="number"] { width: 50px; text-align: center; border: 1px solid #ccc; border-radius: 4px; }
+    
+    #loadingOcr { display: none; font-size: 0.85em; color: #6f42c1; font-weight: bold; margin-left: 5px; }
   </style>
 </head>
 <body>
@@ -80,12 +85,19 @@
     <button class="btn-add" onclick="addCard()">+ Add Card</button>
     <button class="btn-wipe" onclick="wipeAll()">🧹 Wipe All</button>
     
-    <!-- KHU VỰC HIỂN THỊ NHANH 3 CARD GẦN ĐẾN GIỜ NHẤT -->
+    <!-- Nút upload ảnh OCR -->
+    <label class="btn-ocr btn-upload">
+      📷 Scan OCR Image
+      <input type="file" id="ocrFileinput" accept="image/*" style="display: none;" onchange="handleOcrUpload(event)">
+    </label>
+    <span id="loadingOcr">⏳ Đang quét OCR...</span>
+
+    <!-- Quick Preview Bar -->
     <div class="quick-preview-bar" id="quickPreviewBar"></div>
 
     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-      <input type="text" id="tgToken" placeholder="Telegram Bot Token" style="width: 220px; padding: 6px; border: 1px solid #ccc; border-radius: 4px;" oninput="saveSettingsToFirebase()">
-      <input type="text" id="tgChatId" placeholder="Telegram Chat ID" style="width: 130px; padding: 6px; border: 1px solid #ccc; border-radius: 4px;" oninput="saveSettingsToFirebase()">
+      <input type="text" id="tgToken" placeholder="Telegram Bot Token" style="width: 200px; padding: 6px; border: 1px solid #ccc; border-radius: 4px;" oninput="saveSettingsToFirebase()">
+      <input type="text" id="tgChatId" placeholder="Telegram Chat ID" style="width: 120px; padding: 6px; border: 1px solid #ccc; border-radius: 4px;" oninput="saveSettingsToFirebase()">
     </div>
   </div>
 
@@ -114,6 +126,7 @@
   ];
 
   let isRemoteUpdating = false;
+  let currentOcrImageBlob = null; // Biến lưu trữ 1 hình ảnh OCR gần nhất ở local
 
   onValue(ref(db, 'lander_cards'), (snapshot) => {
     const data = snapshot.val();
@@ -157,6 +170,111 @@
       body: JSON.stringify({ chat_id: chatId, text: msg })
     }).catch(err => console.error('Lỗi gửi Telegram:', err));
   };
+
+  // --- XỬ LÝ QUÉT OCR TỪ HÌNH ẢNH ĐÍNH KÈM ---
+  window.handleOcrUpload = async function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Giải phóng hình ảnh cũ (nếu có) và lưu hình ảnh mới nhất vào local memory
+    if (currentOcrImageBlob) {
+      URL.revokeObjectURL(currentOcrImageBlob);
+    }
+    currentOcrImageBlob = URL.createObjectURL(file);
+    console.log("Đã lưu trữ 1 hình ảnh OCR mới nhất tại local:", currentOcrImageBlob);
+
+    const loadingEl = document.getElementById('loadingOcr');
+    loadingEl.style.display = 'inline';
+
+    try {
+      // Thực hiện quét OCR bằng Tesseract.js
+      const worker = await Tesseract.createWorker('eng');
+      const ret = await worker.recognize(file);
+      await worker.terminate();
+
+      const text = ret.data.text;
+      parseOcrTextAndSync(text);
+    } catch (err) {
+      console.error("Lỗi khi quét OCR:", err);
+      alert("Quét OCR thất bại, vui lòng thử lại!");
+    } finally {
+      loadingEl.style.display = 'none';
+      event.target.value = ''; // Reset input file để có thể chọn lại đúng file đó nếu muốn
+    }
+  };
+
+  // Phân tích văn bản OCR từ bảng Raidboss
+  function parseOcrTextAndSync(text) {
+    const lines = text.split('\n');
+    let updatedCount = 0;
+    let addedCount = 0;
+
+    lines.forEach(line => {
+      // Dùng Regex bóc tách thời gian countdown ở cuối dòng (ví dụ: "7h 42m 10s", "55m 50s", "1h 18m")[cite: 4]
+      const timeMatch = line.match(/(?:(\d+)\s*h)?\s*(?:(\d+)\s*m)?\s*(?:(\d+)\s*s)?$/i);
+      
+      // Danh sách các Boss tiêu chuẩn mẫu hoặc quét tên đứng trước cột Activated
+      // Ta lấy các từ khóa nằm trước các từ trạng thái như "Activated", "ON", "OFF"
+      let cleanLine = line.replace(/Activated|ON|OFF|GO/gi, '|').trim();
+      let parts = cleanLine.split('|').map(p => p.trim()).filter(p => p.length > 0);
+
+      if (parts.length > 0) {
+        let bossName = parts[0];
+        // Lọc bỏ các từ rác hoặc quá ngắn
+        if (bossName.length < 2 || /^\d+$/.test(bossName)) return;
+
+        // Tìm đoạn thời gian trong dòng
+        let h = 0, m = 0, s = 0;
+        let foundTime = false;
+
+        const hrMatch = line.match(/(\d+)\s*h/i);
+        const minMatch = line.match(/(\d+)\s*m/i);
+        const secMatch = line.match(/(\d+)\s*s/i);
+
+        if (hrMatch) { h = parseInt(hrMatch[1]); foundTime = true; }
+        if (minMatch) { m = parseInt(minMatch[1]); foundTime = true; }
+        if (secMatch) { s = parseInt(secMatch[1]); foundTime = true; }
+
+        if (foundTime) {
+          const totalSecs = (h * 3600) + (m * 60) + s;
+          if (totalSecs > 0) {
+            // Kiểm tra xem chip (card) với tên boss này đã tồn tại chưa
+            let existingCard = cards.find(c => c.name.toLowerCase() === bossName.toLowerCase());
+
+            if (existingCard) {
+              // Cập nhật mới nếu đã có sẵn
+              existingCard.h = h;
+              existingCard.m = m;
+              existingCard.s = s;
+              existingCard.delay = totalSecs;
+              existingCard.target = Date.now() + totalSecs * 1000;
+              existingCard.warned60s = false;
+              updatedCount++;
+            } else {
+              // Tự động tạo mới nếu chưa tồn tại
+              cards.push({
+                id: Date.now() + Math.random(),
+                name: bossName,
+                h: h,
+                m: m,
+                s: s,
+                target: Date.now() + totalSecs * 1000,
+                delay: totalSecs,
+                auto: false,
+                offset: 15,
+                warned60s: false
+              });
+              addedCount++;
+            }
+          }
+        }
+      }
+    });
+
+    saveCardsToFirebase();
+    render();
+    alert(`OCR hoàn tất!\n- Đã tạo mới: ${addedCount} card\n- Đã cập nhật: ${updatedCount} card`);
+  }
 
   window.render = function() {
     const container = document.getElementById('cardContainer');
@@ -258,12 +376,10 @@
     render();
   };
 
-  // Cập nhật bộ đếm và thanh Quick Preview Bar
   function checkAndUpdateTimers() {
     const now = Date.now();
     let stateChanged = false;
 
-    // 1. Cập nhật từng card chính
     cards.forEach((c, idx) => {
       const el = document.getElementById(`remain-${idx}`);
       if (!el) return;
@@ -318,7 +434,6 @@
       }
     });
 
-    // 2. Lọc và cập nhật thanh Quick Preview Bar (3 card gần đến giờ nhất)
     updateQuickPreviewBar(now);
 
     if (stateChanged) {
@@ -330,13 +445,8 @@
     const previewBar = document.getElementById('quickPreviewBar');
     if (!previewBar) return;
 
-    // Lọc ra các card đang bật đếm ngược (có target)
     let activeCards = cards.filter(c => c.target && (c.target - now > 0));
-
-    // Sắp xếp tăng dần theo thời gian target (card nào gần đến giờ nhất lên đầu)
     activeCards.sort((a, b) => a.target - b.target);
-
-    // Lấy tối đa 3 card đầu tiên
     let top3 = activeCards.slice(0, 3);
 
     if (top3.length === 0) {
@@ -350,7 +460,7 @@
       const h = String(Math.floor(remainSecs / 3600)).padStart(2, '0');
       const m = String(Math.floor((remainSecs % 3600) / 60)).padStart(2, '0');
       const s = String(remainSecs % 60).padStart(2, '0');
-      const isUrgent = remainSecs <= 60; // Tô đỏ nhẹ nếu dưới 60 giây
+      const isUrgent = remainSecs <= 60;
 
       html += `
         <div class="preview-chip ${isUrgent ? 'urgent' : ''}">
