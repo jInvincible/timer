@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lander Timer Web v3.2 (Gemini AI Vision + Network Latency Compensation)</title>
+  <title>Lander Timer Web v3.3 (Auto Sync AI Vision)</title>
   <style>
     * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     body { background-color: #f4f6f9; margin: 0; padding: 20px; }
@@ -86,7 +86,7 @@
       🤖 AI Scan Image
       <input type="file" id="ocrFileinput" accept="image/*" style="display: none;" onchange="handleAiOcrUpload(event)">
     </label>
-    <span id="loadingOcr">⏳ AI đang đọc ảnh...</span>
+    <span id="loadingOcr">⏳ AI đang đọc ảnh & tự động cập nhật...</span>
 
     <div class="quick-preview-bar" id="quickPreviewBar"></div>
 
@@ -188,7 +188,6 @@
     const loadingEl = document.getElementById('loadingOcr');
     loadingEl.style.display = 'inline';
 
-    // Bắt đầu bấm giờ đo độ trễ mạng và phản hồi của API AI Vision
     const requestStartTime = performance.now();
     console.log(`[AI OCR] 🚀 Bắt đầu gửi ảnh lên Gemini API lúc: ${new Date().toLocaleTimeString()}`);
 
@@ -249,10 +248,10 @@
   function parseAiDataAndSync(bossDataArray, apiResponseTimeSecs) {
     let updatedCount = 0;
     let addedCount = 0;
-    const baseLatencyOffset = 20; // 20 giây độ trễ chụp/lưu file thủ công cơ bản
+    const baseLatencyOffset = 20; // 20 giây cơ bản (chụp/lưu file)
     const totalCompensationSecs = baseLatencyOffset + apiResponseTimeSecs;
 
-    console.log(`[AI OCR] ⏱️ Tổng thời gian bù giờ (20s thao tác + ${apiResponseTimeSecs.toFixed(2)}s chờ API): +${totalCompensationSecs.toFixed(2)} giây`);
+    console.log(`[AI OCR] ⏱️ Tổng thời gian bù giờ (20s + ${apiResponseTimeSecs.toFixed(2)}s chờ API): +${totalCompensationSecs.toFixed(2)} giây`);
 
     bossDataArray.forEach(item => {
       let bossName = item.name;
@@ -300,7 +299,7 @@
 
     saveCardsToFirebase();
     render();
-    alert(`AI Vision hoàn thành!\n- Thời gian chờ API: ${apiResponseTimeSecs.toFixed(1)}s (đã tự động cộng bù)\n- Tạo mới: ${addedCount} card\n- Cập nhật: ${updatedCount} card`);
+    console.log(`[AI OCR] ✨ Đã cập nhật giao diện và đồng bộ Firebase thành công! (Tạo mới: ${addedCount}, Cập nhật: ${updatedCount})`);
   }
 
   window.render = function() {
