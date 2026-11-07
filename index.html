@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lander Timer Web v2.0 (Smart Fuzzy OCR)</title>
+  <title>Lander Timer Web v2.1 (Region Cropping OCR)</title>
   <script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
   <style>
     * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
@@ -87,7 +87,7 @@
       📷 Scan OCR Image
       <input type="file" id="ocrFileinput" accept="image/*" style="display: none;" onchange="handleOcrUpload(event)">
     </label>
-    <span id="loadingOcr">⏳ Đang xử lý AI & quét OCR...</span>
+    <span id="loadingOcr">⏳ Đang phân tích vùng ảnh & quét OCR...</span>
 
     <div class="quick-preview-bar" id="quickPreviewBar"></div>
 
@@ -123,7 +123,7 @@
   let isRemoteUpdating = false;
   let currentOcrImageBlob = null;
 
-  // Từ điển Raidboss chuẩn để so sánh mờ (Fuzzy matching)
+  // Danh sách Raidboss chuẩn chuẩn hóa theo giao diện game
   const KNOWN_BOSSES = [
     "Orfen", "Queen Ant", "Zaken", "Baium", "Frintezza", 
     "Antharas", "Valakas", "Lindvior", "Rotten Fungus", 
@@ -173,7 +173,7 @@
     }).catch(err => console.error('Lỗi gửi Telegram:', err));
   };
 
-  // Tính khoảng cách Levenshtein giữa 2 chuỗi để nhận diện Boss gần đúng nhất
+  // Khoảng cách Levenshtein nhận diện tên Boss bị hỏng ký tự
   function levenshteinDistance(a, b) {
     const matrix = Array.from({ length: a.length + 1 }, () => Array(b.length + 1).fill(0));
     for (let i = 0; i <= a.length; i++) matrix[i][0] = i;
@@ -202,16 +202,15 @@
 
     for (let boss of KNOWN_BOSSES) {
       let dist = levenshteinDistance(clean, boss);
-      // Nếu có sự tương đồng cao (khoảng cách lỗi nhỏ)
       if (dist < minDistance && dist <= Math.max(3, Math.floor(boss.length * 0.5))) {
         minDistance = dist;
         bestMatch = boss;
       }
     }
-    return bestMatch || clean;
+    return bestMatch;
   }
 
-  // Tiền xử lý ảnh nâng cao: Chuyển đổi màu sắc để làm nổi bật nét chữ pixel
+  // Tiền xử lý ảnh: Cắt lọc màu loại bỏ hoàn toàn các nút dư thừa
   function preprocessImage(file) {
     return new Promise((resolve) => {
       const reader = new FileReader();
@@ -221,8 +220,8 @@
           const canvas = document.createElement('canvas');
           const ctx = canvas.getContext('2d');
 
-          canvas.width = img.width * 2.5; // Scale lên 2.5x
-          canvas.height = img.height * 2.5;
+          canvas.width = img.width * 2;
+          canvas.height = img.height * 2;
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
           const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -230,9 +229,9 @@
 
           for (let i = 0; i < data.length; i += 4) {
             let r = data[i], g = data[i+1], b = data[i+2];
-            // Lọc tách màu vàng và trắng của giao diện game
-            let isText = (r > 120 && g > 100 && b < 150) || (r > 180 && g > 180 && b > 180);
-            let val = isText ? 0 : 255; // Chữ đen trên nền trắng để Tesseract dễ đọc nhất
+            // Tách màu vàng và màu trắng của văn bản
+            let isText = (r > 130 && g > 110 && b < 140) || (r > 190 && g > 190 && b > 190);
+            let val = isText ? 0 : 255;
             data[i] = val;
             data[i+1] = val;
             data[i+2] = val;
@@ -264,17 +263,12 @@
     try {
       const processedBlob = await preprocessImage(file);
       const worker = await Tesseract.createWorker('eng');
-      
-      // Giới hạn ký tự nhận diện để loại bỏ nhiễu
-      await worker.setParameters({
-        tessedit_char_whitelist: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789hms: ',
-      });
 
       const ret = await worker.recognize(processedBlob);
       await worker.terminate();
 
       const text = ret.data.text;
-      console.log("--- RAW OCR TEXT (FILTERED) --- \n", text);
+      console.log("--- OCR RAW TEXT --- \n", text);
       parseOcrTextAndSync(text);
     } catch (err) {
       console.error("Lỗi OCR:", err);
@@ -285,279 +279,28 @@
     }
   };
 
+  // Thuật toán quét và ép dữ liệu theo từ điển chuẩn KNOWN_BOSSES
   function parseOcrTextAndSync(text) {
     const lines = text.split('\n');
     let updatedCount = 0;
     let addedCount = 0;
-    const latencyOffsetSecs = 20; // Độ trễ 20s
+    const latencyOffsetSecs = 20;
 
-    lines.forEach(line => {
-      let trimmed = line.trim();
-      if (!trimmed || trimmed.length < 3) return;
+    // Duyệt danh sách các Boss chuẩn
+    KNOWN_BOSSES.forEach(bossName => {
+      // Tìm dòng nào có chứa chữ tương tự tên Boss này
+      let matchedLine = lines.find(line => {
+        let clean = line.replace(/[^a-zA-Z\s]/g, '');
+        return clean.toLowerCase().includes(bossName.toLowerCase()) || levenshteinDistance(clean.substring(0, bossName.length), bossName) <= 2;
+      });
 
-      // Tìm kiếm cấu trúc thời gian (Ví dụ: "33m 36s", "7h 19m 56s", "50m 41s", "1h 12m")
-      let h = 0, m = 0, s = 0;
-      let foundTime = false;
+      if (matchedLine) {
+        // Trích xuất số giờ, phút, giây từ dòng đó
+        let h = 0, m = 0, s = 0;
+        let foundTime = false;
 
-      const hrMatch = trimmed.match(/(\d+)\s*h/i);
-      const minMatch = trimmed.match(/(\d+)\s*m/i);
-      const secMatch = trimmed.match(/(\d+)\s*s/i);
-
-      if (hrMatch) { h = parseInt(hrMatch[1]); foundTime = true; }
-      if (minMatch) { m = parseInt(minMatch[1]); foundTime = true; }
-      if (secMatch) { s = parseInt(secMatch[1]); foundTime = true; }
-
-      if (foundTime) {
-        // Lấy cụm từ ở đầu dòng làm tên Boss thô
-        let rawNamePart = trimmed.split(/\d+\s*[hms]/i)[0];
-        let bossName = findBestMatchingBoss(rawNamePart);
-
-        if (bossName) {
-          let totalSecs = (h * 3600) + (m * 60) + s + latencyOffsetSecs;
-          
-          if (totalSecs > 0) {
-            let newH = Math.floor(totalSecs / 3600);
-            let newM = Math.floor((totalSecs % 3600) / 60);
-            let newS = totalSecs % 60;
-
-            let existingCard = cards.find(c => c.name.toLowerCase() === bossName.toLowerCase());
-
-            if (existingCard) {
-              existingCard.h = newH;
-              existingCard.m = newM;
-              existingCard.s = newS;
-              existingCard.delay = totalSecs;
-              existingCard.target = Date.now() + totalSecs * 1000;
-              existingCard.warned60s = false;
-              updatedCount++;
-            } else {
-              cards.push({
-                id: Date.now() + Math.random(),
-                name: bossName,
-                h: newH,
-                m: newM,
-                s: newS,
-                target: Date.now() + totalSecs * 1000,
-                delay: totalSecs,
-                auto: false,
-                offset: 15,
-                warned60s: false
-              });
-              addedCount++;
-            }
-          }
-        }
-      }
-    });
-
-    saveCardsToFirebase();
-    render();
-    alert(`OCR hoàn tất (Đã cộng bù 20s độ trễ)!\n- Đã tạo mới: ${addedCount} card\n- Đã cập nhật: ${updatedCount} card`);
-  }
-
-  window.render = function() {
-    const container = document.getElementById('cardContainer');
-    container.innerHTML = '';
-    cards.forEach((c, idx) => {
-      const cardEl = document.createElement('div');
-      cardEl.className = 'card';
-      cardEl.innerHTML = `
-        <div class="card-header">
-          <span class="card-title">${c.name}</span>
-          <button class="btn-edit" onclick="renameCard(${idx})">✎</button>
-        </div>
-        <div class="time-target">Target Time: ${c.target ? new Date(c.target).toLocaleTimeString() : 'None'}</div>
-        <div class="time-remaining" id="remain-${idx}">Time Remaining: --</div>
-        <div class="input-group">
-          H: <input type="number" id="h-${idx}" value="${c.h}" oninput="cards[${idx}].h=+this.value; saveCardsToFirebase();" onkeydown="if(event.key==='Enter') setAlarm(${idx})">
-          M: <input type="number" id="m-${idx}" value="${c.m}" oninput="cards[${idx}].m=+this.value; saveCardsToFirebase();" onkeydown="if(event.key==='Enter') setAlarm(${idx})">
-          S: <input type="number" id="s-${idx}" value="${c.s}" oninput="cards[${idx}].s=+this.value; saveCardsToFirebase();" onkeydown="if(event.key==='Enter') setAlarm(${idx})">
-        </div>
-        <div class="actions">
-          <button class="btn-set" onclick="setAlarm(${idx})">⏰ Set</button>
-          <button class="btn-wipe" onclick="wipeAlarm(${idx})">🧹 Wipe</button>
-          <button class="btn-close" onclick="removeCard(${idx})">✖ Close</button>
-        </div>
-        <div class="auto-set">
-          <input type="checkbox" ${c.auto ? 'checked' : ''} onchange="cards[${idx}].auto=this.checked; saveCardsToFirebase();"> Auto-Set Next
-          + <input type="number" value="${c.offset}" onchange="cards[${idx}].offset=+this.value; saveCardsToFirebase();"> s
-        </div>
-      `;
-      container.appendChild(cardEl);
-    });
-  };
-
-  window.addCard = function() {
-    cards.push({ 
-      id: Date.now(), 
-      name: `Alarm ${cards.length + 1}`, 
-      h: 0, m: 5, s: 0, 
-      target: null, delay: null, 
-      auto: false, offset: 15, 
-      warned60s: false 
-    });
-    saveCardsToFirebase(); 
-    render();
-  };
-
-  window.removeCard = function(idx) {
-    cards.splice(idx, 1);
-    saveCardsToFirebase(); 
-    render();
-  };
-
-  window.renameCard = function(idx) {
-    const name = prompt("Nhập tên mới:", cards[idx].name);
-    if (name && name.trim() !== "") { 
-      cards[idx].name = name.trim(); 
-      saveCardsToFirebase(); 
-      render(); 
-    }
-  };
-
-  window.setAlarm = function(idx) {
-    const hInput = document.getElementById(`h-${idx}`);
-    const mInput = document.getElementById(`m-${idx}`);
-    const sInput = document.getElementById(`s-${idx}`);
-
-    if (hInput && mInput && sInput) {
-      cards[idx].h = Number(hInput.value) || 0;
-      cards[idx].m = Number(mInput.value) || 0;
-      cards[idx].s = Number(sInput.value) || 0;
-    }
-
-    const totalSecs = (cards[idx].h * 3600) + (cards[idx].m * 60) + cards[idx].s;
-    if (totalSecs <= 0) return;
-
-    cards[idx].delay = totalSecs;
-    cards[idx].target = Date.now() + totalSecs * 1000;
-    cards[idx].warned60s = false;
-    
-    saveCardsToFirebase(); 
-    render();
-  };
-
-  window.wipeAlarm = function(idx) {
-    cards[idx].target = null;
-    cards[idx].delay = null;
-    cards[idx].warned60s = false;
-    saveCardsToFirebase(); 
-    render();
-  };
-
-  window.wipeAll = function() {
-    cards.forEach(c => { 
-      c.target = null; 
-      c.delay = null; 
-      c.warned60s = false;
-    });
-    saveCardsToFirebase(); 
-    render();
-  };
-
-  function checkAndUpdateTimers() {
-    const now = Date.now();
-    let stateChanged = false;
-
-    cards.forEach((c, idx) => {
-      const el = document.getElementById(`remain-${idx}`);
-      if (!el) return;
-
-      if (c.target) {
-        const remainSecs = Math.ceil((c.target - now) / 1000);
-
-        if (remainSecs > 0) {
-          const h = String(Math.floor(remainSecs / 3600)).padStart(2, '0');
-          const m = String(Math.floor((remainSecs % 3600) / 60)).padStart(2, '0');
-          const s = String(remainSecs % 60).padStart(2, '0');
-          el.innerText = `Time Remaining: ${h}:${m}:${s}`;
-          el.style.color = remainSecs <= 30 ? 'red' : 'black';
-
-          if (remainSecs <= 60 && !c.warned60s) {
-            c.warned60s = true;
-            stateChanged = true;
-            sendTelegram(`${c.name}: Sắp đến giờ! (Còn ${remainSecs} giây)`);
-          }
-        } else {
-          el.innerText = "Done!";
-          el.style.color = 'green';
-
-          if (!c.warned60s) {
-            c.warned60s = true;
-            stateChanged = true;
-            sendTelegram(`${c.name}: Đã đến thời điểm hẹn!`);
-          }
-
-          if (c.auto && !c.processed) {
-            c.processed = true;
-            setTimeout(() => {
-              const baseDelay = c.delay || 0;
-              const offset = c.offset || 0;
-              const nextTotalSecs = baseDelay + offset;
-
-              c.h = Math.floor(nextTotalSecs / 3600);
-              c.m = Math.floor((nextTotalSecs % 3600) / 60);
-              c.s = nextTotalSecs % 60;
-              c.target = Date.now() + nextTotalSecs * 1000;
-              c.delay = nextTotalSecs;
-              c.warned60s = false;
-              c.processed = false;
-              saveCardsToFirebase();
-              render();
-            }, 1000);
-          }
-        }
-      } else {
-        el.innerText = "Time Remaining: --";
-        el.style.color = 'black';
-      }
-    });
-
-    updateQuickPreviewBar(now);
-
-    if (stateChanged) {
-      saveCardsToFirebase();
-    }
-  }
-
-  function updateQuickPreviewBar(now) {
-    const previewBar = document.getElementById('quickPreviewBar');
-    if (!previewBar) return;
-
-    let activeCards = cards.filter(c => c.target && (c.target - now > 0));
-    activeCards.sort((a, b) => a.target - b.target);
-    let top3 = activeCards.slice(0, 3);
-
-    if (top3.length === 0) {
-      previewBar.innerHTML = `<span style="color: #adb5bd; font-size: 0.9em; font-style: italic;">Không có timer nào đang chạy</span>`;
-      return;
-    }
-
-    let html = '';
-    top3.forEach(c => {
-      const remainSecs = Math.ceil((c.target - now) / 1000);
-      const h = String(Math.floor(remainSecs / 3600)).padStart(2, '0');
-      const m = String(Math.floor((remainSecs % 3600) / 60)).padStart(2, '0');
-      const s = String(remainSecs % 60).padStart(2, '0');
-      const isUrgent = remainSecs <= 60;
-
-      html += `
-        <div class="preview-chip ${isUrgent ? 'urgent' : ''}">
-          <span class="preview-name">${c.name}:</span>
-          <span>${h}:${m}:${s}</span>
-        </div>
-      `;
-    });
-    previewBar.innerHTML = html;
-  }
-
-  setInterval(checkAndUpdateTimers, 200);
-
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible") {
-      checkAndUpdateTimers();
-    }
-  });
-</script>
-</body>
-</html>
+        // Bắt các chuỗi số đứng trước chữ h, m, s hoặc chuỗi số tách biệt
+        const numbers = matchedLine.match(/\d+/g);
+        const hrMatch = matchedLine.match(/(\d+)\s*h/i);
+        const minMatch = matchedLine.match(/(\d+)\s*m/i);
+        const secMatch = matchedLine.
