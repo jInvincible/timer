@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lander Timer Web v1.5.4</title>
+  <title>Lander Timer Web v1.6 (Firebase Sync)</title>
   <style>
     * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     body { background-color: #f4f6f9; margin: 0; padding: 20px; }
@@ -52,37 +52,71 @@
     <button class="btn-add" onclick="addCard()">+ Add Card</button>
     <button class="btn-wipe" onclick="wipeAll()">🧹 Wipe All</button>
     <div style="margin-left: auto; display: flex; gap: 10px; flex-wrap: wrap;">
-      <input type="text" id="tgToken" placeholder="Telegram Bot Token" style="width: 250px; padding: 6px; border: 1px solid #ccc; border-radius: 4px;" onchange="saveSettings()">
-      <input type="text" id="tgChatId" placeholder="Telegram Chat ID" style="width: 140px; padding: 6px; border: 1px solid #ccc; border-radius: 4px;" onchange="saveSettings()">
+      <input type="text" id="tgToken" placeholder="Telegram Bot Token" style="width: 250px; padding: 6px; border: 1px solid #ccc; border-radius: 4px;" oninput="saveSettingsToFirebase()">
+      <input type="text" id="tgChatId" placeholder="Telegram Chat ID" style="width: 140px; padding: 6px; border: 1px solid #ccc; border-radius: 4px;" oninput="saveSettingsToFirebase()">
     </div>
   </div>
 
   <div class="grid-container" id="cardContainer"></div>
 
-<script>
-  let cards = JSON.parse(localStorage.getItem('lander_cards')) || [
+<!-- Nhập các SDK Firebase Modular -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-app.js";
+  import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBB0C4uZAKbg11qqKHWmsI-p5h1TCvHH5Y",
+    authDomain: "lander-timer-sync.firebaseapp.com",
+    databaseURL: "https://lander-timer-sync-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "lander-timer-sync",
+    storageBucket: "lander-timer-sync.firebasestorage.app",
+    messagingSenderId: "1027665520397",
+    appId: "1:1027665520397:web:539ea8ccdd385d6944b244"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+
+  let cards = [
     { id: 1, name: 'Alarm 1', h: 0, m: 5, s: 0, target: null, delay: null, auto: false, offset: 15, warned60s: false }
   ];
 
-  window.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('tgToken').value = localStorage.getItem('tg_token') || '';
-    document.getElementById('tgChatId').value = localStorage.getItem('tg_chat_id') || '';
-    checkAndUpdateTimers(); // Kiểm tra ngay khi tải trang
-    render();
+  let isRemoteUpdating = false;
+
+  // Lắng nghe dữ liệu Cards từ Firebase Realtime Database
+  onValue(ref(db, 'lander_cards'), (snapshot) => {
+    const data = snapshot.val();
+    if (data) {
+      isRemoteUpdating = true;
+      cards = data;
+      render();
+      isRemoteUpdating = false;
+    }
   });
 
-  function saveSettings() {
+  // Lắng nghe cấu hình Telegram từ Firebase Realtime Database
+  onValue(ref(db, 'telegram_config'), (snapshot) => {
+    const config = snapshot.val();
+    if (config) {
+      const tokenInput = document.getElementById('tgToken');
+      const chatIdInput = document.getElementById('tgChatId');
+      if (tokenInput && tokenInput.value !== config.token) tokenInput.value = config.token || '';
+      if (chatIdInput && chatIdInput.value !== config.chatId) chatIdInput.value = config.chatId || '';
+    }
+  });
+
+  window.saveCardsToFirebase = function() {
+    if (isRemoteUpdating) return;
+    set(ref(db, 'lander_cards'), cards);
+  };
+
+  window.saveSettingsToFirebase = function() {
     const token = document.getElementById('tgToken').value.trim();
     const chatId = document.getElementById('tgChatId').value.trim();
-    localStorage.setItem('tg_token', token);
-    localStorage.setItem('tg_chat_id', chatId);
-  }
+    set(ref(db, 'telegram_config'), { token, chatId });
+  };
 
-  function saveCards() {
-    localStorage.setItem('lander_cards', JSON.stringify(cards));
-  }
-
-  function sendTelegram(msg) {
+  window.sendTelegram = function(msg) {
     const token = document.getElementById('tgToken').value.trim();
     const chatId = document.getElementById('tgChatId').value.trim();
     if (!token || !chatId) return;
@@ -92,9 +126,9 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ chat_id: chatId, text: msg })
     }).catch(err => console.error('Lỗi gửi Telegram:', err));
-  }
+  };
 
-  function render() {
+  window.render = function() {
     const container = document.getElementById('cardContainer');
     container.innerHTML = '';
     cards.forEach((c, idx) => {
@@ -108,9 +142,9 @@
         <div class="time-target">Target Time: ${c.target ? new Date(c.target).toLocaleTimeString() : 'None'}</div>
         <div class="time-remaining" id="remain-${idx}">Time Remaining: --</div>
         <div class="input-group">
-          H: <input type="number" id="h-${idx}" value="${c.h}" oninput="cards[${idx}].h=+this.value; saveCards();" onkeydown="if(event.key==='Enter') setAlarm(${idx})">
-          M: <input type="number" id="m-${idx}" value="${c.m}" oninput="cards[${idx}].m=+this.value; saveCards();" onkeydown="if(event.key==='Enter') setAlarm(${idx})">
-          S: <input type="number" id="s-${idx}" value="${c.s}" oninput="cards[${idx}].s=+this.value; saveCards();" onkeydown="if(event.key==='Enter') setAlarm(${idx})">
+          H: <input type="number" id="h-${idx}" value="${c.h}" oninput="cards[${idx}].h=+this.value; saveCardsToFirebase();" onkeydown="if(event.key==='Enter') setAlarm(${idx})">
+          M: <input type="number" id="m-${idx}" value="${c.m}" oninput="cards[${idx}].m=+this.value; saveCardsToFirebase();" onkeydown="if(event.key==='Enter') setAlarm(${idx})">
+          S: <input type="number" id="s-${idx}" value="${c.s}" oninput="cards[${idx}].s=+this.value; saveCardsToFirebase();" onkeydown="if(event.key==='Enter') setAlarm(${idx})">
         </div>
         <div class="actions">
           <button class="btn-set" onclick="setAlarm(${idx})">⏰ Set</button>
@@ -118,15 +152,15 @@
           <button class="btn-close" onclick="removeCard(${idx})">✖ Close</button>
         </div>
         <div class="auto-set">
-          <input type="checkbox" ${c.auto ? 'checked' : ''} onchange="cards[${idx}].auto=this.checked; saveCards();"> Auto-Set Next
-          + <input type="number" value="${c.offset}" onchange="cards[${idx}].offset=+this.value; saveCards();"> s
+          <input type="checkbox" ${c.auto ? 'checked' : ''} onchange="cards[${idx}].auto=this.checked; saveCardsToFirebase();"> Auto-Set Next
+          + <input type="number" value="${c.offset}" onchange="cards[${idx}].offset=+this.value; saveCardsToFirebase();"> s
         </div>
       `;
       container.appendChild(cardEl);
     });
-  }
+  };
 
-  function addCard() {
+  window.addCard = function() {
     cards.push({ 
       id: Date.now(), 
       name: `Alarm ${cards.length + 1}`, 
@@ -135,26 +169,26 @@
       auto: false, offset: 15, 
       warned60s: false 
     });
-    saveCards(); 
+    saveCardsToFirebase(); 
     render();
-  }
+  };
 
-  function removeCard(idx) {
+  window.removeCard = function(idx) {
     cards.splice(idx, 1);
-    saveCards(); 
+    saveCardsToFirebase(); 
     render();
-  }
+  };
 
-  function renameCard(idx) {
+  window.renameCard = function(idx) {
     const name = prompt("Nhập tên mới:", cards[idx].name);
     if (name && name.trim() !== "") { 
       cards[idx].name = name.trim(); 
-      saveCards(); 
+      saveCardsToFirebase(); 
       render(); 
     }
-  }
+  };
 
-  function setAlarm(idx) {
+  window.setAlarm = function(idx) {
     const hInput = document.getElementById(`h-${idx}`);
     const mInput = document.getElementById(`m-${idx}`);
     const sInput = document.getElementById(`s-${idx}`);
@@ -172,29 +206,29 @@
     cards[idx].target = Date.now() + totalSecs * 1000;
     cards[idx].warned60s = false;
     
-    saveCards(); 
+    saveCardsToFirebase(); 
     render();
-  }
+  };
 
-  function wipeAlarm(idx) {
+  window.wipeAlarm = function(idx) {
     cards[idx].target = null;
     cards[idx].delay = null;
     cards[idx].warned60s = false;
-    saveCards(); 
+    saveCardsToFirebase(); 
     render();
-  }
+  };
 
-  function wipeAll() {
+  window.wipeAll = function() {
     cards.forEach(c => { 
       c.target = null; 
       c.delay = null; 
       c.warned60s = false;
     });
-    saveCards(); 
+    saveCardsToFirebase(); 
     render();
-  }
+  };
 
-  // Hàm xử lý kiểm tra và quét thời gian cốt lõi (dùng chung cho cả setInterval và visibilitychange)
+  // Vòng lặp đếm ngược và kiểm tra thời gian thực
   function checkAndUpdateTimers() {
     const now = Date.now();
     let stateChanged = false;
@@ -213,7 +247,7 @@
           el.innerText = `Time Remaining: ${h}:${m}:${s}`;
           el.style.color = remainSecs <= 30 ? 'red' : 'black';
 
-          // Gửi thông báo trước 60 giây (bất kể tab đang active hay chạy ngầm)
+          // Gửi thông báo trước 60 giây
           if (remainSecs <= 60 && !c.warned60s) {
             c.warned60s = true;
             stateChanged = true;
@@ -223,11 +257,10 @@
           el.innerText = "Done!";
           el.style.color = 'green';
 
-          // Nếu mốc thời gian đã trôi qua khi tab đang chạy ngầm, đảm bảo gửi bù thông báo nếu chưa gửi
           if (!c.warned60s) {
             c.warned60s = true;
             stateChanged = true;
-            sendTelegram(`${c.name}: Đã đến thời điểm hẹn (hoặc quá hạn khi tab chạy ngầm)!`);
+            sendTelegram(`${c.name}: Đã đến thời điểm hẹn!`);
           }
 
           // Xử lý Auto-Set Next tự động lặp lại
@@ -245,7 +278,7 @@
               c.delay = nextTotalSecs;
               c.warned60s = false;
               c.processed = false;
-              saveCards();
+              saveCardsToFirebase();
               render();
             }, 1000);
           }
@@ -257,14 +290,12 @@
     });
 
     if (stateChanged) {
-      saveCards();
+      saveCardsToFirebase();
     }
   }
 
-  // Vòng lặp đếm ngược thông thường
   setInterval(checkAndUpdateTimers, 200);
 
-  // KHI USER QUAY LẠI TAB: Lập tức kích hoạt kiểm tra bù giờ ngay lập tức
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") {
       checkAndUpdateTimers();
