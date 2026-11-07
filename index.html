@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lander Timer Web v2.2 (Targeted Color Filtering)</title>
+  <title>Lander Timer Web v2.4 (Inverted Colors OCR)</title>
   <script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
   <style>
     * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
@@ -87,7 +87,7 @@
       📷 Scan OCR Image
       <input type="file" id="ocrFileinput" accept="image/*" style="display: none;" onchange="handleOcrUpload(event)">
     </label>
-    <span id="loadingOcr">⏳ Đang trích xuất màu & quét OCR...</span>
+    <span id="loadingOcr">⏳ Đang đảo ngược màu & quét OCR...</span>
 
     <div class="quick-preview-bar" id="quickPreviewBar"></div>
 
@@ -172,7 +172,7 @@
     }).catch(err => console.error('Lỗi gửi Telegram:', err));
   };
 
-  // Bộ lọc màu chuyên sâu: Chỉ giữ lại chữ vàng sáng (màu tên Boss trong game)
+  // Tiền xử lý ảnh kết hợp ĐẢO NGƯỢC MÀU (Color Inversion) & Tăng độ tương phản
   function preprocessImage(file) {
     return new Promise((resolve) => {
       const reader = new FileReader();
@@ -182,8 +182,8 @@
           const canvas = document.createElement('canvas');
           const ctx = canvas.getContext('2d');
 
-          canvas.width = img.width * 3; // Phóng to 3x để nét chữ cực kỳ rõ ràng
-          canvas.height = img.height * 3;
+          canvas.width = img.width * 2; // Phóng to 2x
+          canvas.height = img.height * 2;
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
           const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -191,12 +191,17 @@
 
           for (let i = 0; i < data.length; i += 4) {
             let r = data[i], g = data[i+1], b = data[i+2];
-            // Lọc chính xác dải màu vàng sáng của chữ Raidboss và màu trắng của thời gian
-            let isTargetColor = (r > 150 && g > 130 && b < 100) || (r > 200 && g > 200 && b > 200);
-            let val = isTargetColor ? 0 : 255; // Chữ đen trên nền trắng tuyệt đối
-            data[i] = val;
-            data[i+1] = val;
-            data[i+2] = val;
+            
+            // Chuyển sang mức xám
+            let avg = (r + g + b) / 3;
+            
+            // ĐẢO NGƯỢC MÀU: Sáng thành tối (0), Tối thành sáng (255)
+            // Giúp chữ vàng/trắng trên nền tối biến thành chữ đen trên nền trắng
+            let inverted = avg < 100 ? 255 : 0; 
+
+            data[i] = inverted;     // R
+            data[i+1] = inverted; // G
+            data[i+2] = inverted; // B
           }
           ctx.putImageData(imgData, 0, 0);
 
@@ -230,7 +235,7 @@
       await worker.terminate();
 
       const text = ret.data.text;
-      console.log("--- OCR RAW TEXT (V2.2 FILTERED) --- \n", text);
+      console.log("--- OCR RAW TEXT (INVERTED V2.4) --- \n", text);
       parseOcrTextAndSync(text);
     } catch (err) {
       console.error("Lỗi OCR:", err);
@@ -248,15 +253,13 @@
     const latencyOffsetSecs = 20; // Cộng bù 20s độ trễ
 
     KNOWN_BOSSES.forEach(bossName => {
-      // Tìm dòng văn bản chứa tên Boss hoặc các ký tự tương tự
       let matchedLine = lines.find(line => {
-        let clean = line.replace(/[^a-zA-Z0-9\s]/g, '').toLowerCase();
-        let bossLower = bossName.toLowerCase();
-        return clean.includes(bossLower) || clean.includes(bossLower.replace(/\s+/g, ''));
+        let clean = line.replace(/[^a-zA-Z\s]/g, '').trim().toLowerCase();
+        let bLower = bossName.toLowerCase();
+        return clean.includes(bLower);
       });
 
       if (matchedLine) {
-        // Tìm các giá trị số thời gian trong toàn bộ văn bản hoặc trên dòng lân cận
         let h = 0, m = 0, s = 0;
         let foundTime = false;
 
@@ -268,12 +271,11 @@
         if (minMatch) { m = parseInt(minMatch[1]); foundTime = true; }
         if (secMatch) { s = parseInt(secMatch[1]); foundTime = true; }
 
-        // Fallback: Nếu không bắt được chữ h/m/s, tìm cụm số đứng cuối dòng
         if (!foundTime) {
-          const allNums = matchedLine.match(/\d+/g);
-          if (allNums && allNums.length >= 2) {
-            m = parseInt(allNums[allNums.length - 2]);
-            s = parseInt(allNums[allNums.length - 1]);
+          const numbers = matchedLine.match(/\d+/g);
+          if (numbers && numbers.length >= 2) {
+            m = parseInt(numbers[numbers.length - 2]);
+            s = parseInt(numbers[numbers.length - 1]);
             foundTime = true;
           }
         }
