@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lander Timer Web v1.8 (Firebase Sync + OCR)</title>
-  <!-- Tesseract.js cho tính năng OCR trực tiếp trên trình duyệt -->
+  <title>Lander Timer Web v1.8.2 (Firebase Sync + OCR + 20s Latency)</title>
+  <!-- Thư viện Tesseract.js quét OCR trực tiếp trên trình duyệt -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <style>
     * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
@@ -28,7 +28,7 @@
     .btn-close { background: #dc3545; color: white; }
     .btn-edit { background: #e9ecef; border: 1px solid #ced4da; padding: 2px 6px; font-size: 0.85em; }
     
-    /* Quick Preview Bar */
+    /* Thanh hiển thị nhanh 3 Card gần đến giờ nhất */
     .quick-preview-bar {
       display: flex;
       gap: 8px;
@@ -85,7 +85,7 @@
     <button class="btn-add" onclick="addCard()">+ Add Card</button>
     <button class="btn-wipe" onclick="wipeAll()">🧹 Wipe All</button>
     
-    <!-- Nút upload ảnh OCR -->
+    <!-- Upload hình ảnh để quét OCR -->
     <label class="btn-ocr btn-upload">
       📷 Scan OCR Image
       <input type="file" id="ocrFileinput" accept="image/*" style="display: none;" onchange="handleOcrUpload(event)">
@@ -103,7 +103,7 @@
 
   <div class="grid-container" id="cardContainer"></div>
 
-<!-- SDK Firebase Modular -->
+<!-- Thư viện SDK Firebase Modular -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-app.js";
   import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-database.js";
@@ -126,8 +126,9 @@
   ];
 
   let isRemoteUpdating = false;
-  let currentOcrImageBlob = null; // Biến lưu trữ 1 hình ảnh OCR gần nhất ở local
+  let currentOcrImageBlob = null; // Quản lý lưu trữ 1 hình ảnh OCR gần nhất tại local
 
+  // Đọc danh sách Card thời gian thực từ Firebase
   onValue(ref(db, 'lander_cards'), (snapshot) => {
     const data = snapshot.val();
     if (data) {
@@ -138,6 +139,7 @@
     }
   });
 
+  // Đọc Cấu hình Telegram thời gian thực từ Firebase
   onValue(ref(db, 'telegram_config'), (snapshot) => {
     const config = snapshot.val();
     if (config) {
@@ -171,314 +173,110 @@
     }).catch(err => console.error('Lỗi gửi Telegram:', err));
   };
 
-  // --- XỬ LÝ QUÉT OCR TỪ HÌNH ẢNH ĐÍNH KÈM ---
+  // --- XỬ LÝ UPLOAD & QUÉT OCR ---
   window.handleOcrUpload = async function(event) {
     const file = event.target.files[0];
     if (!file) return;
 
-    // Giải phóng hình ảnh cũ (nếu có) và lưu hình ảnh mới nhất vào local memory
+    // Giải phóng bộ nhớ hình cũ và chỉ giữ 1 hình gần nhất tại local memory
     if (currentOcrImageBlob) {
       URL.revokeObjectURL(currentOcrImageBlob);
     }
     currentOcrImageBlob = URL.createObjectURL(file);
-    console.log("Đã lưu trữ 1 hình ảnh OCR mới nhất tại local:", currentOcrImageBlob);
 
     const loadingEl = document.getElementById('loadingOcr');
     loadingEl.style.display = 'inline';
 
     try {
-      // Thực hiện quét OCR bằng Tesseract.js
       const worker = await Tesseract.createWorker('eng');
       const ret = await worker.recognize(file);
       await worker.terminate();
 
       const text = ret.data.text;
+      console.log("--- OCR RAW TEXT --- \n", text);
       parseOcrTextAndSync(text);
     } catch (err) {
       console.error("Lỗi khi quét OCR:", err);
       alert("Quét OCR thất bại, vui lòng thử lại!");
     } finally {
       loadingEl.style.display = 'none';
-      event.target.value = ''; // Reset input file để có thể chọn lại đúng file đó nếu muốn
+      event.target.value = '';
     }
   };
 
-  // Phân tích văn bản OCR từ bảng Raidboss
+  // --- THUẬT TOÁN BÓC TÁCH OCR VÀ CỘNG BÙ 20S ĐỘ TRỄ ---
   function parseOcrTextAndSync(text) {
     const lines = text.split('\n');
     let updatedCount = 0;
     let addedCount = 0;
+    const latencyOffsetSecs = 20; // Độ trễ thao tác chụp và upload ảnh (20 giây)
 
     lines.forEach(line => {
-      // Dùng Regex bóc tách thời gian countdown ở cuối dòng (ví dụ: "7h 42m 10s", "55m 50s", "1h 18m")[cite: 4]
-      const timeMatch = line.match(/(?:(\d+)\s*h)?\s*(?:(\d+)\s*m)?\s*(?:(\d+)\s*s)?$/i);
+      let trimmed = line.trim();
+      if (!trimmed) return;
+
+      let actIndex = trimmed.indexOf("Activated");
+      if (actIndex === -1) actIndex = trimmed.indexOf("Activ");
       
-      // Danh sách các Boss tiêu chuẩn mẫu hoặc quét tên đứng trước cột Activated
-      // Ta lấy các từ khóa nằm trước các từ trạng thái như "Activated", "ON", "OFF"
-      let cleanLine = line.replace(/Activated|ON|OFF|GO/gi, '|').trim();
-      let parts = cleanLine.split('|').map(p => p.trim()).filter(p => p.length > 0);
-
-      if (parts.length > 0) {
-        let bossName = parts[0];
-        // Lọc bỏ các từ rác hoặc quá ngắn
-        if (bossName.length < 2 || /^\d+$/.test(bossName)) return;
-
-        // Tìm đoạn thời gian trong dòng
-        let h = 0, m = 0, s = 0;
-        let foundTime = false;
-
-        const hrMatch = line.match(/(\d+)\s*h/i);
-        const minMatch = line.match(/(\d+)\s*m/i);
-        const secMatch = line.match(/(\d+)\s*s/i);
-
-        if (hrMatch) { h = parseInt(hrMatch[1]); foundTime = true; }
-        if (minMatch) { m = parseInt(minMatch[1]); foundTime = true; }
-        if (secMatch) { s = parseInt(secMatch[1]); foundTime = true; }
-
-        if (foundTime) {
-          const totalSecs = (h * 3600) + (m * 60) + s;
-          if (totalSecs > 0) {
-            // Kiểm tra xem chip (card) với tên boss này đã tồn tại chưa
-            let existingCard = cards.find(c => c.name.toLowerCase() === bossName.toLowerCase());
-
-            if (existingCard) {
-              // Cập nhật mới nếu đã có sẵn
-              existingCard.h = h;
-              existingCard.m = m;
-              existingCard.s = s;
-              existingCard.delay = totalSecs;
-              existingCard.target = Date.now() + totalSecs * 1000;
-              existingCard.warned60s = false;
-              updatedCount++;
-            } else {
-              // Tự động tạo mới nếu chưa tồn tại
-              cards.push({
-                id: Date.now() + Math.random(),
-                name: bossName,
-                h: h,
-                m: m,
-                s: s,
-                target: Date.now() + totalSecs * 1000,
-                delay: totalSecs,
-                auto: false,
-                offset: 15,
-                warned60s: false
-              });
-              addedCount++;
-            }
-          }
-        }
-      }
-    });
-
-    saveCardsToFirebase();
-    render();
-    alert(`OCR hoàn tất!\n- Đã tạo mới: ${addedCount} card\n- Đã cập nhật: ${updatedCount} card`);
-  }
-
-  window.render = function() {
-    const container = document.getElementById('cardContainer');
-    container.innerHTML = '';
-    cards.forEach((c, idx) => {
-      const cardEl = document.createElement('div');
-      cardEl.className = 'card';
-      cardEl.innerHTML = `
-        <div class="card-header">
-          <span class="card-title">${c.name}</span>
-          <button class="btn-edit" onclick="renameCard(${idx})">✎</button>
-        </div>
-        <div class="time-target">Target Time: ${c.target ? new Date(c.target).toLocaleTimeString() : 'None'}</div>
-        <div class="time-remaining" id="remain-${idx}">Time Remaining: --</div>
-        <div class="input-group">
-          H: <input type="number" id="h-${idx}" value="${c.h}" oninput="cards[${idx}].h=+this.value; saveCardsToFirebase();" onkeydown="if(event.key==='Enter') setAlarm(${idx})">
-          M: <input type="number" id="m-${idx}" value="${c.m}" oninput="cards[${idx}].m=+this.value; saveCardsToFirebase();" onkeydown="if(event.key==='Enter') setAlarm(${idx})">
-          S: <input type="number" id="s-${idx}" value="${c.s}" oninput="cards[${idx}].s=+this.value; saveCardsToFirebase();" onkeydown="if(event.key==='Enter') setAlarm(${idx})">
-        </div>
-        <div class="actions">
-          <button class="btn-set" onclick="setAlarm(${idx})">⏰ Set</button>
-          <button class="btn-wipe" onclick="wipeAlarm(${idx})">🧹 Wipe</button>
-          <button class="btn-close" onclick="removeCard(${idx})">✖ Close</button>
-        </div>
-        <div class="auto-set">
-          <input type="checkbox" ${c.auto ? 'checked' : ''} onchange="cards[${idx}].auto=this.checked; saveCardsToFirebase();"> Auto-Set Next
-          + <input type="number" value="${c.offset}" onchange="cards[${idx}].offset=+this.value; saveCardsToFirebase();"> s
-        </div>
-      `;
-      container.appendChild(cardEl);
-    });
-  };
-
-  window.addCard = function() {
-    cards.push({ 
-      id: Date.now(), 
-      name: `Alarm ${cards.length + 1}`, 
-      h: 0, m: 5, s: 0, 
-      target: null, delay: null, 
-      auto: false, offset: 15, 
-      warned60s: false 
-    });
-    saveCardsToFirebase(); 
-    render();
-  };
-
-  window.removeCard = function(idx) {
-    cards.splice(idx, 1);
-    saveCardsToFirebase(); 
-    render();
-  };
-
-  window.renameCard = function(idx) {
-    const name = prompt("Nhập tên mới:", cards[idx].name);
-    if (name && name.trim() !== "") { 
-      cards[idx].name = name.trim(); 
-      saveCardsToFirebase(); 
-      render(); 
-    }
-  };
-
-  window.setAlarm = function(idx) {
-    const hInput = document.getElementById(`h-${idx}`);
-    const mInput = document.getElementById(`m-${idx}`);
-    const sInput = document.getElementById(`s-${idx}`);
-
-    if (hInput && mInput && sInput) {
-      cards[idx].h = Number(hInput.value) || 0;
-      cards[idx].m = Number(mInput.value) || 0;
-      cards[idx].s = Number(sInput.value) || 0;
-    }
-
-    const totalSecs = (cards[idx].h * 3600) + (cards[idx].m * 60) + cards[idx].s;
-    if (totalSecs <= 0) return;
-
-    cards[idx].delay = totalSecs;
-    cards[idx].target = Date.now() + totalSecs * 1000;
-    cards[idx].warned60s = false;
-    
-    saveCardsToFirebase(); 
-    render();
-  };
-
-  window.wipeAlarm = function(idx) {
-    cards[idx].target = null;
-    cards[idx].delay = null;
-    cards[idx].warned60s = false;
-    saveCardsToFirebase(); 
-    render();
-  };
-
-  window.wipeAll = function() {
-    cards.forEach(c => { 
-      c.target = null; 
-      c.delay = null; 
-      c.warned60s = false;
-    });
-    saveCardsToFirebase(); 
-    render();
-  };
-
-  function checkAndUpdateTimers() {
-    const now = Date.now();
-    let stateChanged = false;
-
-    cards.forEach((c, idx) => {
-      const el = document.getElementById(`remain-${idx}`);
-      if (!el) return;
-
-      if (c.target) {
-        const remainSecs = Math.ceil((c.target - now) / 1000);
-
-        if (remainSecs > 0) {
-          const h = String(Math.floor(remainSecs / 3600)).padStart(2, '0');
-          const m = String(Math.floor((remainSecs % 3600) / 60)).padStart(2, '0');
-          const s = String(remainSecs % 60).padStart(2, '0');
-          el.innerText = `Time Remaining: ${h}:${m}:${s}`;
-          el.style.color = remainSecs <= 30 ? 'red' : 'black';
-
-          if (remainSecs <= 60 && !c.warned60s) {
-            c.warned60s = true;
-            stateChanged = true;
-            sendTelegram(`${c.name}: Sắp đến giờ! (Còn ${remainSecs} giây)`);
-          }
-        } else {
-          el.innerText = "Done!";
-          el.style.color = 'green';
-
-          if (!c.warned60s) {
-            c.warned60s = true;
-            stateChanged = true;
-            sendTelegram(`${c.name}: Đã đến thời điểm hẹn!`);
-          }
-
-          if (c.auto && !c.processed) {
-            c.processed = true;
-            setTimeout(() => {
-              const baseDelay = c.delay || 0;
-              const offset = c.offset || 0;
-              const nextTotalSecs = baseDelay + offset;
-
-              c.h = Math.floor(nextTotalSecs / 3600);
-              c.m = Math.floor((nextTotalSecs % 3600) / 60);
-              c.s = nextTotalSecs % 60;
-              c.target = Date.now() + nextTotalSecs * 1000;
-              c.delay = nextTotalSecs;
-              c.warned60s = false;
-              c.processed = false;
-              saveCardsToFirebase();
-              render();
-            }, 1000);
-          }
-        }
+      let bossName = "";
+      if (actIndex > 0) {
+        bossName = trimmed.substring(0, actIndex).replace(/GO/gi, '').trim();
       } else {
-        el.innerText = "Time Remaining: --";
-        el.style.color = 'black';
+        let tokens = trimmed.split(/\s+/);
+        if (tokens.length > 0) bossName = tokens[0];
+      }
+
+      bossName = bossName.replace(/^[,.\-\s]+|[,.\-\s]+$/g, '').replace(/^(GO|0O)\s*/i, '').trim();
+
+      if (!bossName || bossName.length < 2 || /^\d+$/.test(bossName)) return;
+
+      let h = 0, m = 0, s = 0;
+      let foundTime = false;
+
+      const hrMatch = trimmed.match(/(\d+)\s*h/i);
+      const minMatch = trimmed.match(/(\d+)\s*m/i);
+      const secMatch = trimmed.match(/(\d+)\s*s/i);
+
+      if (hrMatch) { h = parseInt(hrMatch[1]); foundTime = true; }
+      if (minMatch) { m = parseInt(minMatch[1]); foundTime = true; }
+      if (secMatch) { s = parseInt(secMatch[1]); foundTime = true; }
+
+      if (foundTime) {
+        // Tính tổng giây OCR đọc được + 20s độ trễ
+        let totalSecs = (h * 3600) + (m * 60) + s + latencyOffsetSecs;
+        
+        if (totalSecs > 0) {
+          let newH = Math.floor(totalSecs / 3600);
+          let newM = Math.floor((totalSecs % 3600) / 60);
+          let newS = totalSecs % 60;
+
+          let existingCard = cards.find(c => c.name.toLowerCase() === bossName.toLowerCase());
+
+          if (existingCard) {
+            existingCard.h = newH;
+            existingCard.m = newM;
+            existingCard.s = newS;
+            existingCard.delay = totalSecs;
+            existingCard.target = Date.now() + totalSecs * 1000;
+            existingCard.warned60s = false;
+            updatedCount++;
+          } else {
+            cards.push({
+              id: Date.now() + Math.random(),
+              name: bossName,
+              h: newH,
+              m: newM,
+              s: newS,
+              target: Date.now() + totalSecs * 1000,
+              delay: totalSecs,
+              auto: false,
+              offset: 15,
+              warned60s: false
+            });
+            addedCount++;
+          }
+        }
       }
     });
 
-    updateQuickPreviewBar(now);
-
-    if (stateChanged) {
-      saveCardsToFirebase();
-    }
-  }
-
-  function updateQuickPreviewBar(now) {
-    const previewBar = document.getElementById('quickPreviewBar');
-    if (!previewBar) return;
-
-    let activeCards = cards.filter(c => c.target && (c.target - now > 0));
-    activeCards.sort((a, b) => a.target - b.target);
-    let top3 = activeCards.slice(0, 3);
-
-    if (top3.length === 0) {
-      previewBar.innerHTML = `<span style="color: #adb5bd; font-size: 0.9em; font-style: italic;">Không có timer nào đang chạy</span>`;
-      return;
-    }
-
-    let html = '';
-    top3.forEach(c => {
-      const remainSecs = Math.ceil((c.target - now) / 1000);
-      const h = String(Math.floor(remainSecs / 3600)).padStart(2, '0');
-      const m = String(Math.floor((remainSecs % 3600) / 60)).padStart(2, '0');
-      const s = String(remainSecs % 60).padStart(2, '0');
-      const isUrgent = remainSecs <= 60;
-
-      html += `
-        <div class="preview-chip ${isUrgent ? 'urgent' : ''}">
-          <span class="preview-name">${c.name}:</span>
-          <span>${h}:${m}:${s}</span>
-        </div>
-      `;
-    });
-    previewBar.innerHTML = html;
-  }
-
-  setInterval(checkAndUpdateTimers, 200);
-
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible") {
-      checkAndUpdateTimers();
-    }
-  });
-</script>
-</body>
-</html>
+    saveCardsTo
