@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lander Timer Web v2.4 (Inverted Colors OCR)</title>
+  <title>Lander Timer Web v2.5 (Dictionary Targeted OCR)</title>
   <script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
   <style>
     * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
@@ -87,7 +87,7 @@
       📷 Scan OCR Image
       <input type="file" id="ocrFileinput" accept="image/*" style="display: none;" onchange="handleOcrUpload(event)">
     </label>
-    <span id="loadingOcr">⏳ Đang đảo ngược màu & quét OCR...</span>
+    <span id="loadingOcr">⏳ Đang phân tích OCR chuẩn...</span>
 
     <div class="quick-preview-bar" id="quickPreviewBar"></div>
 
@@ -123,6 +123,7 @@
   let isRemoteUpdating = false;
   let currentOcrImageBlob = null;
 
+  // Danh sách Raidboss chuẩn khớp tuyệt đối với hình ảnh game của bạn
   const KNOWN_BOSSES = [
     "Orfen", "Queen Ant", "Zaken", "Baium", "Frintezza", 
     "Antharas", "Valakas", "Lindvior", "Rotten Fungus", 
@@ -172,7 +173,7 @@
     }).catch(err => console.error('Lỗi gửi Telegram:', err));
   };
 
-  // Tiền xử lý ảnh kết hợp ĐẢO NGƯỢC MÀU (Color Inversion) & Tăng độ tương phản
+  // Tiền xử lý ảnh: Tăng độ sáng và tương phản tối đa để làm nổi bật chữ
   function preprocessImage(file) {
     return new Promise((resolve) => {
       const reader = new FileReader();
@@ -182,7 +183,7 @@
           const canvas = document.createElement('canvas');
           const ctx = canvas.getContext('2d');
 
-          canvas.width = img.width * 2; // Phóng to 2x
+          canvas.width = img.width * 2;
           canvas.height = img.height * 2;
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
@@ -191,17 +192,12 @@
 
           for (let i = 0; i < data.length; i += 4) {
             let r = data[i], g = data[i+1], b = data[i+2];
-            
-            // Chuyển sang mức xám
             let avg = (r + g + b) / 3;
-            
-            // ĐẢO NGƯỢC MÀU: Sáng thành tối (0), Tối thành sáng (255)
-            // Giúp chữ vàng/trắng trên nền tối biến thành chữ đen trên nền trắng
-            let inverted = avg < 100 ? 255 : 0; 
-
-            data[i] = inverted;     // R
-            data[i+1] = inverted; // G
-            data[i+2] = inverted; // B
+            // Ép nhị phân rõ rệt: chữ sáng thành đen, nền tối thành trắng
+            let val = avg > 110 ? 0 : 255; 
+            data[i] = val;
+            data[i+1] = val;
+            data[i+2] = val;
           }
           ctx.putImageData(imgData, 0, 0);
 
@@ -231,11 +227,16 @@
       const processedBlob = await preprocessImage(file);
       const worker = await Tesseract.createWorker('eng');
 
+      // Tối ưu whitelist chỉ nhận diện ký tự số và chữ cái tiếng Anh cần thiết cho thời gian/tên Boss
+      await worker.setParameters({
+        tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789hms: ',
+      });
+
       const ret = await worker.recognize(processedBlob);
       await worker.terminate();
 
       const text = ret.data.text;
-      console.log("--- OCR RAW TEXT (INVERTED V2.4) --- \n", text);
+      console.log("--- OCR RAW TEXT (V2.5) --- \n", text);
       parseOcrTextAndSync(text);
     } catch (err) {
       console.error("Lỗi OCR:", err);
@@ -253,10 +254,11 @@
     const latencyOffsetSecs = 20; // Cộng bù 20s độ trễ
 
     KNOWN_BOSSES.forEach(bossName => {
+      // Tìm dòng chứa từ khóa tên Boss (bỏ qua khoảng trắng và viết hoa/thường)
+      let bossClean = bossName.toLowerCase().replace(/\s+/g, '');
       let matchedLine = lines.find(line => {
-        let clean = line.replace(/[^a-zA-Z\s]/g, '').trim().toLowerCase();
-        let bLower = bossName.toLowerCase();
-        return clean.includes(bLower);
+        let lineClean = line.toLowerCase().replace(/[^a-z0-9]/g, '');
+        return lineClean.includes(bossClean);
       });
 
       if (matchedLine) {
@@ -271,6 +273,7 @@
         if (minMatch) { m = parseInt(minMatch[1]); foundTime = true; }
         if (secMatch) { s = parseInt(secMatch[1]); foundTime = true; }
 
+        // Fallback: Lấy các con số nằm ở cuối dòng nếu không bắt được ký tự h/m/s
         if (!foundTime) {
           const numbers = matchedLine.match(/\d+/g);
           if (numbers && numbers.length >= 2) {
