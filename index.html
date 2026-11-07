@@ -3,8 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lander Timer Web v1.8.3 (Debug OCR)</title>
-  <!-- Sử dụng CDN ổn định của Tesseract.js -->
+  <title>Lander Timer Web v1.9 (Enhanced OCR)</title>
   <script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
   <style>
     * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
@@ -88,7 +87,7 @@
       📷 Scan OCR Image
       <input type="file" id="ocrFileinput" accept="image/*" style="display: none;" onchange="handleOcrUpload(event)">
     </label>
-    <span id="loadingOcr">⏳ Đang khởi tạo và quét OCR...</span>
+    <span id="loadingOcr">⏳ Đang xử lý ảnh & quét OCR...</span>
 
     <div class="quick-preview-bar" id="quickPreviewBar"></div>
 
@@ -123,6 +122,13 @@
 
   let isRemoteUpdating = false;
   let currentOcrImageBlob = null;
+
+  // Danh sách Raidboss chuẩn để đối chiếu và sửa lỗi OCR nếu có sai sót ký tự
+  const KNOWN_BOSSES = [
+    "Orfen", "Queen Ant", "Zaken", "Baium", "Frintezza", 
+    "Antharas", "Valakas", "Lindvior", "Rotten Fungus", 
+    "Hellhound", "Fallen Angel", "Fafurion Serpent", "Fafurion Beast", "Fafurion"
+  ];
 
   onValue(ref(db, 'lander_cards'), (snapshot) => {
     const data = snapshot.val();
@@ -167,7 +173,47 @@
     }).catch(err => console.error('Lỗi gửi Telegram:', err));
   };
 
-  // --- XỬ LÝ UPLOAD & QUÉT OCR CÓ BẮT LỖI CHI TIẾT ---
+  // --- HÀM XỬ LÝ TIỀN KỲ ẢNH (PREPROCESSING) ĐỂ TĂNG ĐỘ CHÍNH XÁC OCR ---
+  function preprocessImage(file) {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+
+          // Phóng to ảnh gấp đôi (Scale 2x) giúp Tesseract nhận diện nét chữ sắc nét hơn
+          canvas.width = img.width * 2;
+          canvas.height = img.height * 2;
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+          // Lấy dữ liệu điểm ảnh để lọc màu (tăng độ tương phản chữ vàng trên nền tối)
+          const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const data = imgData.data;
+          for (let i = 0; i < data.length; i += 4) {
+            let r = data[i], g = data[i+1], b = data[i+2];
+            // Nếu là màu sáng (chữ vàng/trắng), đẩy lên trắng tinh; còn lại ép về đen tối
+            let avg = (r + g + b) / 3;
+            let val = avg > 90 ? 255 : 0;
+            data[i] = val;     // R
+            data[i+1] = val; // G
+            data[i+2] = val; // B
+          }
+          ctx.putImageData(imgData, 0, 0);
+
+          // Xuất ra dạng Blob để đưa vào Tesseract
+          canvas.toBlob((blob) => {
+            resolve(blob);
+          }, 'image/png');
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // --- XỬ LÝ UPLOAD & QUÉT OCR ---
   window.handleOcrUpload = async function(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -181,37 +227,54 @@
     loadingEl.style.display = 'inline';
 
     try {
+      console.log("Đang tiền xử lý ảnh (Preprocessing)...");
+      const processedBlob = await preprocessImage(file);
+
       console.log("Đang khởi tạo Tesseract worker...");
       const worker = await Tesseract.createWorker('eng');
       
-      console.log("Đang nhận diện văn bản từ hình ảnh...");
-      const ret = await worker.recognize(file);
+      console.log("Đang nhận diện văn bản từ ảnh đã xử lý...");
+      const ret = await worker.recognize(processedBlob);
       await worker.terminate();
 
       const text = ret.data.text;
-      console.log("--- OCR RAW TEXT KẾT QUẢ --- \n", text);
+      console.log("--- OCR RAW TEXT ĐÃ CẢI TIẾN --- \n", text);
 
       if (!text || text.trim().length === 0) {
-        alert("OCR không đọc được chữ nào từ ảnh này! Hãy kiểm tra lại độ phân giải ảnh.");
+        alert("OCR không đọc được chữ nào từ ảnh này!");
         return;
       }
 
       parseOcrTextAndSync(text);
     } catch (err) {
-      console.error("Lỗi chi tiết trong quá trình OCR:", err);
+      console.error("Lỗi OCR:", err);
       alert("Lỗi OCR: " + err.message);
     } finally {
       loadingEl.style.display = 'none';
-      event.target.value = ''; // Cho phép upload lại chính file đó nếu cần
+      event.target.value = '';
     }
   };
+
+  // Hàm chuẩn hóa tên boss dựa trên từ điển KNOWN_BOSSES để chống nhiễu OCR
+  function matchBossName(rawName) {
+    let clean = rawName.replace(/[^a-zA-Z\s]/g, '').trim();
+    if (!clean || clean.length < 2) return null;
+
+    // Tìm kiếm xem có khớp chính xác hoặc gần đúng với danh sách Boss chuẩn không
+    for (let boss of KNOWN_BOSSES) {
+      if (clean.toLowerCase().includes(boss.toLowerCase()) || boss.toLowerCase().includes(clean.toLowerCase())) {
+        return boss;
+      }
+    }
+    return clean; // Trả về tên thô nếu là boss mới ngoài danh sách
+  }
 
   // --- THUẬT TOÁN BÓC TÁCH VÀ CỘNG 20S ĐỘ TRỄ ---
   function parseOcrTextAndSync(text) {
     const lines = text.split('\n');
     let updatedCount = 0;
     let addedCount = 0;
-    const latencyOffsetSecs = 20; // Cộng bù 20s độ trễ chụp & upload
+    const latencyOffsetSecs = 20; // Cộng bù 20s độ trễ
 
     lines.forEach(line => {
       let trimmed = line.trim();
@@ -219,17 +282,17 @@
 
       let actIndex = trimmed.indexOf("Activated");
       if (actIndex === -1) actIndex = trimmed.indexOf("Activ");
+      if (actIndex === -1) actIndex = trimmed.indexOf("Acti");
       
-      let bossName = "";
+      let rawBossName = "";
       if (actIndex > 0) {
-        bossName = trimmed.substring(0, actIndex).replace(/GO/gi, '').trim();
+        rawBossName = trimmed.substring(0, actIndex).replace(/GO/gi, '').trim();
       } else {
         let tokens = trimmed.split(/\s+/);
-        if (tokens.length > 0) bossName = tokens[0];
+        if (tokens.length > 0) rawBossName = tokens[0];
       }
 
-      bossName = bossName.replace(/^[,.\-\s]+|[,.\-\s]+$/g, '').replace(/^(GO|0O)\s*/i, '').trim();
-
+      let bossName = matchBossName(rawBossName);
       if (!bossName || bossName.length < 2 || /^\d+$/.test(bossName)) return;
 
       let h = 0, m = 0, s = 0;
