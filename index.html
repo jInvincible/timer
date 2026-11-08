@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lander Timer Web v3.7 (Draggable Floating Toast)</title>
+  <title>Lander Timer Web v3.8 (Fixed Scope & Draggable Toast)</title>
   <style>
     * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     body { background-color: #f4f6f9; margin: 0; padding: 20px; padding-bottom: 80px; }
@@ -54,11 +54,9 @@
       color: #475569;
       border-bottom: 1px solid #e2e8f0;
       padding-bottom: 6px;
-      cursor: grab; /* Biểu thị vùng có thể nắm kéo */
+      cursor: grab;
     }
-    .toast-header:active {
-      cursor: grabbing;
-    }
+    .toast-header:active { cursor: grabbing; }
     .toast-controls {
       display: flex;
       align-items: center;
@@ -178,7 +176,8 @@
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
 
-  let cards = [
+  // Khai báo mảng cards và gán vào window để các sự kiện HTML inline gọi được
+  window.cards = [
     { id: 1, name: 'Orfen', h: 0, m: 5, s: 0, target: null, delay: null, auto: false, offset: 15, warned60s: false }
   ];
 
@@ -202,7 +201,6 @@
     initialX = rect.left;
     initialY = rect.top;
 
-    // Chuyển sang fixed dựa trên left/top thay vì bottom/right để dễ di chuyển
     toastContainer.style.bottom = 'auto';
     toastContainer.style.right = 'auto';
     toastContainer.style.left = `${initialX}px`;
@@ -240,7 +238,7 @@
     const data = snapshot.val();
     if (data) {
       isRemoteUpdating = true;
-      cards = data;
+      window.cards = data;
       render();
       isRemoteUpdating = false;
     }
@@ -260,7 +258,7 @@
 
   window.saveCardsToFirebase = function() {
     if (isRemoteUpdating) return;
-    set(ref(db, 'lander_cards'), cards);
+    set(ref(db, 'lander_cards'), window.cards);
   };
 
   window.saveSettingsToFirebase = function() {
@@ -397,7 +395,7 @@
         let newM = Math.floor((finalTotalSecs % 3600) / 60);
         let newS = finalTotalSecs % 60;
 
-        let existingCard = cards.find(c => c.name.toLowerCase() === bossName.toLowerCase());
+        let existingCard = window.cards.find(c => c.name.toLowerCase() === bossName.toLowerCase());
 
         if (existingCard) {
           existingCard.h = newH;
@@ -409,7 +407,7 @@
           updatedCount++;
           console.log(`[Sync Card] 🔄 Cập nhật Boss [${bossName}]: OCR đọc được [${rawH}h ${rawM}m ${rawS}s] -> Target mới sau trừ bù: ${newH}h ${newM}m ${newS}s`);
         } else {
-          cards.push({
+          window.cards.push({
             id: Date.now() + Math.random(),
             name: bossName,
             h: newH,
@@ -435,7 +433,7 @@
   window.render = function() {
     const container = document.getElementById('cardContainer');
     container.innerHTML = '';
-    cards.forEach((c, idx) => {
+    window.cards.forEach((c, idx) => {
       const cardEl = document.createElement('div');
       cardEl.className = 'card';
       cardEl.innerHTML = `
@@ -446,9 +444,9 @@
         <div class="time-target">Target Time: ${c.target ? new Date(c.target).toLocaleTimeString() : 'None'}</div>
         <div class="time-remaining" id="remain-${idx}">Time Remaining: --</div>
         <div class="input-group">
-          H: <input type="number" id="h-${idx}" value="${c.h}" oninput="cards[${idx}].h=+this.value; saveCardsToFirebase();" onkeydown="if(event.key==='Enter') setAlarm(${idx})">
-          M: <input type="number" id="m-${idx}" value="${c.m}" oninput="cards[${idx}].m=+this.value; saveCardsToFirebase();" onkeydown="if(event.key==='Enter') setAlarm(${idx})">
-          S: <input type="number" id="s-${idx}" value="${c.s}" oninput="cards[${idx}].s=+this.value; saveCardsToFirebase();" onkeydown="if(event.key==='Enter') setAlarm(${idx})">
+          H: <input type="number" id="h-${idx}" value="${c.h}" oninput="window.cards[${idx}].h=+this.value; saveCardsToFirebase();" onkeydown="if(event.key==='Enter') setAlarm(${idx})">
+          M: <input type="number" id="m-${idx}" value="${c.m}" oninput="window.cards[${idx}].m=+this.value; saveCardsToFirebase();" onkeydown="if(event.key==='Enter') setAlarm(${idx})">
+          S: <input type="number" id="s-${idx}" value="${c.s}" oninput="window.cards[${idx}].s=+this.value; saveCardsToFirebase();" onkeydown="if(event.key==='Enter') setAlarm(${idx})">
         </div>
         <div class="actions">
           <button class="btn-set" onclick="setAlarm(${idx})">⏰ Set</button>
@@ -456,8 +454,8 @@
           <button class="btn-close" onclick="removeCard(${idx})">✖ Close</button>
         </div>
         <div class="auto-set">
-          <input type="checkbox" ${c.auto ? 'checked' : ''} onchange="cards[${idx}].auto=this.checked; saveCardsToFirebase();"> Auto-Set Next
-          + <input type="number" value="${c.offset}" onchange="cards[${idx}].offset=+this.value; saveCardsToFirebase();"> s
+          <input type="checkbox" ${c.auto ? 'checked' : ''} onchange="window.cards[${idx}].auto=this.checked; saveCardsToFirebase();"> Auto-Set Next
+          + <input type="number" value="${c.offset}" onchange="window.cards[${idx}].offset=+this.value; saveCardsToFirebase();"> s
         </div>
       `;
       container.appendChild(cardEl);
@@ -465,9 +463,9 @@
   };
 
   window.addCard = function() {
-    cards.push({ 
+    window.cards.push({ 
       id: Date.now(), 
-      name: `Alarm ${cards.length + 1}`, 
+      name: `Alarm ${window.cards.length + 1}`, 
       h: 0, m: 5, s: 0, 
       target: null, delay: null, 
       auto: false, offset: 15, 
@@ -478,15 +476,15 @@
   };
 
   window.removeCard = function(idx) {
-    cards.splice(idx, 1);
+    window.cards.splice(idx, 1);
     saveCardsToFirebase(); 
     render();
   };
 
   window.renameCard = function(idx) {
-    const name = prompt("Nhập tên mới:", cards[idx].name);
+    const name = prompt("Nhập tên mới:", window.cards[idx].name);
     if (name && name.trim() !== "") { 
-      cards[idx].name = name.trim(); 
+      window.cards[idx].name = name.trim(); 
       saveCardsToFirebase(); 
       render(); 
     }
@@ -498,32 +496,32 @@
     const sInput = document.getElementById(`s-${idx}`);
 
     if (hInput && mInput && sInput) {
-      cards[idx].h = Number(hInput.value) || 0;
-      cards[idx].m = Number(mInput.value) || 0;
-      cards[idx].s = Number(sInput.value) || 0;
+      window.cards[idx].h = Number(hInput.value) || 0;
+      window.cards[idx].m = Number(mInput.value) || 0;
+      window.cards[idx].s = Number(sInput.value) || 0;
     }
 
-    const totalSecs = (cards[idx].h * 3600) + (cards[idx].m * 60) + cards[idx].s;
+    const totalSecs = (window.cards[idx].h * 3600) + (window.cards[idx].m * 60) + window.cards[idx].s;
     if (totalSecs <= 0) return;
 
-    cards[idx].delay = totalSecs;
-    cards[idx].target = Date.now() + totalSecs * 1000;
-    cards[idx].warned60s = false;
+    window.cards[idx].delay = totalSecs;
+    window.cards[idx].target = Date.now() + totalSecs * 1000;
+    window.cards[idx].warned60s = false;
     
     saveCardsToFirebase(); 
     render();
   };
 
   window.wipeAlarm = function(idx) {
-    cards[idx].target = null;
-    cards[idx].delay = null;
-    cards[idx].warned60s = false;
+    window.cards[idx].target = null;
+    window.cards[idx].delay = null;
+    window.cards[idx].warned60s = false;
     saveCardsToFirebase(); 
     render();
   };
 
   window.wipeAll = function() {
-    cards.forEach(c => { 
+    window.cards.forEach(c => { 
       c.target = null; 
       c.delay = null; 
       c.warned60s = false;
@@ -536,7 +534,7 @@
     const now = Date.now();
     let stateChanged = false;
 
-    cards.forEach((c, idx) => {
+    window.cards.forEach((c, idx) => {
       const el = document.getElementById(`remain-${idx}`);
       if (!el) return;
 
@@ -601,7 +599,7 @@
     const toastList = document.getElementById('toastList');
     if (!toastList) return;
 
-    let activeCards = cards.filter(c => c.target && (c.target - now > 0));
+    let activeCards = window.cards.filter(c => c.target && (c.target - now > 0));
     activeCards.sort((a, b) => a.target - b.target);
     let topCards = activeCards.slice(0, limitCount);
 
