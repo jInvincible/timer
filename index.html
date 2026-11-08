@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lander Timer Web v3.8 (Fixed Scope & Draggable Toast)</title>
+  <title>Lander Timer Web v3.9 (Fixed Input Focus & Draggable Toast)</title>
   <style>
     * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     body { background-color: #f4f6f9; margin: 0; padding: 20px; padding-bottom: 80px; }
@@ -176,7 +176,6 @@
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
 
-  // Khai báo mảng cards và gán vào window để các sự kiện HTML inline gọi được
   window.cards = [
     { id: 1, name: 'Orfen', h: 0, m: 5, s: 0, target: null, delay: null, auto: false, offset: 15, warned60s: false }
   ];
@@ -237,10 +236,17 @@
   onValue(ref(db, 'lander_cards'), (snapshot) => {
     const data = snapshot.val();
     if (data) {
-      isRemoteUpdating = true;
-      window.cards = data;
-      render();
-      isRemoteUpdating = false;
+      // Chỉ render lại nếu dữ liệu từ Firebase khác biệt cấu trúc/số lượng, 
+      // hoặc khi người dùng ở máy khác đồng bộ về để tránh giật khung hình đang nhập liệu.
+      const activeElement = document.activeElement;
+      const isTyping = activeElement && activeElement.tagName === 'INPUT';
+
+      if (!isTyping) {
+        isRemoteUpdating = true;
+        window.cards = data;
+        render();
+        isRemoteUpdating = false;
+      }
     }
   });
 
@@ -461,6 +467,9 @@
       container.appendChild(cardEl);
     });
   };
+
+  // Khởi tạo render lần đầu
+  render();
 
   window.addCard = function() {
     window.cards.push({ 
