@@ -3,30 +3,43 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lander Timer Web v5.8 (Optimized Peak Time Finder)</title>
+  <title>Lander Timer Web v5.9 (Fixed Layout & Spacing)</title>
   <style>
     * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-    body { background-color: #f4f6f9; margin: 0; padding: 20px; padding-top: 175px; padding-bottom: 80px; }
     
-    /* --- MAIN MENU TOAST (CỐ ĐỊNH Ở ĐẦU TRANG) --- */
-    .top-bar-toast { 
+    /* Tự động tính khoảng cách đệm cho body để không bao giờ bị đè card đầu tiên */
+    body { background-color: #f4f6f9; margin: 0; padding: 20px; padding-top: 240px; padding-bottom: 80px; }
+    
+    /* --- KHUNG CHỨA CỐ ĐỊNH Ở ĐẦU TRANG (STICKY HEADER CONTAINER) --- */
+    .sticky-header {
       position: fixed;
-      top: 15px;
-      left: 50%;
-      transform: translateX(-50%);
+      top: 0;
+      left: 0;
+      width: 100%;
+      background: rgba(244, 246, 249, 0.95);
+      backdrop-filter: blur(8px);
+      padding: 12px 0;
+      z-index: 9985;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+    }
+
+    /* --- MAIN MENU TOAST --- */
+    .top-bar-toast { 
       display: flex; 
       gap: 10px; 
       align-items: center; 
-      background: rgba(255, 255, 255, 0.96); 
-      padding: 12px 18px; 
+      background: rgba(255, 255, 255, 0.98); 
+      padding: 10px 16px; 
       border-radius: 12px; 
-      box-shadow: 0 10px 25px rgba(0,0,0,0.12); 
+      box-shadow: 0 4px 15px rgba(0,0,0,0.08); 
       flex-wrap: wrap;
       width: 95%;
       max-width: 1030px;
-      z-index: 9989;
       border: 1px solid #cbd5e1;
-      backdrop-filter: blur(6px);
     }
     
     button, .btn-upload { padding: 8px 14px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.9em; display: inline-flex; align-items: center; justify-content: center; }
@@ -36,7 +49,7 @@
     .btn-set { background: #28a745; color: white; }
     .btn-close { background: #dc3545; color: white; }
     .btn-edit { background: #e9ecef; border: 1px solid #ced4da; padding: 2px 6px; font-size: 0.85em; }
-    .btn-peak { background: #d97706; color: white; } /* Nút tìm khung giờ đông boss */
+    .btn-peak { background: #d97706; color: white; }
     
     .locked-element {
       opacity: 0.4;
@@ -145,21 +158,15 @@
     .preview-target { color: #64748b; font-size: 0.9em; }
     .preview-remain { font-weight: bold; }
 
-    /* --- TIMELINE TOAST MENU (CỐ ĐỊNH NGAY DƯỚI MAIN MENU) --- */
+    /* --- TIMELINE TOAST MENU (NẰM TRONG STICKY HEADER) --- */
     .timeline-float-menu {
-      position: fixed;
-      top: 82px; /* Đặt ngay bên dưới Main Menu Toast */
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(255, 255, 255, 0.96);
+      background: rgba(255, 255, 255, 0.98);
       border: 1px solid #cbd5e1;
-      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
       border-radius: 12px;
-      padding: 12px 18px;
-      z-index: 9988;
+      padding: 10px 18px;
       width: 95%;
       max-width: 1030px;
-      backdrop-filter: blur(6px);
       user-select: none;
     }
     .timeline-float-header {
@@ -190,10 +197,10 @@
     .timeline-bar-wrapper {
       position: relative;
       width: 100%;
-      height: 130px;
+      height: 125px;
       background: transparent;
       margin-top: 10px;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
     }
     .timeline-track-line {
       position: absolute;
@@ -349,7 +356,7 @@
       color: #334155;
       font-weight: bold;
       border-top: 1px dashed #e2e8f0;
-      padding-top: 5px;
+      padding-top: 4px;
     }
 
     /* --- LAYOUT DẠNG DÒNG (ROW) CHO CARD --- */
@@ -428,48 +435,51 @@
 </head>
 <body>
 
-  <!-- MAIN MENU TOAST CỐ ĐỊNH Ở ĐẦU TRANG -->
-  <div class="top-bar-toast">
-    <div class="security-box" id="securityBox">
-      <span>🔒 Admin ID:</span>
-      <input type="password" id="adminIdInput" placeholder="Nhập ID..." oninput="checkAuthMaster(this.value)">
-      <span id="authStatusText" style="font-weight: bold; font-size: 0.8em; color: #856404;">(Chế độ Xem)</span>
-    </div>
+  <!-- KHUNG CHỨA CỐ ĐỊNH CHUNG Ở ĐẦU TRANG (TRÁNH ĐÈ CHỒNG) -->
+  <div class="sticky-header">
+    <!-- MAIN MENU TOAST -->
+    <div class="top-bar-toast">
+      <div class="security-box" id="securityBox">
+        <span>🔒 Admin ID:</span>
+        <input type="password" id="adminIdInput" placeholder="Nhập ID..." oninput="checkAuthMaster(this.value)">
+        <span id="authStatusText" style="font-weight: bold; font-size: 0.8em; color: #856404;">(Chế độ Xem)</span>
+      </div>
 
-    <button class="btn-add locked-action" onclick="addCard()">+ Add Card</button>
-    <button class="btn-wipe locked-action" onclick="wipeAll()">🧹 Wipe All</button>
-    <button class="btn-peak" onclick="findPeakBossTime()" title="Tìm khung giờ có nhiều boss spawn nhất trong 9h tới">🎯 Tìm giờ Boss đông nhất</button>
-    
-    <label class="btn-ocr btn-upload locked-action" title="Hoặc nhấn Ctrl + V để dán ảnh trực tiếp từ Clipboard">
-      🤖 AI Scan Image (Hoặc Ctrl+V)
-      <input type="file" id="ocrFileinput" accept="image/*" style="display: none;" onchange="handleFileSelected(event)">
-    </label>
-    <span id="loadingOcr">⏳ AI đang đọc ảnh & tự động cập nhật...</span>
+      <button class="btn-add locked-action" onclick="addCard()">+ Add Card</button>
+      <button class="btn-wipe locked-action" onclick="wipeAll()">🧹 Wipe All</button>
+      <button class="btn-peak" onclick="findPeakBossTime()" title="Tìm khung giờ có nhiều boss spawn nhất trong 9h tới">🎯 Tìm giờ Boss đông nhất</button>
+      
+      <label class="btn-ocr btn-upload locked-action" title="Hoặc nhấn Ctrl + V để dán ảnh trực tiếp từ Clipboard">
+        🤖 AI Scan Image (Hoặc Ctrl+V)
+        <input type="file" id="ocrFileinput" accept="image/*" style="display: none;" onchange="handleFileSelected(event)">
+      </label>
+      <span id="loadingOcr">⏳ AI đang đọc ảnh & tự động cập nhật...</span>
 
-    <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-left: auto;">
-      <input type="text" id="geminiKey" placeholder="Gemini API Key" class="locked-action" style="width: 130px; padding: 6px; border: 1px solid #ccc; border-radius: 4px;" onfocus="this.select()" oninput="saveSettingsToFirebase()">
-      <input type="text" id="tgToken" placeholder="Telegram Token" class="locked-action" style="width: 150px; padding: 6px; border: 1px solid #ccc; border-radius: 4px;" onfocus="this.select()" oninput="saveSettingsToFirebase()">
-      <input type="text" id="tgChatId" placeholder="Chat ID" class="locked-action" style="width: 90px; padding: 6px; border: 1px solid #ccc; border-radius: 4px;" onfocus="this.select()" oninput="saveSettingsToFirebase()">
-    </div>
-  </div>
-
-  <!-- TIMELINE TOAST MENU (CỐ ĐỊNH NGAY DƯỚI MAIN MENU) -->
-  <div class="timeline-float-menu" id="timelineFloatMenu">
-    <div class="timeline-float-header" id="timelineFloatHeader">
-      <span>📈 TIMELINE RAIDBOSS</span>
-      <div class="timeline-input-group" onclick="event.stopPropagation()">
-        <span>Khoảng:</span>
-        <input type="number" id="timelineSpanInput" value="2" min="0.5" max="9" step="0.5" onchange="saveTimelineSpan(this.value)">
-        <span>h</span>
+      <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-left: auto;">
+        <input type="text" id="geminiKey" placeholder="Gemini API Key" class="locked-action" style="width: 130px; padding: 6px; border: 1px solid #ccc; border-radius: 4px;" onfocus="this.select()" oninput="saveSettingsToFirebase()">
+        <input type="text" id="tgToken" placeholder="Telegram Token" class="locked-action" style="width: 150px; padding: 6px; border: 1px solid #ccc; border-radius: 4px;" onfocus="this.select()" oninput="saveSettingsToFirebase()">
+        <input type="text" id="tgChatId" placeholder="Chat ID" class="locked-action" style="width: 90px; padding: 6px; border: 1px solid #ccc; border-radius: 4px;" onfocus="this.select()" oninput="saveSettingsToFirebase()">
       </div>
     </div>
-    <div class="timeline-bar-wrapper" id="timelineBarWrapper">
-      <div class="timeline-track-line"></div>
-      <!-- Ticks, tick xanh NOW & Dual-Bubble indicators -->
-    </div>
-    <div class="timeline-labels">
-      <span id="timelineStartLabel">--:--:--</span>
-      <span id="timelineEndLabel">--:--:--</span>
+
+    <!-- TIMELINE TOAST MENU -->
+    <div class="timeline-float-menu" id="timelineFloatMenu">
+      <div class="timeline-float-header" id="timelineFloatHeader">
+        <span>📈 TIMELINE RAIDBOSS</span>
+        <div class="timeline-input-group" onclick="event.stopPropagation()">
+          <span>Khoảng:</span>
+          <input type="number" id="timelineSpanInput" value="2" min="0.5" max="9" step="0.5" onchange="saveTimelineSpan(this.value)">
+          <span>h</span>
+        </div>
+      </div>
+      <div class="timeline-bar-wrapper" id="timelineBarWrapper">
+        <div class="timeline-track-line"></div>
+        <!-- Ticks, tick xanh NOW & Dual-Bubble indicators -->
+      </div>
+      <div class="timeline-labels">
+        <span id="timelineStartLabel">--:--:--</span>
+        <span id="timelineEndLabel">--:--:--</span>
+      </div>
     </div>
   </div>
 
@@ -961,9 +971,8 @@
     let spanHours = spanInput ? (parseFloat(spanInput.value) || 2) : 2;
     const windowMs = spanHours * 3600 * 1000;
 
-    // Quét tìm khung cửa sổ chứa nhiều boss nhất trong giới hạn 9 giờ (9 * 3600 * 1000 ms)
     const maxScanMs = 9 * 3600 * 1000;
-    const stepMs = 60 * 1000; // bước nhảy 1 phút
+    const stepMs = 60 * 1000;
     let bestStart = now;
     let maxCount = -1;
 
@@ -980,7 +989,6 @@
       return;
     }
 
-    // Tự động điều chỉnh mốc thời gian hiển thị timeline bắt đầu từ bestStart
     window.customTimelineStartTime = bestStart;
     checkAndUpdateTimers();
 
@@ -1094,7 +1102,7 @@
     toastList.innerHTML = html;
   }
 
-  // --- HÀM CẬP NHẬT TIMELINE VỚI TICK XANH NOW & TICKS ĐỘNG ---
+  // --- HÀM CẬP NHẬT TIMELINE ---
   function updateTimelineBar(now) {
     const spanInput = document.getElementById('timelineSpanInput');
     let spanHours = spanInput ? (parseFloat(spanInput.value) || 2) : 2;
@@ -1103,7 +1111,6 @@
 
     const spanMs = spanHours * 3600 * 1000;
     
-    // Nếu có customTimelineStartTime (khi bấm nút tìm giờ peak), sử dụng mốc đó; ngược lại lấy mặc định là now
     if (!window.customTimelineStartTime || window.customTimelineStartTime < now) {
       window.customTimelineStartTime = now;
     }
@@ -1118,7 +1125,6 @@
     const oldDynamicElements = wrapper.querySelectorAll('.timeline-indicator, .timeline-tick, .timeline-tick-label, .timeline-now-tick, .timeline-now-label');
     oldDynamicElements.forEach(el => el.remove());
 
-    // --- 1. VẼ TICK XANH BIỂU DIỄN THỜI ĐIỂM HIỆN TẠI (NOW) NẾU NẰM TRONG KHOẢNG ---
     if (now >= startTime && now <= endTime) {
       const nowRatio = (now - startTime) / spanMs;
       const nowPercent = nowRatio * 100;
@@ -1135,16 +1141,15 @@
       wrapper.appendChild(nowLabel);
     }
 
-    // --- 2. TỰ ĐỘNG CHIA TICKS TÙY THEO KHOẢNG BIỂU DIỄN ---
     let intervalMs;
     if (spanHours <= 1) {
-      intervalMs = 5 * 60 * 1000;    // <= 1h: mỗi 5 phút
+      intervalMs = 5 * 60 * 1000;
     } else if (spanHours <= 3) {
-      intervalMs = 15 * 60 * 1000;   // 1h - 3h: mỗi 15 phút
+      intervalMs = 15 * 60 * 1000;
     } else if (spanHours <= 6) {
-      intervalMs = 30 * 60 * 1000;   // 3h - 6h: mỗi 30 phút
+      intervalMs = 30 * 60 * 1000;
     } else {
-      intervalMs = 60 * 60 * 1000;   // 6h - 9h: mỗi 1 giờ
+      intervalMs = 60 * 60 * 1000;
     }
 
     let currentTickTime = Math.ceil(startTime / intervalMs) * intervalMs;
@@ -1167,7 +1172,6 @@
       currentTickTime += intervalMs;
     }
 
-    // --- 3. VẼ BỘ ĐÔI DUAL-BUBBLE THÔNG MINH CHO BOSS ---
     let validCards = window.cards.filter(c => c.target && c.target >= startTime && c.target <= endTime);
     validCards.sort((a, b) => a.target - b.target);
 
