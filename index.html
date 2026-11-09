@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lander Timer Web v4.9 (Timeline Staggered Layout)</title>
+  <title>Lander Timer Web v5.0 (Timeline Top/Bottom Staggered)</title>
   <style>
     * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     body { background-color: #f4f6f9; margin: 0; padding: 20px; padding-bottom: 80px; }
@@ -133,7 +133,7 @@
     .preview-target { color: #64748b; font-size: 0.9em; }
     .preview-remain { font-weight: bold; }
 
-    /* --- TIMELINE INLINE BAR (MỞ RỘNG CHIỀU CAO ĐỂ CHỨA SO LE) --- */
+    /* --- TIMELINE INLINE BAR (PHÂN TẦNG TRÊN & DƯỚI) --- */
     .timeline-section {
       background: white;
       border: 1px solid #e0e0e0;
@@ -172,19 +172,20 @@
     .timeline-bar-wrapper {
       position: relative;
       width: 100%;
-      height: 75px; /* Tăng chiều cao để chứa 2 tầng so le */
-      background: #e2e8f0;
-      border-radius: 6px;
+      height: 90px; /* Đủ chiều cao rộng rãi chứa tầng Trên và tầng Dưới */
+      background: transparent;
       margin-top: 10px;
-      margin-bottom: 5px;
+      margin-bottom: 10px;
     }
     .timeline-track-fill {
       position: absolute;
-      bottom: 12px; /* Đặt trục ngang ở phần dưới của wrapper */
+      top: 50%; /* Trục nằm chính giữa wrapper */
       left: 0;
       width: 100%;
       height: 4px;
+      transform: translateY(-50%);
       background: #cbd5e1;
+      border-radius: 2px;
     }
     .timeline-indicator {
       position: absolute;
@@ -194,15 +195,50 @@
       align-items: center;
       z-index: 10;
     }
-    /* Phân tầng so le: Tầng 1 (thấp) và Tầng 2 (cao hơn) */
-    .timeline-indicator.level-0 {
-      bottom: 16px;
+
+    /* --- TẦNG 1: TRÊN THẦN TIMELINE --- */
+    .timeline-indicator.level-top {
+      bottom: 50%;
+      margin-bottom: 6px;
     }
-    .timeline-indicator.level-1 {
-      bottom: 42px;
+    .timeline-indicator.level-top .timeline-boss-tag::after {
+      content: '';
+      position: absolute;
+      bottom: -5px;
+      left: 50%;
+      transform: translateX(-50%);
+      border-width: 5px 5px 0;
+      border-style: solid;
+      border-color: #111827 transparent;
+      display: block;
+      width: 0;
+    }
+    .timeline-indicator.level-top.urgent .timeline-boss-tag::after {
+      border-color: #dc3545 transparent;
     }
 
-    /* Indicator kiểu bong bóng chat */
+    /* --- TẦNG 2: DƯỚI THANH TIMELINE --- */
+    .timeline-indicator.level-bottom {
+      top: 50%;
+      margin-top: 6px;
+    }
+    .timeline-indicator.level-bottom .timeline-boss-tag::before {
+      content: '';
+      position: absolute;
+      top: -5px;
+      left: 50%;
+      transform: translateX(-50%);
+      border-width: 0 5px 5px;
+      border-style: solid;
+      border-color: transparent transparent #111827;
+      display: block;
+      width: 0;
+    }
+    .timeline-indicator.level-bottom.urgent .timeline-boss-tag::before {
+      border-color: transparent transparent #dc3545;
+    }
+
+    /* Phong cách bong bóng Tag tên Boss */
     .timeline-boss-tag {
       background: #111827;
       color: white;
@@ -216,25 +252,9 @@
       box-shadow: 0 3px 5px rgba(0,0,0,0.2);
       position: relative;
     }
-    /* Mũi tên trỏ xuống */
-    .timeline-boss-tag::after {
-      content: '';
-      position: absolute;
-      bottom: -5px;
-      left: 50%;
-      transform: translateX(-50%);
-      border-width: 5px 5px 0;
-      border-style: solid;
-      border-color: #111827 transparent;
-      display: block;
-      width: 0;
-    }
     .timeline-indicator.urgent .timeline-boss-tag {
       background: #dc3545;
       animation: pulse-tag 1s infinite;
-    }
-    .timeline-indicator.urgent .timeline-boss-tag::after {
-      border-color: #dc3545 transparent;
     }
     @keyframes pulse-tag {
       0% { opacity: 1; }
@@ -347,7 +367,7 @@
     </div>
   </div>
 
-  <!-- TIMELINE INLINE BAR VỚI THUẬT TOÁN PHÂN TẦNG SO LE -->
+  <!-- TIMELINE INLINE BAR (PHÂN TẦNG TRÊN VÀ DƯỚI) -->
   <div class="timeline-section" id="timelineSection">
     <div class="timeline-header">
       <span>📈 TIMELINE BIỂU DIỄN THỜI GIAN RAIDBOSS</span>
@@ -359,7 +379,7 @@
     </div>
     <div class="timeline-bar-wrapper" id="timelineBarWrapper">
       <div class="timeline-track-fill"></div>
-      <!-- Các indicator tên boss sẽ được phân tầng tự động vào đây -->
+      <!-- Các indicator tên boss sẽ được phân tầng TÊN / DƯỚI tự động vào đây -->
     </div>
     <div class="timeline-labels">
       <span id="timelineStartLabel">--:--:--</span>
@@ -940,7 +960,7 @@
     toastList.innerHTML = html;
   }
 
-  // --- HÀM CẬP NHẬT TIMELINE VỚI THUẬT TOÁN PHÂN TẦNG SO LE TRÁNH CHE KHUẤT ---
+  // --- HÀM CẬP NHẬT TIMELINE VỚI PHÂN TẦNG TÊN (TRÊN THẦN TIMELINE) VÀ DƯỚI (DƯỚI THANH TIMELINE) ---
   function updateTimelineBar(now) {
     const spanInput = document.getElementById('timelineSpanInput');
     const spanHours = spanInput ? (parseFloat(spanInput.value) || 3) : 3;
@@ -956,12 +976,10 @@
     const existingIndicators = wrapper.querySelectorAll('.timeline-indicator');
     existingIndicators.forEach(el => el.remove());
 
-    // Lọc và sắp xếp các boss theo thời gian target tăng dần
     let validCards = window.cards.filter(c => c.target && c.target >= startTime && c.target <= endTime);
     validCards.sort((a, b) => a.target - b.target);
 
-    // Thuật toán phát hiện xung đột và phân tầng so le (level 0 và level 1)
-    let lastPositions = [-999, -999]; // Lưu vị trí phần trăm (%) của tầng 0 và tầng 1 gần nhất
+    let lastPositions = { 'top': -999, 'bottom': -999 };
 
     validCards.forEach(c => {
       const ratio = (c.target - startTime) / spanMs;
@@ -975,15 +993,17 @@
         displayName = parts[0] + '\n' + parts.slice(1).join(' ');
       }
 
-      // Kiểm tra khoảng cách: Nếu khoảng cách vị trí dưới 8% bề ngang thì đẩy lên tầng khác để không đè nhau
-      let level = 0;
-      if (Math.abs(leftPercent - lastPositions[0]) < 8) {
-        level = 1; // Đẩy lên tầng trên
+      // Tự động phân tầng: Nếu khoảng cách bé hơn 8% so với bong bóng tầng TÊN gần nhất, sẽ đẩy xuống tầng DƯỚI
+      let levelClass = 'level-top';
+      if (Math.abs(leftPercent - lastPositions['top']) < 8) {
+        levelClass = 'level-bottom';
+        lastPositions['bottom'] = leftPercent;
+      } else {
+        lastPositions['top'] = leftPercent;
       }
-      lastPositions[level] = leftPercent;
 
       const indicator = document.createElement('div');
-      indicator.className = `timeline-indicator level-${level} ${isUrgent ? 'urgent' : ''}`;
+      indicator.className = `timeline-indicator ${levelClass} ${isUrgent ? 'urgent' : ''}`;
       indicator.style.left = `${leftPercent}%`;
       indicator.innerHTML = `<span class="timeline-boss-tag">${displayName}</span>`;
       wrapper.appendChild(indicator);
