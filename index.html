@@ -3,9 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lander Timer Web v6.0 (Chart Visualizer & Fixed Header)</title>
-  <!-- Chart.js for Peak Boss Visualizer Chart -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <title>Lander Timer Web v6.2 (Peak Boss List View)</title>
   <style>
     * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     
@@ -278,17 +276,7 @@
       100% { opacity: 1; }
     }
 
-    .timeline-labels {
-      display: flex;
-      justify-content: space-between;
-      font-size: 0.78em;
-      color: #64748b;
-      font-weight: bold;
-      border-top: 1px dashed #e2e8f0;
-      padding-top: 4px;
-    }
-
-    /* --- PANEL ĐỒ THỊ VÀ THÔNG TIN PEAK BOSS (HIỂN THỊ KHI BẤM TÌM KIẾM) --- */
+    /* --- PANEL THÔNG TIN VÀ DANH SÁCH PEAK BOSS (HIỂN THỊ KHI BẤM TÌM KIẾM) --- */
     .peak-analytics-panel {
       display: none;
       width: 100%;
@@ -326,14 +314,31 @@
       color: #451a03;
     }
     .metric-card strong { color: #92400e; }
-    .chart-container-box {
-      position: relative;
-      width: 100%;
-      height: 220px;
+    
+    .peak-boss-list-container {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 220px;
+      overflow-y: auto;
       background: #fafafa;
       border-radius: 8px;
-      border: 1px solid #f3f4f6;
-      padding: 8px;
+      border: 1px solid #f1f5f9;
+      padding: 10px;
+    }
+    .peak-boss-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #ffffff;
+      padding: 8px 14px;
+      border-radius: 6px;
+      border: 1px solid #e2e8f0;
+      font-size: 0.88em;
+    }
+    .peak-boss-item:hover {
+      border-color: #cbd5e1;
+      background: #f8fafc;
     }
 
     /* --- LAYOUT DANH SÁCH CARD BOSS --- */
@@ -531,22 +536,23 @@
       </div>
     </div>
 
-    <!-- PANEL ĐỒ THỊ BIỂU DIỄN & ĐÒ LƯỜNG MIN/MAX DELTA -->
+    <!-- PANEL HỈNH THỊ CHI TIẾT PEAK BOSS VÀ DANH SÁCH -->
     <div class="peak-analytics-panel" id="peakAnalyticsPanel">
       <div class="peak-analytics-header">
-        <span id="peakAnalyticsTitle">📊 ĐỒ THỊ PHÂN BỔ CÁC BOSS TRONG KHUNG GIỜ CAO ĐIỂM</span>
-        <button class="toast-btn-ctrl" onclick="document.getElementById('peakAnalyticsPanel').style.display='none'" title="Đóng panel đồ thị">✖</button>
+        <span id="peakAnalyticsTitle">🎯 KẾT QUẢ TÌM KHUNG GIỜ ĐÔNG BOSS NHẤT</span>
+        <button class="toast-btn-ctrl" onclick="document.getElementById('peakAnalyticsPanel').style.display='none'" title="Đóng panel">✖</button>
       </div>
       
       <div class="peak-metrics-grid" id="peakMetricsGrid">
-        <!-- JS sẽ inject thông tin Min-Delta / Max-Delta chi tiết kèm tên Cặp Boss vào đây -->
+        <!-- JS sẽ inject thông tin tổng quan, Min/Max Delta tại đây -->
       </div>
 
-      <div class="chart-container-box">
-        <canvas id="peakBossChart"></canvas>
+      <div class="peak-boss-list-container" id="peakBossListContainer">
+        <!-- JS sẽ render danh sách các boss xuất hiện tại đây -->
       </div>
     </div>
   </header>
+</header>
 
   <!-- NỘI DUNG CHÍNH: DANH SÁCH CARD TIMERS NỐI TIẾP -->
   <main class="main-content-container">
@@ -592,7 +598,6 @@
   let limitCount = 3; 
   let isRemoteUpdating = false;
   let currentOcrImageBlob = null;
-  let peakChartInstance = null;
 
   const savedSpan = localStorage.getItem('lander_timeline_span');
   if (savedSpan) {
@@ -1000,8 +1005,8 @@
     window.cards[idx].startTime = now;
     window.cards[idx].target = now + totalSecs * 1000;
     window.cards[idx].warned60s = false;
-    
-    saveCardsToFirebase(); 
+
+    saveCardsToFirebase();
     render();
   };
 
@@ -1027,7 +1032,7 @@
     render();
   };
 
-  // --- THUẬT TOÁN TÌM KHUNG GIỜ ĐÔNG BOSS NHẤT & VẼ ĐỒ THỊ + DELTA CHÍNH XÁC CẶP BOSS ---
+  // --- THUẬT TOÁN TÌM KHUNG GIỜ ĐÔNG BOSS NHẤT VÀ HIỂN THỊ DANH SÁCH ---
   window.findPeakBossTime = function() {
     const now = Date.now();
     const activeCards = window.cards.filter(c => c.target && c.target > now);
@@ -1129,76 +1134,35 @@
       </div>
     `;
 
-    // Render Đồ thị Phân bố Boss bằng Chart.js (Line Chart với Scatter Point)
-    renderPeakChart(bestStart, bestStart + windowMs, bestMatchedCards);
+    // Render Danh sách Boss
+    const listContainer = document.getElementById('peakBossListContainer');
+    let listHtml = '';
+    bestMatchedCards.forEach((b, i) => {
+      let targetTimeStr = new Date(b.target).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      let nextDeltaStr = '';
+      if (i < bestMatchedCards.length - 1) {
+        let diff = bestMatchedCards[i+1].target - b.target;
+        nextDeltaStr = `<span style="color:#94a3b8; font-size:0.82em;"> (Delta tới boss tiếp: ${formatDuration(diff)})</span>`;
+      }
 
-    // Mở Panel Đồ Thị Analytics
+      listHtml += `
+        <div class="peak-boss-item">
+          <div>
+            <span style="font-weight: bold; color: #0f172a;">#${i + 1} ${b.name}</span>
+            ${nextDeltaStr}
+          </div>
+          <div style="font-weight: bold; color: #2563eb;">
+            ⏰ ${targetTimeStr}
+          </div>
+        </div>
+      `;
+    });
+    listContainer.innerHTML = listHtml;
+
+    // Mở Panel Analytics
     const analyticsPanel = document.getElementById('peakAnalyticsPanel');
     analyticsPanel.style.display = 'block';
   };
-
-  function renderPeakChart(startTime, endTime, bossList) {
-    const ctx = document.getElementById('peakBossChart').getContext('2d');
-    
-    if (peakChartInstance) {
-      peakChartInstance.destroy();
-    }
-
-    // Chuẩn bị dữ liệu cho Đồ thị Timeline Scatter / Timeline Step
-    const labels = bossList.map(b => new Date(b.target).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
-    const dataPoints = bossList.map((b, idx) => ({
-      x: labels[idx],
-      y: idx + 1,
-      bossName: b.name,
-      targetTime: new Date(b.target).toLocaleTimeString()
-    }));
-
-    peakChartInstance = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: labels,
-        datasets: [{
-          label: 'Thứ tự Boss Spawn',
-          data: dataPoints.map(p => p.y),
-          borderColor: '#d97706',
-          backgroundColor: 'rgba(217, 119, 6, 0.15)',
-          borderWidth: 2,
-          pointBackgroundColor: '#2563eb',
-          pointRadius: 6,
-          pointHoverRadius: 8,
-          fill: true,
-          tension: 0.2
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            callbacks: {
-              label: function(context) {
-                const point = dataPoints[context.dataIndex];
-                return ` ⚔️ ${point.bossName} - Spawn lúc ${point.targetTime}`;
-              }
-            }
-          }
-        },
-        scales: {
-          x: {
-            title: { display: true, text: 'Mốc thời gian xuất hiện', color: '#64748b', font: { size: 11, weight: 'bold' } },
-            grid: { color: '#f1f5f9' }
-          },
-          y: {
-            title: { display: true, text: 'Số thứ tự Boss', color: '#64748b', font: { size: 11, weight: 'bold' } },
-            ticks: { stepSize: 1, precision: 0 },
-            beginAtZero: true,
-            grid: { color: '#f1f5f9' }
-          }
-        }
-      }
-    });
-  }
 
   function checkAndUpdateTimers() {
     const now = Date.now();
