@@ -990,4 +990,11 @@
     });
   }
 
-  document.addEventListener
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      checkAndUpdateTimers();
+    }
+  });
+</script>
+</body>
+</html>
