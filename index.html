@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lander Timer Web v5.9 (Fixed Layout & Spacing)</title>
+  <title>Lander Timer Web v5.10 (Peak Time Toast Menu)</title>
   <style>
     * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     
-    /* Tự động tính khoảng cách đệm cho body để không bao giờ bị đè card đầu tiên */
+    /* Khoảng cách đệm phía trên body vừa vặn chứa sticky header */
     body { background-color: #f4f6f9; margin: 0; padding: 20px; padding-top: 240px; padding-bottom: 80px; }
     
-    /* --- KHUNG CHỨA CỐ ĐỊNH Ở ĐẦU TRANG (STICKY HEADER CONTAINER) --- */
+    /* --- KHUNG CHỨA CỐ ĐỊNH Ở ĐẦU TRANG --- */
     .sticky-header {
       position: fixed;
       top: 0;
@@ -79,6 +79,63 @@
       width: 110px;
       text-align: center;
       font-weight: bold;
+    }
+
+    /* --- TOAST MENU KẾT QUẢ PEAK BOSS (HIỂN THỊ THÔNG TIN CHI TIẾT) --- */
+    .peak-toast-container {
+      position: fixed;
+      top: 245px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255, 255, 255, 0.98);
+      border: 2px solid #d97706;
+      box-shadow: 0 10px 30px rgba(217, 119, 6, 0.2);
+      padding: 14px 18px;
+      border-radius: 12px;
+      z-index: 9986;
+      display: none; /* Mặc định ẩn, bật lên khi bấm nút */
+      flex-direction: column;
+      gap: 8px;
+      width: 95%;
+      max-width: 1030px;
+      backdrop-filter: blur(6px);
+    }
+    .peak-toast-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.95em;
+      font-weight: bold;
+      color: #92400e;
+      border-bottom: 1px solid #fef3c7;
+      padding-bottom: 6px;
+    }
+    .peak-summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 8px;
+      font-size: 0.88em;
+      color: #334155;
+      background: #fffbeb;
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid #fde68a;
+    }
+    .peak-boss-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      max-height: 150px;
+      overflow-y: auto;
+    }
+    .peak-boss-item {
+      display: flex;
+      justify-content: space-between;
+      background: #f8fafc;
+      padding: 5px 10px;
+      border-radius: 6px;
+      border: 1px solid #e2e8f0;
+      font-size: 0.85em;
     }
 
     /* --- TOAST MENU NỔI DANH SÁCH (GÓC PHẢI DƯỚI) --- */
@@ -158,7 +215,7 @@
     .preview-target { color: #64748b; font-size: 0.9em; }
     .preview-remain { font-weight: bold; }
 
-    /* --- TIMELINE TOAST MENU (NẰM TRONG STICKY HEADER) --- */
+    /* --- TIMELINE TOAST MENU --- */
     .timeline-float-menu {
       background: rgba(255, 255, 255, 0.98);
       border: 1px solid #cbd5e1;
@@ -213,7 +270,6 @@
       border-radius: 2px;
     }
     
-    /* Vạch ticks động & Nhãn mờ dưới nền */
     .timeline-tick {
       position: absolute;
       top: 50%;
@@ -233,7 +289,6 @@
       white-space: nowrap;
     }
 
-    /* TICK XANH BIỂU DIỄN THỜI ĐIỂM HIỆN TẠI (NOW) TRÊN TRỤC */
     .timeline-now-tick {
       position: absolute;
       top: 50%;
@@ -260,7 +315,6 @@
       box-shadow: 0 2px 4px rgba(0,0,0,0.15);
     }
 
-    /* Các indicator (Dual-Bubble) */
     .timeline-indicator {
       position: absolute;
       transform: translateX(-50%);
@@ -295,7 +349,6 @@
       box-shadow: 0 2px 4px rgba(0,0,0,0.15);
     }
 
-    /* --- TẦNG TRÊN --- */
     .timeline-indicator.level-top {
       bottom: 50%;
       margin-bottom: 8px;
@@ -313,11 +366,7 @@
       display: block;
       width: 0;
     }
-    .timeline-indicator.level-top.urgent .timeline-boss-tag::after {
-      border-color: #dc3545 transparent;
-    }
 
-    /* --- TẦNG DƯỚI --- */
     .timeline-indicator.level-bottom {
       top: 50%;
       margin-top: 8px;
@@ -334,9 +383,6 @@
       border-color: transparent transparent #111827;
       display: block;
       width: 0;
-    }
-    .timeline-indicator.level-bottom.urgent .timeline-boss-tag::before {
-      border-color: transparent transparent #dc3545;
     }
 
     .timeline-indicator.urgent .timeline-boss-tag {
@@ -359,7 +405,7 @@
       padding-top: 4px;
     }
 
-    /* --- LAYOUT DẠNG DÒNG (ROW) CHO CARD --- */
+    /* --- LAYOUT CARD --- */
     .grid-container { 
       display: flex;
       flex-direction: column;
@@ -435,7 +481,7 @@
 </head>
 <body>
 
-  <!-- KHUNG CHỨA CỐ ĐỊNH CHUNG Ở ĐẦU TRANG (TRÁNH ĐÈ CHỒNG) -->
+  <!-- KHUNG CHỨA CỐ ĐỊNH CHUNG Ở ĐẦU TRANG -->
   <div class="sticky-header">
     <!-- MAIN MENU TOAST -->
     <div class="top-bar-toast">
@@ -462,7 +508,7 @@
       </div>
     </div>
 
-    <!-- TIMELINE TOAST MENU -->
+    <!-- TIMELINE TOAST MENU (LUÔN HIỂN THỊ ĐỘNG THEO NOW VÀ KHÔNG BỊ ẢNH HƯỞNG BỞI NÚT PEAK) -->
     <div class="timeline-float-menu" id="timelineFloatMenu">
       <div class="timeline-float-header" id="timelineFloatHeader">
         <span>📈 TIMELINE RAIDBOSS</span>
@@ -474,12 +520,25 @@
       </div>
       <div class="timeline-bar-wrapper" id="timelineBarWrapper">
         <div class="timeline-track-line"></div>
-        <!-- Ticks, tick xanh NOW & Dual-Bubble indicators -->
       </div>
       <div class="timeline-labels">
         <span id="timelineStartLabel">--:--:--</span>
         <span id="timelineEndLabel">--:--:--</span>
       </div>
+    </div>
+  </div>
+
+  <!-- TOAST MENU HIỂN THỊ KẾT QUẢ TÌM GIỜ BOSS ĐÔNG NHẤT -->
+  <div class="peak-toast-container" id="peakToastContainer">
+    <div class="peak-toast-header">
+      <span>🎯 THÔNG TIN KHUNG GIỜ ĐÔNG BOSS NHẤT (9 GIỜ TỚI)</span>
+      <button class="toast-btn-ctrl" onclick="document.getElementById('peakToastContainer').style.display='none'" title="Đóng">✖</button>
+    </div>
+    <div class="peak-summary-grid" id="peakSummaryContent">
+      <!-- Nội dung tóm tắt khoảng thời gian, số lượng, gần nhất, xa nhất -->
+    </div>
+    <div class="peak-boss-list" id="peakBossListContent">
+      <!-- Danh sách boss sắp xếp theo thời gian -->
     </div>
   </div>
 
@@ -600,7 +659,6 @@
     }
   };
 
-  // --- KÉO THẢ TOAST PREVIEW MENU (GÓC PHẢI DƯỚI) ---
   const toastContainer = document.getElementById('toastPreviewContainer');
   const toastHeader = document.getElementById('toastHeader');
   let isDraggingToast = false;
@@ -958,7 +1016,7 @@
     render();
   };
 
-  // --- THUẬT TOÁN TÌM KHUNG GIỜ ĐÔNG BOSS NHẤT TRONG 9 GIỜ ---
+  // --- HÀM TÌM KHUNG GIỜ ĐÔNG BOSS NHẤT VÀ HIỂN THỊ TOAST MENU RIÊNG BIỆT ---
   window.findPeakBossTime = function() {
     const now = Date.now();
     const activeCards = window.cards.filter(c => c.target && c.target > now);
@@ -975,12 +1033,14 @@
     const stepMs = 60 * 1000;
     let bestStart = now;
     let maxCount = -1;
+    let bestMatchedCards = [];
 
     for (let t = now; t <= now + maxScanMs - windowMs; t += stepMs) {
-      let count = activeCards.filter(c => c.target >= t && c.target <= t + windowMs).length;
-      if (count > maxCount) {
-        maxCount = count;
+      let matched = activeCards.filter(c => c.target >= t && c.target <= t + windowMs);
+      if (matched.length > maxCount) {
+        maxCount = matched.length;
         bestStart = t;
+        bestMatchedCards = matched;
       }
     }
 
@@ -989,12 +1049,39 @@
       return;
     }
 
-    window.customTimelineStartTime = bestStart;
-    checkAndUpdateTimers();
+    // Sắp xếp các boss trong khoảng thời gian này theo thứ tự thời gian target tăng dần
+    bestMatchedCards.sort((a, b) => a.target - b.target);
 
-    const startTimeStr = new Date(bestStart).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const endTimeStr = new Date(bestStart + windowMs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    alert(`🎯 Khung giờ đông boss nhất: Từ ${startTimeStr} đến ${endTimeStr} (${maxCount} Boss xuất hiện)!`);
+    const startTimeStr = new Date(bestStart).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const endTimeStr = new Date(bestStart + windowMs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+    const nearestBoss = bestMatchedCards[0];
+    const furthestBoss = bestMatchedCards[bestMatchedCards.length - 1];
+
+    // Render thông tin lên Toast Menu riêng biệt
+    const summaryEl = document.getElementById('peakSummaryContent');
+    summaryEl.innerHTML = `
+      <div>⏳ <b>Khung giờ:</b> ${startTimeStr} - ${endTimeStr}</div>
+      <div>🔥 <b>Tổng số Boss:</b> ${maxCount} con</div>
+      <div>⚡ <b>Gần nhất:</b> ${nearestBoss.name} (${new Date(nearestBoss.target).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'})})</div>
+      <div>🌙 <b>Xa nhất:</b> ${furthestBoss.name} (${new Date(furthestBoss.target).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'})})</div>
+    `;
+
+    const listEl = document.getElementById('peakBossListContent');
+    let listHtml = '';
+    bestMatchedCards.forEach(c => {
+      const tStr = new Date(c.target).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      listHtml += `
+        <div class="peak-boss-item">
+          <span>⚔️ <b>${c.name}</b></span>
+          <span style="color: #0284c7; font-weight: bold;">⏰ ${tStr}</span>
+        </div>
+      `;
+    });
+    listEl.innerHTML = listHtml;
+
+    // Hiển thị Toast Menu kết quả
+    document.getElementById('peakToastContainer').style.display = 'flex';
   };
 
   function checkAndUpdateTimers() {
@@ -1102,7 +1189,7 @@
     toastList.innerHTML = html;
   }
 
-  // --- HÀM CẬP NHẬT TIMELINE ---
+  // --- HÀM CẬP NHẬT TIMELINE CHUẨN (KHÔNG BỊ ẢNH HƯỞNG BỞI NÚT PEAK) ---
   function updateTimelineBar(now) {
     const spanInput = document.getElementById('timelineSpanInput');
     let spanHours = spanInput ? (parseFloat(spanInput.value) || 2) : 2;
@@ -1111,10 +1198,8 @@
 
     const spanMs = spanHours * 3600 * 1000;
     
-    if (!window.customTimelineStartTime || window.customTimelineStartTime < now) {
-      window.customTimelineStartTime = now;
-    }
-    const startTime = window.customTimelineStartTime;
+    // Timeline luôn bắt đầu từ thời điểm hiện tại (now)
+    const startTime = now;
     const endTime = startTime + spanMs;
 
     document.getElementById('timelineStartLabel').innerText = new Date(startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -1125,21 +1210,17 @@
     const oldDynamicElements = wrapper.querySelectorAll('.timeline-indicator, .timeline-tick, .timeline-tick-label, .timeline-now-tick, .timeline-now-label');
     oldDynamicElements.forEach(el => el.remove());
 
-    if (now >= startTime && now <= endTime) {
-      const nowRatio = (now - startTime) / spanMs;
-      const nowPercent = nowRatio * 100;
+    // Vẽ tick NOW ở điểm đầu (0%)
+    const nowTick = document.createElement('div');
+    nowTick.className = 'timeline-now-tick';
+    nowTick.style.left = `0%`;
+    wrapper.appendChild(nowTick);
 
-      const nowTick = document.createElement('div');
-      nowTick.className = 'timeline-now-tick';
-      nowTick.style.left = `${nowPercent}%`;
-      wrapper.appendChild(nowTick);
-
-      const nowLabel = document.createElement('div');
-      nowLabel.className = 'timeline-now-label';
-      nowLabel.style.left = `${nowPercent}%`;
-      nowLabel.innerText = `NOW`;
-      wrapper.appendChild(nowLabel);
-    }
+    const nowLabel = document.createElement('div');
+    nowLabel.className = 'timeline-now-label';
+    nowLabel.style.left = `0%`;
+    nowLabel.innerText = `NOW`;
+    wrapper.appendChild(nowLabel);
 
     let intervalMs;
     if (spanHours <= 1) {
