@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lander Timer Web v5.3 (Advanced Visual Timeline)</title>
+  <title>Lander Timer Web v5.4 (Dynamic Ticks Timeline)</title>
   <style>
     * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     body { background-color: #f4f6f9; margin: 0; padding: 20px; padding-bottom: 80px; }
@@ -133,7 +133,7 @@
     .preview-target { color: #64748b; font-size: 0.9em; }
     .preview-remain { font-weight: bold; }
 
-    /* --- TIMELINE INLINE BAR TRỰC QUAN MỚI --- */
+    /* --- TIMELINE INLINE BAR V5.4 --- */
     .timeline-section {
       background: white;
       border: 1px solid #e0e0e0;
@@ -172,7 +172,7 @@
     .timeline-bar-wrapper {
       position: relative;
       width: 100%;
-      height: 150px; /* Không gian rộng rãi cho các vạch ticks và dual-bubble */
+      height: 150px;
       background: transparent;
       margin-top: 20px;
       margin-bottom: 15px;
@@ -188,7 +188,7 @@
       border-radius: 2px;
     }
     
-    /* Vạch chia mốc thời gian phụ (Ticks) & Nhãn mờ dưới nền */
+    /* Vạch ticks động & Nhãn mờ dưới nền */
     .timeline-tick {
       position: absolute;
       top: 50%;
@@ -297,7 +297,7 @@
       100% { opacity: 1; }
     }
 
-    /* Thanh nhãn trục thời gian 2 đầu (Now & End) */
+    /* Thanh nhãn trục thời gian 2 đầu (Đã loại bỏ chữ END và >>) */
     .timeline-labels {
       display: flex;
       justify-content: space-between;
@@ -418,11 +418,11 @@
     </div>
     <div class="timeline-bar-wrapper" id="timelineBarWrapper">
       <div class="timeline-track-line"></div>
-      <!-- Các vạch ticks, nhãn mờ và Dual-Bubble indicators được sinh tự động tại đây -->
+      <!-- Các vạch ticks động & Dual-Bubble indicators -->
     </div>
     <div class="timeline-labels">
       <span id="timelineStartLabel">🟢 NOW: --:--:--</span>
-      <span id="timelineEndLabel">END (>>) --:--:--</span>
+      <span id="timelineEndLabel">--:--:--</span>
     </div>
   </div>
 
@@ -1006,7 +1006,7 @@
     toastList.innerHTML = html;
   }
 
-  // --- HÀM CẬP NHẬT TIMELINE VỚI TICKS MỖI 15 PHÚT VÀ HIỂN THỊ TRỰC QUAN NOW / END (>>) ---
+  // --- HÀM CẬP NHẬT TIMELINE VỚI TICKS ĐỘNG VÀ NHÃN SẠCH SẼ ---
   function updateTimelineBar(now) {
     const spanInput = document.getElementById('timelineSpanInput');
     let spanHours = spanInput ? (parseFloat(spanInput.value) || 2) : 2;
@@ -1017,17 +1017,27 @@
     const startTime = now;
     const endTime = now + spanMs;
 
+    // Cập nhật mốc thời gian Now và End (đã loại bỏ chữ END và >>)
     document.getElementById('timelineStartLabel').innerText = `🟢 NOW: ${new Date(startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
-    document.getElementById('timelineEndLabel').innerText = `END (>>) ${new Date(endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
+    document.getElementById('timelineEndLabel').innerText = `${new Date(endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
 
     const wrapper = document.getElementById('timelineBarWrapper');
     
-    // Xóa các thành phần động cũ (giữ lại thanh line gốc)
     const oldDynamicElements = wrapper.querySelectorAll('.timeline-indicator, .timeline-tick, .timeline-tick-label');
     oldDynamicElements.forEach(el => el.remove());
 
-    // --- 1. TỰ ĐỘNG SINH CÁC VẠCH TICKS MỖI 15 PHÚT ---
-    const intervalMs = 15 * 60 * 1000; // 15 phút
+    // --- 1. TỰ ĐỘNG CHIA TICKS TÙY THEO KHOẢNG BIỂU DIỄN ---
+    let intervalMs;
+    if (spanHours <= 1) {
+      intervalMs = 5 * 60 * 1000;    // Khoảng <= 1h: Chia mỗi 5 phút
+    } else if (spanHours <= 3) {
+      intervalMs = 15 * 60 * 1000;   // Khoảng từ 1h - 3h: Chia mỗi 15 phút
+    } else if (spanHours <= 6) {
+      intervalMs = 30 * 60 * 1000;   // Khoảng từ 3h - 6h: Chia mỗi 30 phút
+    } else {
+      intervalMs = 60 * 60 * 1000;   // Khoảng từ 6h - 9h: Chia mỗi 1 giờ
+    }
+
     let currentTickTime = Math.ceil(startTime / intervalMs) * intervalMs;
     
     while (currentTickTime < endTime) {
@@ -1048,7 +1058,7 @@
       currentTickTime += intervalMs;
     }
 
-    // --- 2. VẼ BỘ ĐÔI DUAL-BUBBLE THÔNG MINH CHO CÁC BOSS TRONG KHOẢNG ---
+    // --- 2. VẼ BỘ ĐÔI DUAL-BUBBLE THÔNG MINH ---
     let validCards = window.cards.filter(c => c.target && c.target >= startTime && c.target <= endTime);
     validCards.sort((a, b) => a.target - b.target);
 
