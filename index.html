@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lander Timer Web v4.6 (Secure SHA-256 Auth)</title>
+  <title>Lander Timer Web v4.7 (Timeline Gauge Menu)</title>
   <style>
     * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-    body { background-color: #f4f6f9; margin: 0; padding: 20px; padding-bottom: 80px; }
+    body { background-color: #f4f6f9; margin: 0; padding: 20px; padding-bottom: 120px; }
     .top-bar { 
       display: flex; 
       gap: 10px; 
@@ -56,7 +56,7 @@
       font-weight: bold;
     }
 
-    /* --- TOAST MENU NỔI CÓ THỂ KÉO THẢ --- */
+    /* --- TOAST MENU NỔI CŨ (DANH SÁCH) --- */
     .toast-preview-container {
       position: fixed;
       bottom: 20px;
@@ -132,6 +132,108 @@
     .preview-name { font-weight: bold; font-style: italic; min-width: 90px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
     .preview-target { color: #64748b; font-size: 0.9em; }
     .preview-remain { font-weight: bold; }
+
+    /* --- TIMELINE FLOATING MENU MỚI (KHÔNG THỂ TƯƠNG TÁC) --- */
+    .timeline-menu-container {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid #cbd5e1;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+      padding: 12px 16px;
+      border-radius: 12px;
+      z-index: 9998;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      backdrop-filter: blur(5px);
+      width: 420px;
+      user-select: none;
+      pointer-events: none !important; /* Vô hiệu hóa toàn bộ tương tác chuột/bàn phím lên menu này */
+    }
+    .timeline-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.85em;
+      font-weight: bold;
+      color: #475569;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 6px;
+    }
+    .timeline-input-group {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.8em;
+      color: #64748b;
+    }
+    .timeline-input-group input {
+      width: 45px;
+      text-align: center;
+      padding: 2px;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      font-size: 0.85em;
+      background: #f1f5f9;
+      pointer-events: none !important; /* Đảm bảo input box không thể click hay nhập */
+    }
+    .timeline-bar-wrapper {
+      position: relative;
+      width: 100%;
+      height: 26px;
+      background: #e2e8f0;
+      border-radius: 6px;
+      margin-top: 6px;
+      margin-bottom: 4px;
+      overflow: hidden;
+    }
+    .timeline-track-fill {
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      background: #3b82f6;
+      width: 0%;
+      transition: width 0.2s linear;
+    }
+    .timeline-indicator {
+      position: absolute;
+      top: 0;
+      transform: translateX(-50%);
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2;
+    }
+    .timeline-boss-tag {
+      background: #1e293b;
+      color: white;
+      font-size: 0.7em;
+      font-weight: bold;
+      padding: 2px 5px;
+      border-radius: 4px;
+      white-space: nowrap;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    .timeline-indicator.urgent .timeline-boss-tag {
+      background: #dc3545;
+      animation: pulse-tag 1s infinite;
+    }
+    @keyframes pulse-tag {
+      0% { opacity: 1; }
+      50% { opacity: 0.6; }
+      100% { opacity: 1; }
+    }
+    .timeline-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75s;
+      color: #64748b;
+      font-weight: 500;
+    }
 
     /* --- LAYOUT DẠNG DÒNG (ROW) --- */
     .grid-container { 
@@ -233,6 +335,7 @@
 
   <div class="grid-container" id="cardContainer"></div>
 
+  <!-- TOAST MENU NỔI CŨ (DANH SÁCH) -->
   <div class="toast-preview-container" id="toastPreviewContainer">
     <div class="toast-header" id="toastHeader">
       <span id="toastTitle">🔔 SẮP ĐẾN GIỜ (3)</span>
@@ -244,6 +347,26 @@
     </div>
     <div class="toast-list" id="toastList">
       <span style="color: #94a3b8; font-size: 0.85em; font-style: italic; text-align: center; padding: 4px;">Không có timer nào đang chạy</span>
+    </div>
+  </div>
+
+  <!-- TIMELINE FLOATING MENU MỚI (HOÀN TOÀN KHÔNG THỂ TƯƠNG TÁC) -->
+  <div class="timeline-menu-container" id="timelineMenuContainer">
+    <div class="timeline-header">
+      <span>📈 TIMELINE BIỂU DIỄN</span>
+      <div class="timeline-input-group">
+        <span>Khoảng:</span>
+        <input type="number" id="timelineSpanInput" value="3" disabled>
+        <span>giờ</span>
+      </div>
+    </div>
+    <div class="timeline-bar-wrapper" id="timelineBarWrapper">
+      <div class="timeline-track-fill" id="timelineTrackFill"></div>
+      <!-- Các indicator tên boss sẽ được render tự động vào đây -->
+    </div>
+    <div class="timeline-labels">
+      <span id="timelineStartLabel">--:--:--</span>
+      <span id="timelineEndLabel">--:--:--</span>
     </div>
   </div>
 
@@ -272,15 +395,11 @@
   let isRemoteUpdating = false;
   let currentOcrImageBlob = null;
 
-  // --- DANH SÁCH MÃ HÓA SHA-256 CỦA ADMIN ID ---
-  // Thay vì lưu "admin123", hệ thống lưu chuỗi băm bên dưới. 
-  // (Mã băm dưới đây tương ứng với ID gốc: "admin123")
   const ALLOWED_HASHES = [
     "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9" 
   ];
   window.isAuthorized = false;
 
-  // Hàm băm mật mã chuẩn SHA-256 sử dụng Web Crypto API của trình duyệt
   async function sha256(message) {
     const msgBuffer = new TextEncoder().encode(message);
     const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
@@ -318,7 +437,6 @@
     render();
   }
 
-  // --- KHỞI TẠO WEB WORKER TỪ BLOB ---
   const workerCode = `
     setInterval(function() {
       postMessage('tick');
@@ -334,7 +452,6 @@
     }
   };
 
-  // --- LOGIC KÉO THẢ CHO TOAST MENU ---
   const toastContainer = document.getElementById('toastPreviewContainer');
   const toastHeader = document.getElementById('toastHeader');
 
@@ -443,7 +560,6 @@
       let item = items[index];
       if (item.kind === 'file' && item.type.startsWith('image/')) {
         let blob = item.getAsFile();
-        console.log("[Clipboard] 📋 Phát hiện ảnh được dán từ Clipboard!");
         processAndSendAiOcr(blob);
         event.preventDefault();
         break;
@@ -759,6 +875,7 @@
     });
 
     updateToastPreview(now);
+    updateTimelineMenu(now);
 
     if (stateChanged && window.isAuthorized) {
       saveCardsToFirebase();
@@ -796,6 +913,41 @@
       `;
     });
     toastList.innerHTML = html;
+  }
+
+  // --- HÀM CẬP NHẬT TIMELINE MENU ---
+  function updateTimelineMenu(now) {
+    const spanInput = document.getElementById('timelineSpanInput');
+    const spanHours = spanInput ? (parseFloat(spanInput.value) || 3) : 3;
+    const spanMs = spanHours * 3600 * 1000;
+
+    const startTime = now;
+    const endTime = now + spanMs;
+
+    document.getElementById('timelineStartLabel').innerText = new Date(startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    document.getElementById('timelineEndLabel').innerText = new Date(endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+    const wrapper = document.getElementById('timelineBarWrapper');
+    // Xóa các indicator cũ (giữ lại thanh track-fill)
+    const existingIndicators = wrapper.querySelectorAll('.timeline-indicator');
+    existingIndicators.forEach(el => el.remove());
+
+    // Vẽ các indicator (tên boss) nằm trong khoảng thời gian span
+    window.cards.forEach(c => {
+      if (c.target && c.target >= startTime && c.target <= endTime) {
+        const ratio = (c.target - startTime) / spanMs;
+        const leftPercent = ratio * 100;
+
+        const remainSecs = Math.ceil((c.target - now) / 1000);
+        const isUrgent = remainSecs <= 60;
+
+        const indicator = document.createElement('div');
+        indicator.className = `timeline-indicator ${isUrgent ? 'urgent' : ''}`;
+        indicator.style.left = `${leftPercent}%`;
+        indicator.innerHTML = `<span class="timeline-boss-tag">${c.name}</span>`;
+        wrapper.appendChild(indicator);
+      }
+    });
   }
 
   document.addEventListener("visibilitychange", () => {
