@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lander Timer Web v4.8 (Inline Timeline Bar)</title>
+  <title>Lander Timer Web v4.9 (Timeline Staggered Layout)</title>
   <style>
     * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     body { background-color: #f4f6f9; margin: 0; padding: 20px; padding-bottom: 80px; }
@@ -133,7 +133,7 @@
     .preview-target { color: #64748b; font-size: 0.9em; }
     .preview-remain { font-weight: bold; }
 
-    /* --- TIMELINE INLINE BAR (XẾP ĐẦU TIÊN, FULL CHIỀU RỘNG) --- */
+    /* --- TIMELINE INLINE BAR (MỞ RỘNG CHIỀU CAO ĐỂ CHỨA SO LE) --- */
     .timeline-section {
       background: white;
       border: 1px solid #e0e0e0;
@@ -172,52 +172,58 @@
     .timeline-bar-wrapper {
       position: relative;
       width: 100%;
-      height: 45px; /* Đủ không gian hiển thị bong bóng chat indicator */
+      height: 75px; /* Tăng chiều cao để chứa 2 tầng so le */
       background: #e2e8f0;
       border-radius: 6px;
-      margin-top: 25px;
+      margin-top: 10px;
       margin-bottom: 5px;
     }
     .timeline-track-fill {
       position: absolute;
-      top: 50%;
+      bottom: 12px; /* Đặt trục ngang ở phần dưới của wrapper */
       left: 0;
       width: 100%;
       height: 4px;
-      transform: translateY(-50%);
       background: #cbd5e1;
     }
     .timeline-indicator {
       position: absolute;
-      bottom: 22px; /* Đặt mốc nằm phía trên trục ngang */
       transform: translateX(-50%);
       display: flex;
       flex-direction: column;
       align-items: center;
       z-index: 10;
     }
-    /* Indicator kiểu bong bóng chat giống hình đính kèm */
+    /* Phân tầng so le: Tầng 1 (thấp) và Tầng 2 (cao hơn) */
+    .timeline-indicator.level-0 {
+      bottom: 16px;
+    }
+    .timeline-indicator.level-1 {
+      bottom: 42px;
+    }
+
+    /* Indicator kiểu bong bóng chat */
     .timeline-boss-tag {
       background: #111827;
       color: white;
-      font-size: 0.75em;
+      font-size: 0.72em;
       font-weight: bold;
-      padding: 5px 10px;
-      border-radius: 12px;
+      padding: 4px 8px;
+      border-radius: 10px;
       text-align: center;
-      line-height: 1.2;
-      white-space: pre-line; /* Cho phép xuống dòng tự động theo \n */
-      box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+      line-height: 1.15;
+      white-space: pre-line;
+      box-shadow: 0 3px 5px rgba(0,0,0,0.2);
       position: relative;
     }
-    /* Tạo mũi tên nhọn trỏ xuống dưới của bong bóng chat */
+    /* Mũi tên trỏ xuống */
     .timeline-boss-tag::after {
       content: '';
       position: absolute;
-      bottom: -6px;
+      bottom: -5px;
       left: 50%;
       transform: translateX(-50%);
-      border-width: 6px 6px 0;
+      border-width: 5px 5px 0;
       border-style: solid;
       border-color: #111827 transparent;
       display: block;
@@ -341,7 +347,7 @@
     </div>
   </div>
 
-  <!-- TIMELINE INLINE BAR (ĐẶT Ở VỊ TRÍ ĐẦU TIÊN, TRƯỚC CARD THỨ NHẤT) -->
+  <!-- TIMELINE INLINE BAR VỚI THUẬT TOÁN PHÂN TẦNG SO LE -->
   <div class="timeline-section" id="timelineSection">
     <div class="timeline-header">
       <span>📈 TIMELINE BIỂU DIỄN THỜI GIAN RAIDBOSS</span>
@@ -353,7 +359,7 @@
     </div>
     <div class="timeline-bar-wrapper" id="timelineBarWrapper">
       <div class="timeline-track-fill"></div>
-      <!-- Các indicator tên boss sẽ được vẽ tự động vào đây -->
+      <!-- Các indicator tên boss sẽ được phân tầng tự động vào đây -->
     </div>
     <div class="timeline-labels">
       <span id="timelineStartLabel">--:--:--</span>
@@ -403,7 +409,6 @@
   let isRemoteUpdating = false;
   let currentOcrImageBlob = null;
 
-  // Khôi phục giá trị khoảng thời gian timeline từ localStorage của trình duyệt (Độc lập user)
   const savedSpan = localStorage.getItem('lander_timeline_span');
   if (savedSpan) {
     const inputEl = document.getElementById('timelineSpanInput');
@@ -935,7 +940,7 @@
     toastList.innerHTML = html;
   }
 
-  // --- HÀM CẬP NHẬT TIMELINE INLINE BAR VÀ XỬ LÝ NGẮT DÒNG TÊN BOSS ---
+  // --- HÀM CẬP NHẬT TIMELINE VỚI THUẬT TOÁN PHÂN TẦNG SO LE TRÁNH CHE KHUẤT ---
   function updateTimelineBar(now) {
     const spanInput = document.getElementById('timelineSpanInput');
     const spanHours = spanInput ? (parseFloat(spanInput.value) || 3) : 3;
@@ -951,35 +956,38 @@
     const existingIndicators = wrapper.querySelectorAll('.timeline-indicator');
     existingIndicators.forEach(el => el.remove());
 
-    window.cards.forEach(c => {
-      if (c.target && c.target >= startTime && c.target <= endTime) {
-        const ratio = (c.target - startTime) / spanMs;
-        const leftPercent = ratio * 100;
+    // Lọc và sắp xếp các boss theo thời gian target tăng dần
+    let validCards = window.cards.filter(c => c.target && c.target >= startTime && c.target <= endTime);
+    validCards.sort((a, b) => a.target - b.target);
 
-        const remainSecs = Math.ceil((c.target - now) / 1000);
-        const isUrgent = remainSecs <= 60;
+    // Thuật toán phát hiện xung đột và phân tầng so le (level 0 và level 1)
+    let lastPositions = [-999, -999]; // Lưu vị trí phần trăm (%) của tầng 0 và tầng 1 gần nhất
 
-        // Xử lý tên boss: Nếu có khoảng trắng (từ 2 từ trở lên), thay khoảng trắng đầu tiên bằng xuống dòng \n để hiển thị thành 2 hàng
-        let displayName = c.name;
-        const parts = c.name.trim().split(/\s+/);
-        if (parts.length >= 2) {
-          displayName = parts[0] + '\n' + parts.slice(1).join(' ');
-        }
+    validCards.forEach(c => {
+      const ratio = (c.target - startTime) / spanMs;
+      const leftPercent = ratio * 100;
+      const remainSecs = Math.ceil((c.target - now) / 1000);
+      const isUrgent = remainSecs <= 60;
 
-        const indicator = document.createElement('div');
-        indicator.className = `timeline-indicator ${isUrgent ? 'urgent' : ''}`;
-        indicator.style.left = `${leftPercent}%`;
-        indicator.innerHTML = `<span class="timeline-boss-tag">${displayName}</span>`;
-        wrapper.appendChild(indicator);
+      let displayName = c.name;
+      const parts = c.name.trim().split(/\s+/);
+      if (parts.length >= 2) {
+        displayName = parts[0] + '\n' + parts.slice(1).join(' ');
       }
+
+      // Kiểm tra khoảng cách: Nếu khoảng cách vị trí dưới 8% bề ngang thì đẩy lên tầng khác để không đè nhau
+      let level = 0;
+      if (Math.abs(leftPercent - lastPositions[0]) < 8) {
+        level = 1; // Đẩy lên tầng trên
+      }
+      lastPositions[level] = leftPercent;
+
+      const indicator = document.createElement('div');
+      indicator.className = `timeline-indicator level-${level} ${isUrgent ? 'urgent' : ''}`;
+      indicator.style.left = `${leftPercent}%`;
+      indicator.innerHTML = `<span class="timeline-boss-tag">${displayName}</span>`;
+      wrapper.appendChild(indicator);
     });
   }
 
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible") {
-      checkAndUpdateTimers();
-    }
-  });
-</script>
-</body>
-</html>
+  document.addEventListener
