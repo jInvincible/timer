@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lander Timer Web v4.7 (Timeline Gauge Menu)</title>
+  <title>Lander Timer Web v4.8 (Inline Timeline Bar)</title>
   <style>
     * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-    body { background-color: #f4f6f9; margin: 0; padding: 20px; padding-bottom: 120px; }
+    body { background-color: #f4f6f9; margin: 0; padding: 20px; padding-bottom: 80px; }
     .top-bar { 
       display: flex; 
       gap: 10px; 
@@ -56,7 +56,7 @@
       font-weight: bold;
     }
 
-    /* --- TOAST MENU NỔI CŨ (DANH SÁCH) --- */
+    /* --- TOAST MENU NỔI DANH SÁCH (GÓC PHẢI) --- */
     .toast-preview-container {
       position: fixed;
       bottom: 20px;
@@ -133,94 +133,102 @@
     .preview-target { color: #64748b; font-size: 0.9em; }
     .preview-remain { font-weight: bold; }
 
-    /* --- TIMELINE FLOATING MENU MỚI (KHÔNG THỂ TƯƠNG TÁC) --- */
-    .timeline-menu-container {
-      position: fixed;
-      bottom: 20px;
-      left: 20px;
-      background: rgba(255, 255, 255, 0.95);
-      border: 1px solid #cbd5e1;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
-      padding: 12px 16px;
-      border-radius: 12px;
-      z-index: 9998;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      backdrop-filter: blur(5px);
-      width: 420px;
-      user-select: none;
-      pointer-events: none !important; /* Vô hiệu hóa toàn bộ tương tác chuột/bàn phím lên menu này */
+    /* --- TIMELINE INLINE BAR (XẾP ĐẦU TIÊN, FULL CHIỀU RỘNG) --- */
+    .timeline-section {
+      background: white;
+      border: 1px solid #e0e0e0;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+      border-radius: 8px;
+      padding: 15px 20px;
+      margin-bottom: 20px;
+      max-width: 900px;
+      margin-left: auto;
+      margin-right: auto;
     }
     .timeline-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 0.85em;
+      font-size: 0.9em;
       font-weight: bold;
-      color: #475569;
-      border-bottom: 1px solid #e2e8f0;
-      padding-bottom: 6px;
+      color: #333;
+      margin-bottom: 10px;
     }
     .timeline-input-group {
       display: flex;
       align-items: center;
       gap: 5px;
-      font-size: 0.8em;
-      color: #64748b;
+      font-size: 0.85em;
+      color: #555;
     }
     .timeline-input-group input {
-      width: 45px;
+      width: 50px;
       text-align: center;
-      padding: 2px;
-      border: 1px solid #cbd5e1;
+      padding: 3px;
+      border: 1px solid #ccc;
       border-radius: 4px;
-      font-size: 0.85em;
-      background: #f1f5f9;
-      pointer-events: none !important; /* Đảm bảo input box không thể click hay nhập */
+      font-weight: bold;
     }
     .timeline-bar-wrapper {
       position: relative;
       width: 100%;
-      height: 26px;
+      height: 45px; /* Đủ không gian hiển thị bong bóng chat indicator */
       background: #e2e8f0;
       border-radius: 6px;
-      margin-top: 6px;
-      margin-bottom: 4px;
-      overflow: hidden;
+      margin-top: 25px;
+      margin-bottom: 5px;
     }
     .timeline-track-fill {
       position: absolute;
-      top: 0;
+      top: 50%;
       left: 0;
-      height: 100%;
-      background: #3b82f6;
-      width: 0%;
-      transition: width 0.2s linear;
+      width: 100%;
+      height: 4px;
+      transform: translateY(-50%);
+      background: #cbd5e1;
     }
     .timeline-indicator {
       position: absolute;
-      top: 0;
+      bottom: 22px; /* Đặt mốc nằm phía trên trục ngang */
       transform: translateX(-50%);
-      height: 100%;
       display: flex;
+      flex-direction: column;
       align-items: center;
-      justify-content: center;
-      z-index: 2;
+      z-index: 10;
     }
+    /* Indicator kiểu bong bóng chat giống hình đính kèm */
     .timeline-boss-tag {
-      background: #1e293b;
+      background: #111827;
       color: white;
-      font-size: 0.7em;
+      font-size: 0.75em;
       font-weight: bold;
-      padding: 2px 5px;
-      border-radius: 4px;
-      white-space: nowrap;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      padding: 5px 10px;
+      border-radius: 12px;
+      text-align: center;
+      line-height: 1.2;
+      white-space: pre-line; /* Cho phép xuống dòng tự động theo \n */
+      box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+      position: relative;
+    }
+    /* Tạo mũi tên nhọn trỏ xuống dưới của bong bóng chat */
+    .timeline-boss-tag::after {
+      content: '';
+      position: absolute;
+      bottom: -6px;
+      left: 50%;
+      transform: translateX(-50%);
+      border-width: 6px 6px 0;
+      border-style: solid;
+      border-color: #111827 transparent;
+      display: block;
+      width: 0;
     }
     .timeline-indicator.urgent .timeline-boss-tag {
       background: #dc3545;
       animation: pulse-tag 1s infinite;
+    }
+    .timeline-indicator.urgent .timeline-boss-tag::after {
+      border-color: #dc3545 transparent;
     }
     @keyframes pulse-tag {
       0% { opacity: 1; }
@@ -230,12 +238,12 @@
     .timeline-labels {
       display: flex;
       justify-content: space-between;
-      font-size: 0.75s;
+      font-size: 0.8em;
       color: #64748b;
       font-weight: 500;
     }
 
-    /* --- LAYOUT DẠNG DÒNG (ROW) --- */
+    /* --- LAYOUT DẠNG DÒNG (ROW) CHO CARD --- */
     .grid-container { 
       display: flex;
       flex-direction: column;
@@ -333,9 +341,29 @@
     </div>
   </div>
 
+  <!-- TIMELINE INLINE BAR (ĐẶT Ở VỊ TRÍ ĐẦU TIÊN, TRƯỚC CARD THỨ NHẤT) -->
+  <div class="timeline-section" id="timelineSection">
+    <div class="timeline-header">
+      <span>📈 TIMELINE BIỂU DIỄN THỜI GIAN RAIDBOSS</span>
+      <div class="timeline-input-group">
+        <span>Khoảng biểu diễn:</span>
+        <input type="number" id="timelineSpanInput" value="3" min="1" max="24" onchange="saveTimelineSpan(this.value)">
+        <span>giờ</span>
+      </div>
+    </div>
+    <div class="timeline-bar-wrapper" id="timelineBarWrapper">
+      <div class="timeline-track-fill"></div>
+      <!-- Các indicator tên boss sẽ được vẽ tự động vào đây -->
+    </div>
+    <div class="timeline-labels">
+      <span id="timelineStartLabel">--:--:--</span>
+      <span id="timelineEndLabel">--:--:--</span>
+    </div>
+  </div>
+
   <div class="grid-container" id="cardContainer"></div>
 
-  <!-- TOAST MENU NỔI CŨ (DANH SÁCH) -->
+  <!-- TOAST MENU NỔI DANH SÁCH (GÓC PHẢI) -->
   <div class="toast-preview-container" id="toastPreviewContainer">
     <div class="toast-header" id="toastHeader">
       <span id="toastTitle">🔔 SẮP ĐẾN GIỜ (3)</span>
@@ -347,26 +375,6 @@
     </div>
     <div class="toast-list" id="toastList">
       <span style="color: #94a3b8; font-size: 0.85em; font-style: italic; text-align: center; padding: 4px;">Không có timer nào đang chạy</span>
-    </div>
-  </div>
-
-  <!-- TIMELINE FLOATING MENU MỚI (HOÀN TOÀN KHÔNG THỂ TƯƠNG TÁC) -->
-  <div class="timeline-menu-container" id="timelineMenuContainer">
-    <div class="timeline-header">
-      <span>📈 TIMELINE BIỂU DIỄN</span>
-      <div class="timeline-input-group">
-        <span>Khoảng:</span>
-        <input type="number" id="timelineSpanInput" value="3" disabled>
-        <span>giờ</span>
-      </div>
-    </div>
-    <div class="timeline-bar-wrapper" id="timelineBarWrapper">
-      <div class="timeline-track-fill" id="timelineTrackFill"></div>
-      <!-- Các indicator tên boss sẽ được render tự động vào đây -->
-    </div>
-    <div class="timeline-labels">
-      <span id="timelineStartLabel">--:--:--</span>
-      <span id="timelineEndLabel">--:--:--</span>
     </div>
   </div>
 
@@ -394,6 +402,18 @@
   let limitCount = 3; 
   let isRemoteUpdating = false;
   let currentOcrImageBlob = null;
+
+  // Khôi phục giá trị khoảng thời gian timeline từ localStorage của trình duyệt (Độc lập user)
+  const savedSpan = localStorage.getItem('lander_timeline_span');
+  if (savedSpan) {
+    const inputEl = document.getElementById('timelineSpanInput');
+    if (inputEl) inputEl.value = savedSpan;
+  }
+
+  window.saveTimelineSpan = function(val) {
+    localStorage.setItem('lander_timeline_span', val);
+    checkAndUpdateTimers();
+  };
 
   const ALLOWED_HASHES = [
     "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9" 
@@ -875,7 +895,7 @@
     });
 
     updateToastPreview(now);
-    updateTimelineMenu(now);
+    updateTimelineBar(now);
 
     if (stateChanged && window.isAuthorized) {
       saveCardsToFirebase();
@@ -915,8 +935,8 @@
     toastList.innerHTML = html;
   }
 
-  // --- HÀM CẬP NHẬT TIMELINE MENU ---
-  function updateTimelineMenu(now) {
+  // --- HÀM CẬP NHẬT TIMELINE INLINE BAR VÀ XỬ LÝ NGẮT DÒNG TÊN BOSS ---
+  function updateTimelineBar(now) {
     const spanInput = document.getElementById('timelineSpanInput');
     const spanHours = spanInput ? (parseFloat(spanInput.value) || 3) : 3;
     const spanMs = spanHours * 3600 * 1000;
@@ -928,11 +948,9 @@
     document.getElementById('timelineEndLabel').innerText = new Date(endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
     const wrapper = document.getElementById('timelineBarWrapper');
-    // Xóa các indicator cũ (giữ lại thanh track-fill)
     const existingIndicators = wrapper.querySelectorAll('.timeline-indicator');
     existingIndicators.forEach(el => el.remove());
 
-    // Vẽ các indicator (tên boss) nằm trong khoảng thời gian span
     window.cards.forEach(c => {
       if (c.target && c.target >= startTime && c.target <= endTime) {
         const ratio = (c.target - startTime) / spanMs;
@@ -941,10 +959,17 @@
         const remainSecs = Math.ceil((c.target - now) / 1000);
         const isUrgent = remainSecs <= 60;
 
+        // Xử lý tên boss: Nếu có khoảng trắng (từ 2 từ trở lên), thay khoảng trắng đầu tiên bằng xuống dòng \n để hiển thị thành 2 hàng
+        let displayName = c.name;
+        const parts = c.name.trim().split(/\s+/);
+        if (parts.length >= 2) {
+          displayName = parts[0] + '\n' + parts.slice(1).join(' ');
+        }
+
         const indicator = document.createElement('div');
         indicator.className = `timeline-indicator ${isUrgent ? 'urgent' : ''}`;
         indicator.style.left = `${leftPercent}%`;
-        indicator.innerHTML = `<span class="timeline-boss-tag">${c.name}</span>`;
+        indicator.innerHTML = `<span class="timeline-boss-tag">${displayName}</span>`;
         wrapper.appendChild(indicator);
       }
     });
