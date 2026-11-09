@@ -3,24 +3,32 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lander Timer Web v5.6 (Wide Floating Timeline Toast Menu)</title>
+  <title>Lander Timer Web v5.7 (Fixed Responsive Toast Menus)</title>
   <style>
     * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-    body { background-color: #f4f6f9; margin: 0; padding: 20px; padding-bottom: 80px; }
-    .top-bar { 
+    body { background-color: #f4f6f9; margin: 0; padding: 20px; padding-top: 110px; padding-bottom: 80px; }
+    
+    /* --- MAIN MENU TOAST (CỐ ĐỊNH Ở ĐẦU TRANG) --- */
+    .top-bar-toast { 
+      position: fixed;
+      top: 15px;
+      left: 50%;
+      transform: translateX(-50%);
       display: flex; 
       gap: 10px; 
       align-items: center; 
-      margin-bottom: 20px; 
-      background: white; 
-      padding: 15px; 
-      border-radius: 8px; 
-      box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
+      background: rgba(255, 255, 255, 0.96); 
+      padding: 12px 18px; 
+      border-radius: 12px; 
+      box-shadow: 0 10px 25px rgba(0,0,0,0.12); 
       flex-wrap: wrap;
-      max-width: 860px;
-      margin-left: auto;
-      margin-right: auto;
+      width: 95%;
+      max-width: 1030px;
+      z-index: 9989;
+      border: 1px solid #cbd5e1;
+      backdrop-filter: blur(6px);
     }
+    
     button, .btn-upload { padding: 8px 14px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.9em; display: inline-flex; align-items: center; justify-content: center; }
     .btn-add { background: #007bff; color: white; }
     .btn-wipe { background: #6c757d; color: white; }
@@ -136,18 +144,17 @@
     .preview-target { color: #64748b; font-size: 0.9em; }
     .preview-remain { font-weight: bold; }
 
-    /* --- TIMELINE FLOATING TOAST MENU (ĐỘ RỘNG = 120% CARD WIDTH ~ 1030px) --- */
+    /* --- TIMELINE TOAST MENU (CỐ ĐỊNH DƯỚI MAIN MENU, ĐỘ RỘNG ĐỒNG BỘ) --- */
     .timeline-float-menu {
-      position: fixed;
-      top: 20px;
-      left: 20px;
+      display: block;
       background: rgba(255, 255, 255, 0.96);
       border: 1px solid #cbd5e1;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
       border-radius: 12px;
       padding: 14px 18px;
-      z-index: 9988;
-      width: 1030px; /* Đúng bằng 120% chiều rộng của card (~860px) */
+      margin: 0 auto 20px auto;
+      width: 95%;
+      max-width: 1030px; /* Bằng tuyệt đối với Main Menu Toast */
       backdrop-filter: blur(6px);
       user-select: none;
     }
@@ -160,9 +167,7 @@
       color: #1e293b;
       border-bottom: 1px solid #e2e8f0;
       padding-bottom: 8px;
-      cursor: grab;
     }
-    .timeline-float-header:active { cursor: grabbing; }
     .timeline-input-group {
       display: flex;
       align-items: center;
@@ -348,7 +353,8 @@
       display: flex;
       flex-direction: column;
       gap: 12px;
-      max-width: 860px; /* Chiều rộng chuẩn của 1 card */
+      width: 95%;
+      max-width: 1030px; /* Bằng tuyệt đối với Main Menu và Timeline Toast */
       margin: 0 auto;
     }
     
@@ -418,7 +424,8 @@
 </head>
 <body>
 
-  <div class="top-bar">
+  <!-- MAIN MENU TOAST CỐ ĐỊNH Ở ĐẦU TRANG -->
+  <div class="top-bar-toast">
     <div class="security-box" id="securityBox">
       <span>🔒 Admin ID:</span>
       <input type="password" id="adminIdInput" placeholder="Nhập ID..." oninput="checkAuthMaster(this.value)">
@@ -441,7 +448,7 @@
     </div>
   </div>
 
-  <!-- TIMELINE FLOATING TOAST MENU (ĐỘ RỘNG = 1030px = 120% CARD) -->
+  <!-- TIMELINE TOAST MENU (CỐ ĐỊNH BÊN DƯỚI MAIN MENU, ĐỘ RỘNG ĐỒNG BỘ) -->
   <div class="timeline-float-menu" id="timelineFloatMenu">
     <div class="timeline-float-header" id="timelineFloatHeader">
       <span>📈 TIMELINE RAIDBOSS</span>
@@ -463,7 +470,7 @@
 
   <div class="grid-container" id="cardContainer"></div>
 
-  <!-- TOAST MENU NỔI DANH SÁCH (GÓC PHẢI) -->
+  <!-- TOAST MENU NỔI DANH SÁCH (GÓC PHẢI DƯỚI) -->
   <div class="toast-preview-container" id="toastPreviewContainer">
     <div class="toast-header" id="toastHeader">
       <span id="toastTitle">🔔 SẮP ĐẾN GIỜ (3)</span>
@@ -578,44 +585,7 @@
     }
   };
 
-  // --- KÉO THẢ TIMELINE FLOATING MENU ---
-  const timelineMenu = document.getElementById('timelineFloatMenu');
-  const timelineHeader = document.getElementById('timelineFloatHeader');
-  let isDraggingTimeline = false;
-  let tStartX, tStartY, tInitialX, tInitialY;
-
-  timelineHeader.addEventListener('mousedown', (e) => {
-    isDraggingTimeline = true;
-    tStartX = e.clientX;
-    startY = e.clientY;
-    
-    const rect = timelineMenu.getBoundingClientRect();
-    tInitialX = rect.left;
-    tInitialY = rect.top;
-
-    timelineMenu.style.top = `${tInitialY}px`;
-    timelineMenu.style.left = `${tInitialX}px`;
-
-    document.addEventListener('mousemove', onTimelineMouseMove);
-    document.addEventListener('mouseup', onTimelineMouseUp);
-  });
-
-  function onTimelineMouseMove(e) {
-    if (!isDraggingTimeline) return;
-    const dx = e.clientX - tStartX;
-    const dy = e.clientY - startY;
-
-    timelineMenu.style.left = `${tInitialX + dx}px`;
-    timelineMenu.style.top = `${tInitialY + dy}px`;
-  }
-
-  function onTimelineMouseUp() {
-    isDraggingTimeline = false;
-    document.removeEventListener('mousemove', onTimelineMouseMove);
-    document.removeEventListener('mouseup', onTimelineMouseUp);
-  }
-
-  // --- KÉO THẢ TOAST PREVIEW MENU ---
+  // --- KÉO THẢ TOAST PREVIEW MENU (GÓC PHẢI DƯỚI) ---
   const toastContainer = document.getElementById('toastPreviewContainer');
   const toastHeader = document.getElementById('toastHeader');
   let isDraggingToast = false;
