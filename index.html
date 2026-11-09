@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lander Timer Web v5.1 (Smart Collision Timeline)</title>
+  <title>Lander Timer Web v5.2 (Timeline Dual-Bubble Target Time)</title>
   <style>
     * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     body { background-color: #f4f6f9; margin: 0; padding: 20px; padding-bottom: 80px; }
@@ -133,7 +133,7 @@
     .preview-target { color: #64748b; font-size: 0.9em; }
     .preview-remain { font-weight: bold; }
 
-    /* --- TIMELINE INLINE BAR (PHÂN TẦNG THÔNG MINH TRÊN / DƯỚI) --- */
+    /* --- TIMELINE INLINE BAR (PHÂN TẦNG TRÊN / DƯỚI & TARGET BUBBLE) --- */
     .timeline-section {
       background: white;
       border: 1px solid #e0e0e0;
@@ -172,7 +172,7 @@
     .timeline-bar-wrapper {
       position: relative;
       width: 100%;
-      height: 110px; /* Tăng không gian để xử lý an toàn nhiều tầng */
+      height: 140px; /* Tăng không gian chiều cao để chứa bộ đôi Target-Time Bubble */
       background: transparent;
       margin-top: 15px;
       margin-bottom: 15px;
@@ -193,13 +193,40 @@
       display: flex;
       flex-direction: column;
       align-items: center;
+      gap: 4px;
       z-index: 10;
     }
 
-    /* --- TẦNG TRÊN --- */
+    /* Phong cách chung cho Tag Tên Boss & Tag Target-Time */
+    .timeline-boss-tag {
+      background: #111827;
+      color: white;
+      font-size: 0.72em;
+      font-weight: bold;
+      padding: 4px 8px;
+      border-radius: 10px;
+      text-align: center;
+      line-height: 1.15;
+      white-space: pre-line;
+      box-shadow: 0 3px 5px rgba(0,0,0,0.2);
+      position: relative;
+    }
+    .timeline-target-tag {
+      background: #0284c7; /* Màu xanh lam nhạt hơn để phân biệt với tên boss */
+      color: white;
+      font-size: 0.68em;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 6px;
+      white-space: nowrap;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+    }
+
+    /* --- TẦNG TRÊN (LEVEL TOP): Target-time nằm TRÊN ĐẦU Bubble Tên Boss --- */
     .timeline-indicator.level-top {
       bottom: 50%;
       margin-bottom: 8px;
+      flex-direction: column; /* Xếp Target tag ở trên, Boss tag ở dưới */
     }
     .timeline-indicator.level-top .timeline-boss-tag::after {
       content: '';
@@ -217,10 +244,11 @@
       border-color: #dc3545 transparent;
     }
 
-    /* --- TẦNG DƯỚI --- */
+    /* --- TẦNG DƯỚI (LEVEL BOTTOM): Target-time nằm DƯỚI Bubble Tên Boss --- */
     .timeline-indicator.level-bottom {
       top: 50%;
       margin-top: 8px;
+      flex-direction: column-reverse; /* Xếp Boss tag ở trên trỏ vào trục, Target tag ở dưới */
     }
     .timeline-indicator.level-bottom .timeline-boss-tag::before {
       content: '';
@@ -238,20 +266,6 @@
       border-color: transparent transparent #dc3545;
     }
 
-    /* Phong cách bong bóng Tag tên Boss */
-    .timeline-boss-tag {
-      background: #111827;
-      color: white;
-      font-size: 0.72em;
-      font-weight: bold;
-      padding: 4px 8px;
-      border-radius: 10px;
-      text-align: center;
-      line-height: 1.15;
-      white-space: pre-line;
-      box-shadow: 0 3px 5px rgba(0,0,0,0.2);
-      position: relative;
-    }
     .timeline-indicator.urgent .timeline-boss-tag {
       background: #dc3545;
       animation: pulse-tag 1s infinite;
@@ -367,7 +381,6 @@
     </div>
   </div>
 
-  <!-- TIMELINE INLINE BAR VỚI GIỚI HẠN 0.5H ĐẾN 9H -->
   <div class="timeline-section" id="timelineSection">
     <div class="timeline-header">
       <span>📈 TIMELINE BIỂU DIỄN THỜI GIAN RAIDBOSS</span>
@@ -379,7 +392,7 @@
     </div>
     <div class="timeline-bar-wrapper" id="timelineBarWrapper">
       <div class="timeline-track-fill"></div>
-      <!-- Các indicator được phân tầng thông minh tránh đè nhau -->
+      <!-- Các bộ đôi Bubble (Tên Boss & Target-time) sẽ được tạo tự động -->
     </div>
     <div class="timeline-labels">
       <span id="timelineStartLabel">--:--:--</span>
@@ -429,7 +442,6 @@
   let isRemoteUpdating = false;
   let currentOcrImageBlob = null;
 
-  // Khôi phục giá trị khoảng thời gian timeline từ localStorage, đảm bảo nằm trong khoảng [0.5, 9]
   const savedSpan = localStorage.getItem('lander_timeline_span');
   if (savedSpan) {
     let val = parseFloat(savedSpan);
@@ -968,7 +980,7 @@
     toastList.innerHTML = html;
   }
 
-  // --- THUẬT TOÁN PHÂN TẦNG THÔNG MINH DỰA TRÊN KHOẢNG BIỂU DIỄN VÀ KÍCH THƯỚC PIXEL THỰC TẾ ---
+  // --- HÀM TẠO DUAL-BUBBLE THÔNG MINH CHO TIMELINE ---
   function updateTimelineBar(now) {
     const spanInput = document.getElementById('timelineSpanInput');
     let spanHours = spanInput ? (parseFloat(spanInput.value) || 2) : 2;
@@ -989,9 +1001,7 @@
     let validCards = window.cards.filter(c => c.target && c.target >= startTime && c.target <= endTime);
     validCards.sort((a, b) => a.target - b.target);
 
-    const wrapperWidth = wrapper.clientWidth || 800; // Chiều rộng pixel thực tế của thanh timeline
-
-    // Mảng lưu vị trí pixel tâm (leftPx) và tầng của các bubble đã được xếp
+    const wrapperWidth = wrapper.clientWidth || 800;
     let placedBubbles = [];
 
     validCards.forEach(c => {
@@ -1008,13 +1018,12 @@
         displayName = parts[0] + '\n' + parts.slice(1).join(' ');
       }
 
-      // Ước lượng chiều rộng pixel của bubble (mỗi ký tự ~ 7px + padding ~ 25px)
-      const maxLineLength = Math.max(...displayName.split('\n').map(l => l.length));
-      const estimatedWidthPx = Math.max(70, maxLineLength * 7 + 20);
+      const targetTimeString = new Date(c.target).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
-      // Thuật toán kiểm tra va chạm: 
-      // Kiểm tra lần lượt các tầng: 'level-top' (tầng trên) -> 'level-bottom' (tầng dưới)
-      // Nếu ở khoảng biểu diễn ngắn (ví dụ 1h), các bubble sẽ gần nhau hơn và bị đè pixel -> tự động bật sang tầng ngược lại.
+      // Ước lượng chiều rộng pixel thực tế của bộ đôi bubble
+      const maxLineLength = Math.max(...displayName.split('\n').map(l => l.length));
+      const estimatedWidthPx = Math.max(75, maxLineLength * 7 + 24);
+
       let chosenLevel = 'level-top';
       let hasConflictTop = placedBubbles.some(b => b.level === 'level-top' && Math.abs(b.leftPx - leftPx) < (estimatedWidthPx / 2 + b.widthPx / 2 + 10));
 
@@ -1023,7 +1032,6 @@
         if (!hasConflictBottom) {
           chosenLevel = 'level-bottom';
         } else {
-          // Nếu cả 2 tầng đều bị kẹt sát, ưu tiên luân phiên theo thứ tự
           chosenLevel = placedBubbles.filter(b => b.level === 'level-top').length <= placedBubbles.filter(b => b.level === 'level-bottom').length ? 'level-top' : 'level-bottom';
         }
       }
@@ -1033,7 +1041,12 @@
       const indicator = document.createElement('div');
       indicator.className = `timeline-indicator ${chosenLevel} ${isUrgent ? 'urgent' : ''}`;
       indicator.style.left = `${leftPercent}%`;
-      indicator.innerHTML = `<span class="timeline-boss-tag">${displayName}</span>`;
+      
+      // Xây dựng 2 Bubble: Tên Boss & Target-time (thứ tự trên/dưới do CSS flexbox điều khiển)
+      indicator.innerHTML = `
+        <span class="timeline-target-tag">⏰ ${targetTimeString}</span>
+        <span class="timeline-boss-tag">${displayName}</span>
+      `;
       wrapper.appendChild(indicator);
     });
   }
