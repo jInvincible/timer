@@ -550,25 +550,21 @@
         <!-- JS sẽ inject thông tin tổng quan, Min/Max Delta tại đây -->
       </div>
 
-      <!-- Khung Đồ thị Timeline riêng cho Peak Boss với 4 tầng chống chồng chéo -->
-      <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 14px; margin-top: 10px;">
-        <div style="font-size: 0.85em; font-weight: bold; color: #92400e; margin-bottom: 12px; display: flex; justify-content: space-between;">
-          <span>📍 ĐỒ THỊ TIMELINE KHUNG GIỜ CAO ĐIỂM (4 TẦNG CHỐNG OVERLAP)</span>
-          <span id="peakChartTimeSpan" style="color: #b45309; font-weight: normal;"></span>
+      <!-- Khung Đồ thị Timeline riêng cho Peak Boss với 4 tầng chống chồng chéo, đặt bên dưới các thẻ thông tin -->
+      <div id="peakChartCard" style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 14px; margin-top: 14px;">
+        <div style="font-size: 0.85em; font-weight: bold; color: #92400e; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+          <span>📍 ĐỒ THỊ TIMELINE KHUNG GIỜ CAO ĐIỂM (4 TẦNG MÀU CHỐNG OVERLAP)</span>
+          <span id="peakChartTimeSpan" style="color: #b45309; font-weight: normal; font-size: 0.9em;"></span>
         </div>
         <!-- Tăng chiều cao container đồ thị để chứa thoải mái 4 tầng hiển thị -->
         <div id="peakTimelineTrack" style="position: relative; width: 100%; height: 170px; background: transparent; margin-top: 25px; margin-bottom: 25px;">
           <div style="position: absolute; top: 50%; left: 0; width: 100%; height: 4px; transform: translateY(-50%); background: #d97706; border-radius: 2px;"></div>
           <!-- JS sẽ render các vạch và boss bubble tại đây -->
         </div>
-        <div style="display: flex; justify-content: space-between; font-size: 0.78em; color: #78350f; font-weight: bold; border-top: 1px dashed #fde68a; padding-top: 4px; margin-top: 6px;">
+        <div style="display: flex; justify-content: space-between; font-size: 0.78em; color: #78350f; font-weight: bold; border-top: 1px dashed #fde68a; padding-top: 6px; margin-top: 6px;">
           <span id="peakChartStartLabel">--:--:--</span>
           <span id="peakChartEndLabel">--:--:--</span>
         </div>
-      </div>
-
-      <div class="peak-boss-list-container" id="peakBossListContainer" style="margin-top: 12px;">
-        <!-- JS sẽ render danh sách các boss xuất hiện tại đây -->
       </div>
     </div>
   </header>
@@ -1121,9 +1117,30 @@
       }
     }
 
-    // 1. Render thông tin tổng quan lên Metrics Grid
+    // 1. Render thông tin tổng quan lên Metrics Grid (4 Thẻ thông tin độc lập)
     const metricsGrid = document.getElementById('peakMetricsGrid');
-    // 2. Render Đồ Thị Timeline Khung Giờ Cao Điểm với thuật toán phân bổ 4 tầng thông minh & màu sắc phân biệt
+    metricsGrid.innerHTML = `
+      <div class="metric-card">
+        <div>⏳ <strong>Khung Giờ Cao Điểm:</strong></div>
+        <div style="font-size: 1.1em; font-weight: bold; color: #78350f; margin-top: 2px;">${startTimeStr} - ${endTimeStr}</div>
+        <div style="font-size: 0.8em; color: #b45309;">Khoảng dài ${spanHours}h</div>
+      </div>
+      <div class="metric-card">
+        <div>🔥 <strong>Số Lượng Boss Spawn:</strong></div>
+        <div style="font-size: 1.1em; font-weight: bold; color: #d97706; margin-top: 2px;">${maxCount} Boss</div>
+        <div style="font-size: 0.8em; color: #b45309;">Mật độ dày đặc nhất</div>
+      </div>
+      <div class="metric-card">
+        <div>⚡ <strong>Min Delta (Gần nhất):</strong></div>
+        <div style="margin-top: 2px;">${minDeltaInfo}</div>
+      </div>
+      <div class="metric-card">
+        <div>🌙 <strong>Max Delta (Xa nhất):</strong></div>
+        <div style="margin-top: 2px;">${maxDeltaInfo}</div>
+      </div>
+    `;
+
+    // 2. Render Đồ Thị Timeline Khung Giờ Cao Điểm bên dưới 4 thẻ thông tin
     const peakTrack = document.getElementById('peakTimelineTrack');
     const peakStartLabel = document.getElementById('peakChartStartLabel');
     const peakEndLabel = document.getElementById('peakChartEndLabel');
@@ -1141,11 +1158,8 @@
     oldItems.forEach(el => el.remove());
 
     const trackWidth = peakTrack.clientWidth || 1000;
-    
-    // Mảng lưu vị trí các bubble đã đặt để kiểm tra va chạm theo 4 tầng
     let placedPeakBubbles = [];
 
-    // Bảng màu sắc tương phản giúp phân biệt các boss xuất hiện sát nhau dễ dàng
     const distinctColors = [
       { bg: '#1d4ed8', border: '#1e40af' }, // Blue
       { bg: '#b91c1c', border: '#991b1b' }, // Red
@@ -1163,11 +1177,8 @@
       const leftPx = (ratio * trackWidth);
 
       const targetTimeString = new Date(b.target).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
-      // Chọn màu luân phiên cho các boss xuất hiện sát nhau
       const colorScheme = distinctColors[idx % distinctColors.length];
 
-      // Vẽ vạch mốc trên đường line chính giữa với màu tương ứng
       const tickEl = document.createElement('div');
       tickEl.className = 'peak-chart-tick';
       tickEl.style.cssText = `position: absolute; top: 50%; left: ${leftPercent}%; width: 3px; height: 14px; background: ${colorScheme.bg}; transform: translate(-50%, -50%); z-index: 3; border-radius: 2px;`;
@@ -1175,7 +1186,6 @@
 
       const estimatedWidthPx = Math.max(75, b.name.length * 7 + 22);
 
-      // Thử tìm tầng phù hợp từ 1 đến 4 không bị overlap ngang
       const tiers = ['level-top-1', 'level-top-2', 'level-bottom-1', 'level-bottom-2'];
       let chosenTier = 'level-top-1';
 
@@ -1216,35 +1226,6 @@
       `;
       peakTrack.appendChild(indicator);
     });
-
-    // 3. Render Danh Sách Chi Tiết Các Boss Xếp Theo Thứ Tự Thời Gian
-    const listContainer = document.getElementById('peakBossListContainer');
-    let listHtml = '';
-
-    bestMatchedCards.forEach((b, i) => {
-      let targetTimeStr = new Date(b.target).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      let nextDeltaStr = '';
-
-      if (i < bestMatchedCards.length - 1) {
-        let diff = bestMatchedCards[i+1].target - b.target;
-        nextDeltaStr = `<span style="color:#94a3b8; font-size:0.82em;"> (Delta tới boss tiếp: ${formatDuration(diff)})</span>`;
-      } else {
-        nextDeltaStr = `<span style="color:#94a3b8; font-size:0.82em;">(Boss cuối trong khung giờ)</span>`;
-      }
-
-      listHtml += `
-        <div class="peak-boss-item">
-          <div>
-            <span style="font-weight: bold; color: #0f172a;">#${i + 1} ${b.name}</span>
-            ${nextDeltaStr}
-          </div>
-          <div style="font-weight: bold; color: #2563eb;">
-            ⏰ ${targetTimeStr}
-          </div>
-        </div>
-      `;
-    });
-    listContainer.innerHTML = listHtml;
 
     // Mở Panel Analytics
     const analyticsPanel = document.getElementById('peakAnalyticsPanel');
