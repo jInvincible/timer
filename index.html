@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lander Timer Web v4.1 (Fixed Gauge & Remaining Time)</title>
+  <title>Lander Timer Web v4.2 (Row Layout)</title>
   <style>
     * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     body { background-color: #f4f6f9; margin: 0; padding: 20px; padding-bottom: 80px; }
@@ -26,6 +26,7 @@
     .btn-close { background: #dc3545; color: white; }
     .btn-edit { background: #e9ecef; border: 1px solid #ced4da; padding: 2px 6px; font-size: 0.85em; }
     
+    /* --- TOAST MENU NỔI CÓ THỂ KÉO THẢ --- */
     .toast-preview-container {
       position: fixed;
       bottom: 20px;
@@ -99,28 +100,58 @@
     }
     .preview-name { font-weight: bold; font-style: italic; }
 
+    /* --- LAYOUT DẠNG DÒNG (ROW) CHO MỖI CARD --- */
     .grid-container { 
-      display: grid; 
-      grid-template-columns: repeat(4, 1fr); 
-      gap: 15px; 
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-width: 900px;
+      margin: 0 auto;
     }
-    @media (max-width: 1200px) { .grid-container { grid-template-columns: repeat(3, 1fr); } }
-    @media (max-width: 900px) { .grid-container { grid-template-columns: repeat(2, 1fr); } }
-    @media (max-width: 600px) { .grid-container { grid-template-columns: 1fr; } }
     
-    .card { background: white; border-radius: 8px; padding: 15px; border: 1px solid #e0e0e0; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
-    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .card { 
+      background: white; 
+      border-radius: 8px; 
+      padding: 12px 20px; 
+      border: 1px solid #e0e0e0; 
+      box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 15px;
+      flex-wrap: wrap;
+    }
+    
+    .card-left {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      min-width: 180px;
+    }
     .card-title { font-size: 1.1em; font-weight: bold; font-style: italic; }
-    .time-target { font-weight: bold; font-size: 1.1em; text-align: center; margin: 5px 0; color: #333; }
-    .time-remaining { text-align: center; margin-bottom: 8px; font-size: 0.95em; font-weight: 500; }
+
+    .card-center {
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 220px;
+    }
+    .time-info-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.9em;
+      font-weight: 500;
+    }
+    .time-target { color: #555; font-style: italic; }
+    .time-remaining { font-weight: bold; color: #333; }
     
     .gauge-container {
       width: 100%;
       background: #e2e8f0;
-      height: 8px;
-      border-radius: 4px;
+      height: 6px;
+      border-radius: 3px;
       overflow: hidden;
-      margin-bottom: 12px;
     }
     .gauge-bar {
       height: 100%;
@@ -129,9 +160,15 @@
       transition: width 0.2s linear, background-color 0.3s ease;
     }
 
-    .input-group { display: flex; justify-content: center; align-items: center; gap: 5px; margin-bottom: 12px; }
-    .input-group input { width: 45px; text-align: center; padding: 4px; border: 1px solid #ccc; border-radius: 4px; }
-    .actions { display: flex; justify-content: center; gap: 6px; }
+    .card-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .input-group { display: flex; align-items: center; gap: 4px; }
+    .input-group input { width: 40px; text-align: center; padding: 4px; border: 1px solid #ccc; border-radius: 4px; }
+    .actions { display: flex; gap: 4px; }
     
     #loadingOcr { display: none; font-size: 0.85em; color: #6f42c1; font-weight: bold; margin-left: 5px; }
   </style>
@@ -453,26 +490,32 @@
       const cardEl = document.createElement('div');
       cardEl.className = 'card';
       cardEl.innerHTML = `
-        <div class="card-header">
+        <div class="card-left">
           <span class="card-title">${c.name}</span>
           <button class="btn-edit" onclick="renameCard(${idx})">✎</button>
         </div>
-        <div class="time-target">Target Time: ${c.target ? new Date(c.target).toLocaleTimeString() : 'None'}</div>
-        <div class="time-remaining" id="remain-${idx}">Time Remaining: --</div>
         
-        <div class="gauge-container">
-          <div class="gauge-bar" id="gauge-${idx}"></div>
+        <div class="card-center">
+          <div class="time-info-row">
+            <span class="time-target" id="target-${idx}">Target: --</span>
+            <span class="time-remaining" id="remain-${idx}">Remaining: --</span>
+          </div>
+          <div class="gauge-container">
+            <div class="gauge-bar" id="gauge-${idx}"></div>
+          </div>
         </div>
 
-        <div class="input-group">
-          H: <input type="number" id="h-${idx}" value="${c.h}" oninput="window.cards[${idx}].h=+this.value; saveCardsToFirebase();" onkeydown="if(event.key==='Enter') setAlarm(${idx})">
-          M: <input type="number" id="m-${idx}" value="${c.m}" oninput="window.cards[${idx}].m=+this.value; saveCardsToFirebase();" onkeydown="if(event.key==='Enter') setAlarm(${idx})">
-          S: <input type="number" id="s-${idx}" value="${c.s}" oninput="window.cards[${idx}].s=+this.value; saveCardsToFirebase();" onkeydown="if(event.key==='Enter') setAlarm(${idx})">
-        </div>
-        <div class="actions">
-          <button class="btn-set" onclick="setAlarm(${idx})">⏰ Set</button>
-          <button class="btn-wipe" onclick="wipeAlarm(${idx})">🧹 Wipe</button>
-          <button class="btn-close" onclick="removeCard(${idx})">✖ Close</button>
+        <div class="card-right">
+          <div class="input-group">
+            H: <input type="number" id="h-${idx}" value="${c.h}" oninput="window.cards[${idx}].h=+this.value; saveCardsToFirebase();" onkeydown="if(event.key==='Enter') setAlarm(${idx})">
+            M: <input type="number" id="m-${idx}" value="${c.m}" oninput="window.cards[${idx}].m=+this.value; saveCardsToFirebase();" onkeydown="if(event.key==='Enter') setAlarm(${idx})">
+            S: <input type="number" id="s-${idx}" value="${c.s}" oninput="window.cards[${idx}].s=+this.value; saveCardsToFirebase();" onkeydown="if(event.key==='Enter') setAlarm(${idx})">
+          </div>
+          <div class="actions">
+            <button class="btn-set" onclick="setAlarm(${idx})">⏰ Set</button>
+            <button class="btn-wipe" onclick="wipeAlarm(${idx})">🧹 Wipe</button>
+            <button class="btn-close" onclick="removeCard(${idx})">✖ Close</button>
+          </div>
         </div>
       `;
       container.appendChild(cardEl);
@@ -558,13 +601,14 @@
 
     window.cards.forEach((c, idx) => {
       const el = document.getElementById(`remain-${idx}`);
+      const targetEl = document.getElementById(`target-${idx}`);
       const gaugeEl = document.getElementById(`gauge-${idx}`);
       if (!el) return;
 
       if (c.target) {
+        if (targetEl) targetEl.innerText = `Target: ${new Date(c.target).toLocaleTimeString()}`;
         const remainSecs = Math.ceil((c.target - now) / 1000);
         
-        // Tự động khôi phục startTime/delay nếu bị thiếu dữ liệu từ bản cũ
         const totalDuration = c.delay || Math.max(remainSecs, 1);
         const startTime = c.startTime || (c.target - totalDuration * 1000);
         const elapsed = (now - startTime) / 1000;
@@ -588,8 +632,8 @@
           const h = String(Math.floor(remainSecs / 3600)).padStart(2, '0');
           const m = String(Math.floor((remainSecs % 3600) / 60)).padStart(2, '0');
           const s = String(remainSecs % 60).padStart(2, '0');
-          el.innerText = `Time Remaining: ${h}:${m}:${s}`;
-          el.style.color = remainSecs <= 30 ? 'red' : 'black';
+          el.innerText = `Remaining: ${h}:${m}:${s}`;
+          el.style.color = remainSecs <= 30 ? 'red' : '#333';
 
           if (remainSecs <= 60 && !c.warned60s) {
             c.warned60s = true;
@@ -597,7 +641,7 @@
             sendTelegram(`${c.name}: Sắp đến giờ! (Còn ${remainSecs} giây)`);
           }
         } else {
-          el.innerText = "Done!";
+          el.innerText = "Remaining: Done!";
           el.style.color = 'green';
           if (gaugeEl) gaugeEl.style.width = '0%';
 
@@ -608,8 +652,9 @@
           }
         }
       } else {
-        el.innerText = "Time Remaining: --";
-        el.style.color = 'black';
+        if (targetEl) targetEl.innerText = `Target: --`;
+        el.innerText = `Remaining: --`;
+        el.style.color = '#333';
         if (gaugeEl) gaugeEl.style.width = '0%';
       }
     });
