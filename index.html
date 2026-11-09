@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lander Timer Web v6.3 (Dark/Light Mode & Web Notifications)</title>
+  <title>Lander Timer Web v6.4 (Peak Timeline Chart Restored)</title>
   <style>
     :root {
       --bg-color: #f4f6f9;
@@ -18,7 +18,6 @@
       --input-text: #000000;
     }
 
-    /* Đổi Theme Tối (Dark Mode) */
     body.dark-theme {
       --bg-color: #0f172a;
       --card-bg: #1e293b;
@@ -96,21 +95,9 @@
       font-size: 0.85em;
       color: #856404;
     }
-    body.dark-theme .security-box {
-      background: #423202;
-      border-color: #634b03;
-      color: #ffe69c;
-    }
-    .security-box.unlocked {
-      background: #d4edda;
-      border-color: #c3e6cb;
-      color: #155724;
-    }
-    body.dark-theme .security-box.unlocked {
-      background: #0f3818;
-      border-color: #1b5e2b;
-      color: #75b798;
-    }
+    body.dark-theme .security-box { background: #423202; border-color: #634b03; color: #ffe69c; }
+    .security-box.unlocked { background: #d4edda; border-color: #c3e6cb; color: #155724; }
+    body.dark-theme .security-box.unlocked { background: #0f3818; border-color: #1b5e2b; color: #75b798; }
     .security-box input {
       border: 1px solid var(--border-color);
       background: var(--input-bg);
@@ -122,7 +109,7 @@
       font-weight: bold;
     }
 
-    /* --- TOAST MENU KẾT QUẢ PEAK BOSS --- */
+    /* --- TOAST MENU KẾT QUẢ PEAK BOSS & ĐỒ THỊ TIMELINE --- */
     .peak-toast-container {
       position: fixed;
       top: 275px;
@@ -136,7 +123,7 @@
       z-index: 9986;
       display: none;
       flex-direction: column;
-      gap: 12px;
+      gap: 14px;
       width: 95%;
       max-width: 1030px;
       backdrop-filter: blur(6px);
@@ -166,41 +153,69 @@
       flex-direction: column;
       gap: 4px;
     }
-    .peak-card-title {
-      font-size: 0.8em;
-      font-weight: bold;
-      color: #d97706;
-      text-transform: uppercase;
-    }
-    .peak-card-val {
-      font-size: 1.05em;
-      font-weight: bold;
-      color: var(--text-color);
-    }
-    .peak-card-sub {
-      font-size: 0.78em;
-      color: var(--subtext-color);
-      font-style: italic;
-    }
+    .peak-card-title { font-size: 0.8em; font-weight: bold; color: #d97706; text-transform: uppercase; }
+    .peak-card-val { font-size: 1.05em; font-weight: bold; color: var(--text-color); }
+    .peak-card-sub { font-size: 0.78em; color: var(--subtext-color); font-style: italic; }
 
-    .peak-boss-list-container {
+    /* KHUNG ĐỒ THỊ TIMELINE 4 TẦNG MÀU */
+    .peak-timeline-wrapper {
+      position: relative;
+      width: 100%;
+      height: 180px;
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 10px;
+      margin-top: 5px;
+      overflow: hidden;
+    }
+    .peak-timeline-line {
+      position: absolute;
+      top: 50%;
+      left: 20px;
+      right: 20px;
+      height: 4px;
+      background: #d97706;
+      transform: translateY(-50%);
+      border-radius: 2px;
+    }
+    .peak-node {
+      position: absolute;
+      transform: translateX(-50%);
       display: flex;
       flex-direction: column;
-      gap: 6px;
-      max-height: 200px;
-      overflow-y: auto;
-      border-top: 1px dashed var(--border-color);
-      padding-top: 8px;
-    }
-    .peak-boss-row {
-      display: flex;
-      justify-content: space-between;
       align-items: center;
-      background: var(--card-bg);
-      padding: 8px 12px;
-      border-radius: 6px;
-      border: 1px solid var(--border-color);
-      font-size: 0.88em;
+      z-index: 10;
+    }
+    .peak-node-pin {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #ffffff;
+      border: 3px solid #d97706;
+      z-index: 12;
+    }
+
+    /* 4 Tầng vị trí để không bao giờ đè chữ */
+    .peak-node.level-top-high { bottom: 50%; margin-bottom: 30px; }
+    .peak-node.level-top { bottom: 50%; margin-bottom: 6px; }
+    .peak-node.level-bottom { top: 50%; margin-top: 6px; flex-direction: column-reverse; }
+    .peak-node.level-bottom-low { top: 50%; margin-top: 30px; flex-direction: column-reverse; }
+
+    .peak-node-tag {
+      color: white;
+      font-size: 0.72em;
+      font-weight: bold;
+      padding: 3px 8px;
+      border-radius: 8px;
+      white-space: nowrap;
+      box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+    }
+    .peak-node-time {
+      font-size: 0.68em;
+      font-weight: bold;
+      color: var(--subtext-color);
+      margin: 2px 0;
     }
 
     /* --- TOAST MENU NỔI DANH SÁCH (GÓC PHẢI DƯỚI) --- */
@@ -223,194 +238,65 @@
       user-select: none;
     }
     .toast-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 0.85em;
-      font-weight: bold;
-      color: var(--subtext-color);
-      border-bottom: 1px solid var(--border-color);
-      padding-bottom: 6px;
-      cursor: grab;
+      display: flex; justify-content: space-between; align-items: center; font-size: 0.85em;
+      font-weight: bold; color: var(--subtext-color); border-bottom: 1px solid var(--border-color);
+      padding-bottom: 6px; cursor: grab;
     }
     .toast-header:active { cursor: grabbing; }
     .toast-controls { display: flex; align-items: center; gap: 5px; }
     .toast-btn-ctrl {
-      background: var(--gauge-bg);
-      color: var(--text-color);
-      border: none;
-      border-radius: 4px;
-      width: 22px;
-      height: 22px;
-      font-weight: bold;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 0.9em;
+      background: var(--gauge-bg); color: var(--text-color); border: none; border-radius: 4px;
+      width: 22px; height: 22px; font-weight: bold; cursor: pointer; display: inline-flex;
+      align-items: center; justify-content: center; font-size: 0.9em;
     }
     .toast-list { display: flex; flex-direction: column; gap: 6px; }
     .preview-chip {
-      background: var(--card-bg);
-      border: 1px solid var(--border-color);
-      padding: 6px 10px;
-      border-radius: 8px;
-      font-size: 0.85em;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-weight: 500;
-      gap: 8px;
+      background: var(--card-bg); border: 1px solid var(--border-color); padding: 6px 10px;
+      border-radius: 8px; font-size: 0.85em; display: flex; justify-content: space-between;
+      align-items: center; font-weight: 500; gap: 8px;
     }
-    .preview-chip.urgent {
-      background: #ffe3e3;
-      border-color: #ff8787;
-      color: #c92a2a;
-    }
-    body.dark-theme .preview-chip.urgent {
-      background: #451010;
-      border-color: #962424;
-      color: #ff8787;
-    }
+    .preview-chip.urgent { background: #ffe3e3; border-color: #ff8787; color: #c92a2a; }
+    body.dark-theme .preview-chip.urgent { background: #451010; border-color: #962424; color: #ff8787; }
     .preview-name { font-weight: bold; font-style: italic; min-width: 90px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
     .preview-target { color: var(--subtext-color); font-size: 0.9em; }
     .preview-remain { font-weight: bold; }
 
-    /* --- TIMELINE TOAST MENU --- */
+    /* --- TIMELINE TOAST MENU CHÍNH --- */
     .timeline-float-menu {
-      background: var(--toast-bg);
-      border: 1px solid var(--border-color);
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-      border-radius: 12px;
-      padding: 10px 18px;
-      width: 95%;
-      max-width: 1030px;
-      user-select: none;
+      background: var(--toast-bg); border: 1px solid var(--border-color);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); border-radius: 12px; padding: 10px 18px;
+      width: 95%; max-width: 1030px; user-select: none;
     }
     .timeline-float-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 0.9em;
-      font-weight: bold;
-      color: var(--text-color);
-      border-bottom: 1px solid var(--border-color);
-      padding-bottom: 6px;
+      display: flex; justify-content: space-between; align-items: center; font-size: 0.9em;
+      font-weight: bold; color: var(--text-color); border-bottom: 1px solid var(--border-color); padding-bottom: 6px;
     }
-    .timeline-input-group {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      font-size: 0.85em;
-      color: var(--subtext-color);
-    }
+    .timeline-input-group { display: flex; align-items: center; gap: 5px; font-size: 0.85em; color: var(--subtext-color); }
     .timeline-input-group input {
-      width: 50px;
-      text-align: center;
-      padding: 3px;
-      border: 1px solid var(--border-color);
-      background: var(--input-bg);
-      color: var(--input-text);
-      border-radius: 4px;
-      font-weight: bold;
+      width: 50px; text-align: center; padding: 3px; border: 1px solid var(--border-color);
+      background: var(--input-bg); color: var(--input-text); border-radius: 4px; font-weight: bold;
     }
-    .timeline-bar-wrapper {
-      position: relative;
-      width: 100%;
-      height: 125px;
-      background: transparent;
-      margin-top: 10px;
-      margin-bottom: 6px;
-    }
-    .timeline-track-line {
-      position: absolute;
-      top: 50%;
-      left: 0;
-      width: 100%;
-      height: 4px;
-      transform: translateY(-50%);
-      background: #94a3b8;
-      border-radius: 2px;
-    }
+    .timeline-bar-wrapper { position: relative; width: 100%; height: 125px; background: transparent; margin-top: 10px; margin-bottom: 6px; }
+    .timeline-track-line { position: absolute; top: 50%; left: 0; width: 100%; height: 4px; transform: translateY(-50%); background: #94a3b8; border-radius: 2px; }
     
-    .timeline-tick {
-      position: absolute;
-      top: 50%;
-      width: 2px;
-      height: 10px;
-      background: #64748b;
-      transform: translate(-50%, -50%);
-      z-index: 2;
-    }
-    .timeline-tick-label {
-      position: absolute;
-      top: calc(50% + 10px);
-      transform: translateX(-50%);
-      font-size: 0.68em;
-      color: var(--subtext-color);
-      font-weight: 500;
-      white-space: nowrap;
-    }
+    .timeline-tick { position: absolute; top: 50%; width: 2px; height: 10px; background: #64748b; transform: translate(-50%, -50%); z-index: 2; }
+    .timeline-tick-label { position: absolute; top: calc(50% + 10px); transform: translateX(-50%); font-size: 0.68em; color: var(--subtext-color); font-weight: 500; white-space: nowrap; }
 
     .timeline-now-tick {
-      position: absolute;
-      top: 50%;
-      width: 4px;
-      height: 18px;
-      background: #10b981;
-      transform: translate(-50%, -50%);
-      z-index: 5;
-      border-radius: 2px;
-      box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+      position: absolute; top: 50%; width: 4px; height: 18px; background: #10b981; transform: translate(-50%, -50%);
+      z-index: 5; border-radius: 2px; box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
     }
     .timeline-now-label {
-      position: absolute;
-      top: calc(50% - 26px);
-      transform: translateX(-50%);
-      font-size: 0.7em;
-      background: #10b981;
-      color: white;
-      padding: 1px 5px;
-      border-radius: 4px;
-      font-weight: bold;
-      white-space: nowrap;
-      z-index: 6;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+      position: absolute; top: calc(50% - 26px); transform: translateX(-50%); font-size: 0.7em;
+      background: #10b981; color: white; padding: 1px 5px; border-radius: 4px; font-weight: bold; white-space: nowrap; z-index: 6;
     }
 
-    .timeline-indicator {
-      position: absolute;
-      transform: translateX(-50%);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 4px;
-      z-index: 10;
-    }
-
+    .timeline-indicator { position: absolute; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 4px; z-index: 10; }
     .timeline-boss-tag {
-      background: #111827;
-      color: white;
-      font-size: 0.72em;
-      font-weight: bold;
-      padding: 4px 8px;
-      border-radius: 10px;
-      text-align: center;
-      line-height: 1.15;
-      white-space: pre-line;
-      box-shadow: 0 3px 5px rgba(0,0,0,0.2);
-      position: relative;
+      background: #111827; color: white; font-size: 0.72em; font-weight: bold; padding: 4px 8px; border-radius: 10px;
+      text-align: center; line-height: 1.15; white-space: pre-line; box-shadow: 0 3px 5px rgba(0,0,0,0.2); position: relative;
     }
-    .timeline-target-tag {
-      background: #0284c7;
-      color: white;
-      font-size: 0.68em;
-      font-weight: 600;
-      padding: 2px 6px;
-      border-radius: 6px;
-      white-space: nowrap;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.15);
-    }
+    .timeline-target-tag { background: #0284c7; color: white; font-size: 0.68em; font-weight: 600; padding: 2px 6px; border-radius: 6px; white-space: nowrap; }
 
     .timeline-indicator.level-top { bottom: 50%; margin-bottom: 8px; flex-direction: column; }
     .timeline-indicator.level-top .timeline-boss-tag::after {
@@ -427,23 +313,13 @@
     .timeline-indicator.urgent .timeline-boss-tag { background: #dc3545; animation: pulse-tag 1s infinite; }
     @keyframes pulse-tag { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
 
-    .timeline-labels {
-      display: flex; justify-content: space-between; font-size: 0.8em; color: var(--subtext-color); font-weight: bold;
-      border-top: 1px dashed var(--border-color); padding-top: 4px;
-    }
+    .timeline-labels { display: flex; justify-content: space-between; font-size: 0.8em; color: var(--subtext-color); font-weight: bold; border-top: 1px dashed var(--border-color); padding-top: 4px; }
 
     /* --- LAYOUT CARD --- */
-    .grid-container { 
-      display: flex; flex-direction: column; gap: 12px; width: 95%; max-width: 1030px; margin: 0 auto;
-    }
-    
+    .grid-container { display: flex; flex-direction: column; gap: 12px; width: 95%; max-width: 1030px; margin: 0 auto; }
     .card { 
-      background: var(--card-bg); 
-      border-radius: 8px; 
-      padding: 12px 20px; 
-      border: 1px solid var(--border-color); 
-      box-shadow: 0 2px 4px rgba(0,0,0,0.04);
-      display: flex; align-items: center; justify-content: space-between; gap: 15px; flex-wrap: wrap;
+      background: var(--card-bg); border-radius: 8px; padding: 12px 20px; border: 1px solid var(--border-color); 
+      box-shadow: 0 2px 4px rgba(0,0,0,0.04); display: flex; align-items: center; justify-content: space-between; gap: 15px; flex-wrap: wrap;
     }
     
     .card-left { display: flex; align-items: center; gap: 15px; min-width: 180px; }
@@ -499,7 +375,7 @@
       </div>
     </div>
 
-    <!-- TIMELINE TOAST MENU -->
+    <!-- TIMELINE TOAST MENU CHÍNH -->
     <div class="timeline-float-menu" id="timelineFloatMenu">
       <div class="timeline-float-header" id="timelineFloatHeader">
         <span>📈 TIMELINE RAIDBOSS</span>
@@ -519,15 +395,20 @@
     </div>
   </div>
 
-  <!-- TOAST MENU KẾT QUẢ PEAK BOSS -->
+  <!-- TOAST MENU KẾT QUẢ PEAK BOSS VÀ ĐỒ THỊ TIMELINE 4 TẦNG MÀU -->
   <div class="peak-toast-container" id="peakToastContainer">
     <div class="peak-toast-header">
       <span>🎯 PHÂN TÍCH KHUNG GIỜ ĐÔNG BOSS NHẤT (9 GIỜ TỚI)</span>
       <button class="toast-btn-ctrl" onclick="document.getElementById('peakToastContainer').style.display='none'" title="Đóng">✖</button>
     </div>
 
+    <!-- 4 Thẻ tóm tắt thông tin quan trọng -->
     <div class="peak-summary-grid" id="peakSummaryContent"></div>
-    <div class="peak-boss-list-container" id="peakBossListContent"></div>
+
+    <!-- Đồ thị Timeline 4 Tầng Màu trực quan -->
+    <div class="peak-timeline-wrapper" id="peakTimelineWrapper">
+      <div class="peak-timeline-line"></div>
+    </div>
   </div>
 
   <div class="grid-container" id="cardContainer"></div>
@@ -572,7 +453,7 @@
   let isRemoteUpdating = false;
   let currentOcrImageBlob = null;
 
-  // --- LOGIC TOGGLE DARK/LIGHT MODE ---
+  // --- DARK/LIGHT MODE ---
   const savedTheme = localStorage.getItem('lander_theme') || 'light';
   if (savedTheme === 'dark') {
     document.body.classList.add('dark-theme');
@@ -590,7 +471,7 @@
     themeBtn.innerText = document.body.classList.contains('dark-theme') ? '☀️ Light Mode' : '🌙 Dark Mode';
   }
 
-  // --- LOGIC WEB NOTIFICATIONS (THÔNG BÁO TRÌNH DUYỆT) ---
+  // --- WEB NOTIFICATIONS ---
   window.requestWebNotificationPermission = function() {
     if (!("Notification" in window)) {
       alert("Trình duyệt của bạn không hỗ trợ Web Notification!");
@@ -1055,6 +936,7 @@
     render();
   };
 
+  // --- LOGIC TÌM GIỜ BOSS ĐÔNG NHẤT & VẼ ĐỒ THỊ TIMELINE 4 TẦNG MÀU ---
   window.findPeakBossTime = function() {
     const now = Date.now();
     const activeCards = window.cards.filter(c => c.target && c.target > now);
@@ -1127,6 +1009,7 @@
     let minDeltaDisplay = minDeltaVal !== Infinity ? formatDuration(minDeltaVal) : "Không có";
     let maxDeltaDisplay = maxDeltaVal !== -1 ? formatDuration(maxDeltaVal) : "Không có";
 
+    // Render 4 thẻ thông tin tóm tắt
     const summaryEl = document.getElementById('peakSummaryContent');
     summaryEl.innerHTML = `
       <div class="peak-info-card">
@@ -1151,32 +1034,33 @@
       </div>
     `;
 
-    const listEl = document.getElementById('peakBossListContent');
-    let listHtml = '';
-    bestMatchedCards.forEach((c, i) => {
-      const tStr = new Date(c.target).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      
-      let deltaNote = '';
-      if (i < bestMatchedCards.length - 1) {
-        let diffSecs = Math.round((bestMatchedCards[i+1].target - c.target) / 1000);
-        let m = Math.floor(diffSecs / 60);
-        let s = diffSecs % 60;
-        deltaNote = `<span style="font-size: 0.8em; color: var(--subtext-color); margin-left: 8px;">(➔ Boss tiếp theo: +${m > 0 ? m + 'p ' : ''}${s}s)</span>`;
-      } else {
-        deltaNote = `<span style="font-size: 0.8em; color: var(--subtext-color); margin-left: 8px;">(Boss cuối trong khung giờ)</span>`;
-      }
+    // Render Đồ Thị Timeline 4 Tầng Màu Trực Quan
+    const wrapper = document.getElementById('peakTimelineWrapper');
+    const oldNodes = wrapper.querySelectorAll('.peak-node');
+    oldNodes.forEach(n => n.remove());
 
-      listHtml += `
-        <div class="peak-boss-row">
-          <div>
-            <span style="font-weight: bold; color: var(--text-color);">#${i + 1}. ⚔️ ${c.name}</span>
-            ${deltaNote}
-          </div>
-          <span style="color: #0284c7; font-weight: bold;">⏰ ${tStr}</span>
-        </div>
+    const colors = ['#0284c7', '#d97706', '#16a34a', '#9333ea', '#e11d48', '#0891b2', '#ca8a04'];
+    const levels = ['level-top-high', 'level-top', 'level-bottom', 'level-bottom-low'];
+
+    bestMatchedCards.forEach((c, idx) => {
+      const ratio = (c.target - bestStart) / windowMs;
+      const leftPercent = Math.min(Math.max(ratio * 100, 2), 98);
+      const chosenColor = colors[idx % colors.length];
+      const chosenLevel = levels[idx % 4]; // Phân đều 4 tầng vị trí
+
+      const timeStr = new Date(c.target).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+      const node = document.createElement('div');
+      node.className = `peak-node ${chosenLevel}`;
+      node.style.left = `${leftPercent}%`;
+
+      node.innerHTML = `
+        <span class="peak-node-time">${timeStr}</span>
+        <span class="peak-node-tag" style="background: ${chosenColor};">${c.name}</span>
+        <div class="peak-node-pin" style="border-color: ${chosenColor};"></div>
       `;
+      wrapper.appendChild(node);
     });
-    listEl.innerHTML = listHtml;
 
     document.getElementById('peakToastContainer').style.display = 'flex';
   };
