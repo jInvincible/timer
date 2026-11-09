@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lander Timer Web v5.7 (Fixed Responsive Toast Menus)</title>
+  <title>Lander Timer Web v5.8 (Optimized Peak Time Finder)</title>
   <style>
     * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-    body { background-color: #f4f6f9; margin: 0; padding: 20px; padding-top: 110px; padding-bottom: 80px; }
+    body { background-color: #f4f6f9; margin: 0; padding: 20px; padding-top: 175px; padding-bottom: 80px; }
     
     /* --- MAIN MENU TOAST (CỐ ĐỊNH Ở ĐẦU TRANG) --- */
     .top-bar-toast { 
@@ -36,6 +36,7 @@
     .btn-set { background: #28a745; color: white; }
     .btn-close { background: #dc3545; color: white; }
     .btn-edit { background: #e9ecef; border: 1px solid #ced4da; padding: 2px 6px; font-size: 0.85em; }
+    .btn-peak { background: #d97706; color: white; } /* Nút tìm khung giờ đông boss */
     
     .locked-element {
       opacity: 0.4;
@@ -144,17 +145,20 @@
     .preview-target { color: #64748b; font-size: 0.9em; }
     .preview-remain { font-weight: bold; }
 
-    /* --- TIMELINE TOAST MENU (CỐ ĐỊNH DƯỚI MAIN MENU, ĐỘ RỘNG ĐỒNG BỘ) --- */
+    /* --- TIMELINE TOAST MENU (CỐ ĐỊNH NGAY DƯỚI MAIN MENU) --- */
     .timeline-float-menu {
-      display: block;
+      position: fixed;
+      top: 82px; /* Đặt ngay bên dưới Main Menu Toast */
+      left: 50%;
+      transform: translateX(-50%);
       background: rgba(255, 255, 255, 0.96);
       border: 1px solid #cbd5e1;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
       border-radius: 12px;
-      padding: 14px 18px;
-      margin: 0 auto 20px auto;
+      padding: 12px 18px;
+      z-index: 9988;
       width: 95%;
-      max-width: 1030px; /* Bằng tuyệt đối với Main Menu Toast */
+      max-width: 1030px;
       backdrop-filter: blur(6px);
       user-select: none;
     }
@@ -166,7 +170,7 @@
       font-weight: bold;
       color: #1e293b;
       border-bottom: 1px solid #e2e8f0;
-      padding-bottom: 8px;
+      padding-bottom: 6px;
     }
     .timeline-input-group {
       display: flex;
@@ -186,10 +190,10 @@
     .timeline-bar-wrapper {
       position: relative;
       width: 100%;
-      height: 140px;
+      height: 130px;
       background: transparent;
-      margin-top: 15px;
-      margin-bottom: 10px;
+      margin-top: 10px;
+      margin-bottom: 8px;
     }
     .timeline-track-line {
       position: absolute;
@@ -214,7 +218,7 @@
     }
     .timeline-tick-label {
       position: absolute;
-      top: calc(50% + 12px);
+      top: calc(50% + 10px);
       transform: translateX(-50%);
       font-size: 0.68em;
       color: #94a3b8;
@@ -236,7 +240,7 @@
     }
     .timeline-now-label {
       position: absolute;
-      top: calc(50% - 28px);
+      top: calc(50% - 26px);
       transform: translateX(-50%);
       font-size: 0.7em;
       background: #10b981;
@@ -287,7 +291,7 @@
     /* --- TẦNG TRÊN --- */
     .timeline-indicator.level-top {
       bottom: 50%;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
       flex-direction: column;
     }
     .timeline-indicator.level-top .timeline-boss-tag::after {
@@ -309,7 +313,7 @@
     /* --- TẦNG DƯỚI --- */
     .timeline-indicator.level-bottom {
       top: 50%;
-      margin-top: 10px;
+      margin-top: 8px;
       flex-direction: column-reverse;
     }
     .timeline-indicator.level-bottom .timeline-boss-tag::before {
@@ -345,7 +349,7 @@
       color: #334155;
       font-weight: bold;
       border-top: 1px dashed #e2e8f0;
-      padding-top: 6px;
+      padding-top: 5px;
     }
 
     /* --- LAYOUT DẠNG DÒNG (ROW) CHO CARD --- */
@@ -354,7 +358,7 @@
       flex-direction: column;
       gap: 12px;
       width: 95%;
-      max-width: 1030px; /* Bằng tuyệt đối với Main Menu và Timeline Toast */
+      max-width: 1030px;
       margin: 0 auto;
     }
     
@@ -434,6 +438,7 @@
 
     <button class="btn-add locked-action" onclick="addCard()">+ Add Card</button>
     <button class="btn-wipe locked-action" onclick="wipeAll()">🧹 Wipe All</button>
+    <button class="btn-peak" onclick="findPeakBossTime()" title="Tìm khung giờ có nhiều boss spawn nhất trong 9h tới">🎯 Tìm giờ Boss đông nhất</button>
     
     <label class="btn-ocr btn-upload locked-action" title="Hoặc nhấn Ctrl + V để dán ảnh trực tiếp từ Clipboard">
       🤖 AI Scan Image (Hoặc Ctrl+V)
@@ -448,7 +453,7 @@
     </div>
   </div>
 
-  <!-- TIMELINE TOAST MENU (CỐ ĐỊNH BÊN DƯỚI MAIN MENU, ĐỘ RỘNG ĐỒNG BỘ) -->
+  <!-- TIMELINE TOAST MENU (CỐ ĐỊNH NGAY DƯỚI MAIN MENU) -->
   <div class="timeline-float-menu" id="timelineFloatMenu">
     <div class="timeline-float-header" id="timelineFloatHeader">
       <span>📈 TIMELINE RAIDBOSS</span>
@@ -943,6 +948,47 @@
     render();
   };
 
+  // --- THUẬT TOÁN TÌM KHUNG GIỜ ĐÔNG BOSS NHẤT TRONG 9 GIỜ ---
+  window.findPeakBossTime = function() {
+    const now = Date.now();
+    const activeCards = window.cards.filter(c => c.target && c.target > now);
+    if (activeCards.length === 0) {
+      alert("Không có boss nào đang chạy timer trong danh sách!");
+      return;
+    }
+
+    const spanInput = document.getElementById('timelineSpanInput');
+    let spanHours = spanInput ? (parseFloat(spanInput.value) || 2) : 2;
+    const windowMs = spanHours * 3600 * 1000;
+
+    // Quét tìm khung cửa sổ chứa nhiều boss nhất trong giới hạn 9 giờ (9 * 3600 * 1000 ms)
+    const maxScanMs = 9 * 3600 * 1000;
+    const stepMs = 60 * 1000; // bước nhảy 1 phút
+    let bestStart = now;
+    let maxCount = -1;
+
+    for (let t = now; t <= now + maxScanMs - windowMs; t += stepMs) {
+      let count = activeCards.filter(c => c.target >= t && c.target <= t + windowMs).length;
+      if (count > maxCount) {
+        maxCount = count;
+        bestStart = t;
+      }
+    }
+
+    if (maxCount <= 0) {
+      alert("Không tìm thấy khung giờ nào có boss spawn trong 9 giờ tới.");
+      return;
+    }
+
+    // Tự động điều chỉnh mốc thời gian hiển thị timeline bắt đầu từ bestStart
+    window.customTimelineStartTime = bestStart;
+    checkAndUpdateTimers();
+
+    const startTimeStr = new Date(bestStart).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const endTimeStr = new Date(bestStart + windowMs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    alert(`🎯 Khung giờ đông boss nhất: Từ ${startTimeStr} đến ${endTimeStr} (${maxCount} Boss xuất hiện)!`);
+  };
+
   function checkAndUpdateTimers() {
     const now = Date.now();
     let stateChanged = false;
@@ -1056,8 +1102,13 @@
     if (spanHours > 9) spanHours = 9;
 
     const spanMs = spanHours * 3600 * 1000;
-    const startTime = now;
-    const endTime = now + spanMs;
+    
+    // Nếu có customTimelineStartTime (khi bấm nút tìm giờ peak), sử dụng mốc đó; ngược lại lấy mặc định là now
+    if (!window.customTimelineStartTime || window.customTimelineStartTime < now) {
+      window.customTimelineStartTime = now;
+    }
+    const startTime = window.customTimelineStartTime;
+    const endTime = startTime + spanMs;
 
     document.getElementById('timelineStartLabel').innerText = new Date(startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     document.getElementById('timelineEndLabel').innerText = new Date(endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -1067,17 +1118,22 @@
     const oldDynamicElements = wrapper.querySelectorAll('.timeline-indicator, .timeline-tick, .timeline-tick-label, .timeline-now-tick, .timeline-now-label');
     oldDynamicElements.forEach(el => el.remove());
 
-    // --- 1. VẼ TICK XANH BIỂU DIỄN THỜI ĐIỂM HIỆN TẠI (NOW) ---
-    const nowTick = document.createElement('div');
-    nowTick.className = 'timeline-now-tick';
-    nowTick.style.left = `0%`;
-    wrapper.appendChild(nowTick);
+    // --- 1. VẼ TICK XANH BIỂU DIỄN THỜI ĐIỂM HIỆN TẠI (NOW) NẾU NẰM TRONG KHOẢNG ---
+    if (now >= startTime && now <= endTime) {
+      const nowRatio = (now - startTime) / spanMs;
+      const nowPercent = nowRatio * 100;
 
-    const nowLabel = document.createElement('div');
-    nowLabel.className = 'timeline-now-label';
-    nowLabel.style.left = `0%`;
-    nowLabel.innerText = `NOW`;
-    wrapper.appendChild(nowLabel);
+      const nowTick = document.createElement('div');
+      nowTick.className = 'timeline-now-tick';
+      nowTick.style.left = `${nowPercent}%`;
+      wrapper.appendChild(nowTick);
+
+      const nowLabel = document.createElement('div');
+      nowLabel.className = 'timeline-now-label';
+      nowLabel.style.left = `${nowPercent}%`;
+      nowLabel.innerText = `NOW`;
+      wrapper.appendChild(nowLabel);
+    }
 
     // --- 2. TỰ ĐỘNG CHIA TICKS TÙY THEO KHOẢNG BIỂU DIỄN ---
     let intervalMs;
