@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lander Timer Web v3.9 (Fixed Input Focus & Draggable Toast)</title>
+  <title>Lander Timer Web v4.0 (Progress Gauge & No Auto-Set)</title>
   <style>
     * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     body { background-color: #f4f6f9; margin: 0; padding: 20px; padding-bottom: 80px; }
@@ -113,12 +113,27 @@
     .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
     .card-title { font-size: 1.1em; font-weight: bold; font-style: italic; }
     .time-target { font-weight: bold; font-size: 1.1em; text-align: center; margin: 5px 0; color: #333; }
-    .time-remaining { text-align: center; margin-bottom: 10px; font-size: 0.95em; font-weight: 500; }
-    .input-group { display: flex; justify-content: center; align-items: center; gap: 5px; margin-bottom: 10px; }
+    .time-remaining { text-align: center; margin-bottom: 8px; font-size: 0.95em; font-weight: 500; }
+    
+    /* --- THANH REMAINING TIME GAUGE --- */
+    .gauge-container {
+      width: 100%;
+      background: #e2e8f0;
+      height: 8px;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 12px;
+    }
+    .gauge-bar {
+      height: 100%;
+      width: 0%;
+      background: #3b82f6;
+      transition: width 0.2s linear, background-color 0.3s ease;
+    }
+
+    .input-group { display: flex; justify-content: center; align-items: center; gap: 5px; margin-bottom: 12px; }
     .input-group input { width: 45px; text-align: center; padding: 4px; border: 1px solid #ccc; border-radius: 4px; }
-    .actions { display: flex; justify-content: center; gap: 6px; margin-bottom: 10px; }
-    .auto-set { font-size: 0.85em; display: flex; align-items: center; gap: 5px; justify-content: center; background: #f8f9fa; padding: 6px; border-radius: 4px; }
-    .auto-set input[type="number"] { width: 50px; text-align: center; border: 1px solid #ccc; border-radius: 4px; }
+    .actions { display: flex; justify-content: center; gap: 6px; }
     
     #loadingOcr { display: none; font-size: 0.85em; color: #6f42c1; font-weight: bold; margin-left: 5px; }
   </style>
@@ -177,7 +192,7 @@
   const db = getDatabase(app);
 
   window.cards = [
-    { id: 1, name: 'Orfen', h: 0, m: 5, s: 0, target: null, delay: null, auto: false, offset: 15, warned60s: false }
+    { id: 1, name: 'Orfen', h: 0, m: 5, s: 0, target: null, delay: null, startTime: null, warned60s: false }
   ];
 
   let limitCount = 3; 
@@ -236,8 +251,6 @@
   onValue(ref(db, 'lander_cards'), (snapshot) => {
     const data = snapshot.val();
     if (data) {
-      // Chỉ render lại nếu dữ liệu từ Firebase khác biệt cấu trúc/số lượng, 
-      // hoặc khi người dùng ở máy khác đồng bộ về để tránh giật khung hình đang nhập liệu.
       const activeElement = document.activeElement;
       const isTyping = activeElement && activeElement.tagName === 'INPUT';
 
@@ -402,13 +415,15 @@
         let newS = finalTotalSecs % 60;
 
         let existingCard = window.cards.find(c => c.name.toLowerCase() === bossName.toLowerCase());
+        const now = Date.now();
 
         if (existingCard) {
           existingCard.h = newH;
           existingCard.m = newM;
           existingCard.s = newS;
           existingCard.delay = finalTotalSecs;
-          existingCard.target = Date.now() + finalTotalSecs * 1000;
+          existingCard.startTime = now;
+          existingCard.target = now + finalTotalSecs * 1000;
           existingCard.warned60s = false;
           updatedCount++;
           console.log(`[Sync Card] 🔄 Cập nhật Boss [${bossName}]: OCR đọc được [${rawH}h ${rawM}m ${rawS}s] -> Target mới sau trừ bù: ${newH}h ${newM}m ${newS}s`);
@@ -419,10 +434,9 @@
             h: newH,
             m: newM,
             s: newS,
-            target: Date.now() + finalTotalSecs * 1000,
+            startTime: now,
+            target: now + finalTotalSecs * 1000,
             delay: finalTotalSecs,
-            auto: false,
-            offset: 15,
             warned60s: false
           });
           addedCount++;
@@ -449,6 +463,12 @@
         </div>
         <div class="time-target">Target Time: ${c.target ? new Date(c.target).toLocaleTimeString() : 'None'}</div>
         <div class="time-remaining" id="remain-${idx}">Time Remaining: --</div>
+        
+        <!-- THANH GAUGE TIẾN TRÌNH THỜI GIAN -->
+        <div class="gauge-container">
+          <div class="gauge-bar" id="gauge-${idx}"></div>
+        </div>
+
         <div class="input-group">
           H: <input type="number" id="h-${idx}" value="${c.h}" oninput="window.cards[${idx}].h=+this.value; saveCardsToFirebase();" onkeydown="if(event.key==='Enter') setAlarm(${idx})">
           M: <input type="number" id="m-${idx}" value="${c.m}" oninput="window.cards[${idx}].m=+this.value; saveCardsToFirebase();" onkeydown="if(event.key==='Enter') setAlarm(${idx})">
@@ -459,16 +479,11 @@
           <button class="btn-wipe" onclick="wipeAlarm(${idx})">🧹 Wipe</button>
           <button class="btn-close" onclick="removeCard(${idx})">✖ Close</button>
         </div>
-        <div class="auto-set">
-          <input type="checkbox" ${c.auto ? 'checked' : ''} onchange="window.cards[${idx}].auto=this.checked; saveCardsToFirebase();"> Auto-Set Next
-          + <input type="number" value="${c.offset}" onchange="window.cards[${idx}].offset=+this.value; saveCardsToFirebase();"> s
-        </div>
       `;
       container.appendChild(cardEl);
     });
   };
 
-  // Khởi tạo render lần đầu
   render();
 
   window.addCard = function() {
@@ -476,8 +491,7 @@
       id: Date.now(), 
       name: `Alarm ${window.cards.length + 1}`, 
       h: 0, m: 5, s: 0, 
-      target: null, delay: null, 
-      auto: false, offset: 15, 
+      target: null, delay: null, startTime: null,
       warned60s: false 
     });
     saveCardsToFirebase(); 
@@ -513,8 +527,10 @@
     const totalSecs = (window.cards[idx].h * 3600) + (window.cards[idx].m * 60) + window.cards[idx].s;
     if (totalSecs <= 0) return;
 
+    const now = Date.now();
     window.cards[idx].delay = totalSecs;
-    window.cards[idx].target = Date.now() + totalSecs * 1000;
+    window.cards[idx].startTime = now;
+    window.cards[idx].target = now + totalSecs * 1000;
     window.cards[idx].warned60s = false;
     
     saveCardsToFirebase(); 
@@ -524,6 +540,7 @@
   window.wipeAlarm = function(idx) {
     window.cards[idx].target = null;
     window.cards[idx].delay = null;
+    window.cards[idx].startTime = null;
     window.cards[idx].warned60s = false;
     saveCardsToFirebase(); 
     render();
@@ -533,6 +550,7 @@
     window.cards.forEach(c => { 
       c.target = null; 
       c.delay = null; 
+      c.startTime = null;
       c.warned60s = false;
     });
     saveCardsToFirebase(); 
@@ -545,10 +563,29 @@
 
     window.cards.forEach((c, idx) => {
       const el = document.getElementById(`remain-${idx}`);
+      const gaugeEl = document.getElementById(`gauge-${idx}`);
       if (!el) return;
 
-      if (c.target) {
+      if (c.target && c.startTime && c.delay) {
         const remainSecs = Math.ceil((c.target - now) / 1000);
+        const totalDuration = c.delay;
+        const elapsed = (now - c.startTime) / 1000;
+        
+        // Tính phần trăm tiến trình thanh gauge (từ 100% về 0%)
+        let percent = ((totalDuration - elapsed) / totalDuration) * 100;
+        if (percent < 0) percent = 0;
+        if (percent > 100) percent = 100;
+
+        if (gaugeEl) {
+          gaugeEl.style.width = `${percent}%`;
+          if (percent <= 15) {
+            gaugeEl.style.backgroundColor = '#ef4444'; // Đỏ khi sắp hết giờ
+          } else if (percent <= 40) {
+            gaugeEl.style.backgroundColor = '#f59e0b'; // Vàng cam cảnh báo
+          } else {
+            gaugeEl.style.backgroundColor = '#3b82f6'; // Xanh mặc định
+          }
+        }
 
         if (remainSecs > 0) {
           const h = String(Math.floor(remainSecs / 3600)).padStart(2, '0');
@@ -565,35 +602,18 @@
         } else {
           el.innerText = "Done!";
           el.style.color = 'green';
+          if (gaugeEl) gaugeEl.style.width = '0%';
 
           if (!c.warned60s) {
             c.warned60s = true;
             stateChanged = true;
             sendTelegram(`${c.name}: Đã đến thời điểm hẹn!`);
           }
-
-          if (c.auto && !c.processed) {
-            c.processed = true;
-            setTimeout(() => {
-              const baseDelay = c.delay || 0;
-              const offset = c.offset || 0;
-              const nextTotalSecs = baseDelay + offset;
-
-              c.h = Math.floor(nextTotalSecs / 3600);
-              c.m = Math.floor((nextTotalSecs % 3600) / 60);
-              c.s = nextTotalSecs % 60;
-              c.target = Date.now() + nextTotalSecs * 1000;
-              c.delay = nextTotalSecs;
-              c.warned60s = false;
-              c.processed = false;
-              saveCardsToFirebase();
-              render();
-            }, 1000);
-          }
         }
       } else {
         el.innerText = "Time Remaining: --";
         el.style.color = 'black';
+        if (gaugeEl) gaugeEl.style.width = '0%';
       }
     });
 
