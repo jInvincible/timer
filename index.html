@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lander Timer Web v4.0 (Progress Gauge & No Auto-Set)</title>
+  <title>Lander Timer Web v4.1 (Fixed Gauge & Remaining Time)</title>
   <style>
     * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     body { background-color: #f4f6f9; margin: 0; padding: 20px; padding-bottom: 80px; }
@@ -26,7 +26,6 @@
     .btn-close { background: #dc3545; color: white; }
     .btn-edit { background: #e9ecef; border: 1px solid #ced4da; padding: 2px 6px; font-size: 0.85em; }
     
-    /* --- TOAST MENU NỔI CÓ THỂ KÉO THẢ (DRAGGABLE) --- */
     .toast-preview-container {
       position: fixed;
       bottom: 20px;
@@ -115,7 +114,6 @@
     .time-target { font-weight: bold; font-size: 1.1em; text-align: center; margin: 5px 0; color: #333; }
     .time-remaining { text-align: center; margin-bottom: 8px; font-size: 0.95em; font-weight: 500; }
     
-    /* --- THANH REMAINING TIME GAUGE --- */
     .gauge-container {
       width: 100%;
       background: #e2e8f0;
@@ -159,7 +157,6 @@
 
   <div class="grid-container" id="cardContainer"></div>
 
-  <!-- TOAST MENU NỔI CÓ THỂ KÉO THẢ -->
   <div class="toast-preview-container" id="toastPreviewContainer">
     <div class="toast-header" id="toastHeader">
       <span id="toastTitle">🔔 SẮP ĐẾN GIỜ (3)</span>
@@ -199,7 +196,6 @@
   let isRemoteUpdating = false;
   let currentOcrImageBlob = null;
 
-  // --- LOGIC KÉO THẢ (DRAG & DROP) CHO TOAST MENU ---
   const toastContainer = document.getElementById('toastPreviewContainer');
   const toastHeader = document.getElementById('toastHeader');
 
@@ -464,7 +460,6 @@
         <div class="time-target">Target Time: ${c.target ? new Date(c.target).toLocaleTimeString() : 'None'}</div>
         <div class="time-remaining" id="remain-${idx}">Time Remaining: --</div>
         
-        <!-- THANH GAUGE TIẾN TRÌNH THỜI GIAN -->
         <div class="gauge-container">
           <div class="gauge-bar" id="gauge-${idx}"></div>
         </div>
@@ -566,12 +561,14 @@
       const gaugeEl = document.getElementById(`gauge-${idx}`);
       if (!el) return;
 
-      if (c.target && c.startTime && c.delay) {
+      if (c.target) {
         const remainSecs = Math.ceil((c.target - now) / 1000);
-        const totalDuration = c.delay;
-        const elapsed = (now - c.startTime) / 1000;
         
-        // Tính phần trăm tiến trình thanh gauge (từ 100% về 0%)
+        // Tự động khôi phục startTime/delay nếu bị thiếu dữ liệu từ bản cũ
+        const totalDuration = c.delay || Math.max(remainSecs, 1);
+        const startTime = c.startTime || (c.target - totalDuration * 1000);
+        const elapsed = (now - startTime) / 1000;
+        
         let percent = ((totalDuration - elapsed) / totalDuration) * 100;
         if (percent < 0) percent = 0;
         if (percent > 100) percent = 100;
@@ -579,11 +576,11 @@
         if (gaugeEl) {
           gaugeEl.style.width = `${percent}%`;
           if (percent <= 15) {
-            gaugeEl.style.backgroundColor = '#ef4444'; // Đỏ khi sắp hết giờ
+            gaugeEl.style.backgroundColor = '#ef4444';
           } else if (percent <= 40) {
-            gaugeEl.style.backgroundColor = '#f59e0b'; // Vàng cam cảnh báo
+            gaugeEl.style.backgroundColor = '#f59e0b';
           } else {
-            gaugeEl.style.backgroundColor = '#3b82f6'; // Xanh mặc định
+            gaugeEl.style.backgroundColor = '#3b82f6';
           }
         }
 
