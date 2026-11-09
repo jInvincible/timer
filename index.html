@@ -3,68 +3,52 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lander Timer Web v6.2 (Peak Boss List View)</title>
+  <title>Lander Timer Web v6.2 (Peak Info & Boss List Only)</title>
   <style>
     * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     
-    body { 
-      background-color: #f4f6f9; 
-      margin: 0; 
-      padding: 0;
-      padding-bottom: 80px; 
-    }
+    /* Khoảng đệm phía trên body lớn giúp header không bao giờ che lấp các card */
+    body { background-color: #f4f6f9; margin: 0; padding: 20px; padding-top: 275px; padding-bottom: 80px; }
     
-    /* --- HEADER CHUẨN CỐ ĐỊNH Ở ĐẦU TRANG (KHÔNG FLOATING TOAST, KHÔNG ĐÈ CARD) --- */
-    .app-header {
-      position: sticky;
+    /* --- KHUNG CHỨA CỐ ĐỊNH Ở ĐẦU TRANG --- */
+    .sticky-header {
+      position: fixed;
       top: 0;
+      left: 0;
       width: 100%;
-      background: #ffffff;
-      border-bottom: 1px solid #cbd5e1;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-      z-index: 9980;
-      padding: 12px 16px;
+      background: rgba(244, 246, 249, 0.96);
+      backdrop-filter: blur(8px);
+      padding: 12px 0;
+      z-index: 9985;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.06);
     }
 
-    /* --- MAIN MENU BAR --- */
-    .top-bar { 
+    /* --- MAIN MENU TOAST --- */
+    .top-bar-toast { 
       display: flex; 
       gap: 10px; 
       align-items: center; 
-      background: #f8fafc; 
+      background: rgba(255, 255, 255, 0.98); 
       padding: 10px 16px; 
-      border-radius: 10px; 
+      border-radius: 12px; 
+      box-shadow: 0 4px 15px rgba(0,0,0,0.08); 
       flex-wrap: wrap;
-      width: 100%;
-      max-width: 1100px;
-      border: 1px solid #e2e8f0;
+      width: 95%;
+      max-width: 1030px;
+      border: 1px solid #cbd5e1;
     }
     
-    button, .btn-upload { 
-      padding: 8px 14px; 
-      border: none; 
-      border-radius: 6px; 
-      cursor: pointer; 
-      font-weight: bold; 
-      font-size: 0.88em; 
-      display: inline-flex; 
-      align-items: center; 
-      justify-content: center;
-      transition: all 0.2s ease;
-    }
-    button:hover, .btn-upload:hover { opacity: 0.9; transform: translateY(-1px); }
-    button:active { transform: translateY(0); }
-
-    .btn-add { background: #2563eb; color: white; }
-    .btn-wipe { background: #64748b; color: white; }
-    .btn-ocr { background: #7c3aed; color: white; }
-    .btn-set { background: #16a34a; color: white; }
-    .btn-close { background: #dc2626; color: white; }
-    .btn-edit { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 3px 8px; font-size: 0.85em; }
+    button, .btn-upload { padding: 8px 14px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.9em; display: inline-flex; align-items: center; justify-content: center; }
+    .btn-add { background: #007bff; color: white; }
+    .btn-wipe { background: #6c757d; color: white; }
+    .btn-ocr { background: #6f42c1; color: white; }
+    .btn-set { background: #28a745; color: white; }
+    .btn-close { background: #dc3545; color: white; }
+    .btn-edit { background: #e9ecef; border: 1px solid #ced4da; padding: 2px 6px; font-size: 0.85em; }
     .btn-peak { background: #d97706; color: white; }
     
     .locked-element {
@@ -76,20 +60,20 @@
     .security-box {
       display: flex;
       align-items: center;
-      gap: 6px;
-      background: #fef3c7;
-      border: 1px solid #fde68a;
-      padding: 5px 12px;
+      gap: 5px;
+      background: #fff3cd;
+      border: 1px solid #ffeeba;
+      padding: 5px 10px;
       border-radius: 6px;
       font-size: 0.85em;
     }
     .security-box.unlocked {
-      background: #dcfce7;
-      border-color: #bbf7d0;
-      color: #166534;
+      background: #d4edda;
+      border-color: #c3e6cb;
+      color: #155724;
     }
     .security-box input {
-      border: 1px solid #cbd5e1;
+      border: 1px solid #ced4da;
       border-radius: 4px;
       padding: 4px 8px;
       width: 110px;
@@ -97,48 +81,212 @@
       font-weight: bold;
     }
 
-    /* --- TIMELINE MENU BAR --- */
-    .timeline-bar-card {
-      background: #ffffff;
+    /* --- TOAST MENU HIỂN THỊ KẾT QUẢ TÌM GIỜ BOSS ĐÔNG NHẤT --- */
+    .peak-toast-container {
+      position: fixed;
+      top: 275px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255, 255, 255, 0.98);
+      border: 2px solid #d97706;
+      box-shadow: 0 10px 30px rgba(217, 119, 6, 0.25);
+      padding: 16px 20px;
+      border-radius: 14px;
+      z-index: 9986;
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+      width: 95%;
+      max-width: 1030px;
+      backdrop-filter: blur(6px);
+    }
+    .peak-toast-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 1em;
+      font-weight: bold;
+      color: #92400e;
+      border-bottom: 2px solid #fef3c7;
+      padding-bottom: 8px;
+    }
+
+    /* 4 Thẻ thông tin quan trọng */
+    .peak-summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 10px;
+    }
+    .peak-info-card {
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-radius: 8px;
+      padding: 10px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .peak-card-title {
+      font-size: 0.8em;
+      font-weight: bold;
+      color: #92400e;
+      text-transform: uppercase;
+    }
+    .peak-card-val {
+      font-size: 1.05em;
+      font-weight: bold;
+      color: #78350f;
+    }
+    .peak-card-sub {
+      font-size: 0.78em;
+      color: #b45309;
+      font-style: italic;
+    }
+
+    /* Danh sách chi tiết các boss */
+    .peak-boss-list-container {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 200px;
+      overflow-y: auto;
+      border-top: 1px dashed #cbd5e1;
+      padding-top: 8px;
+    }
+    .peak-boss-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #f8fafc;
+      padding: 8px 12px;
+      border-radius: 6px;
       border: 1px solid #e2e8f0;
-      border-radius: 10px;
-      padding: 10px 16px;
-      width: 100%;
-      max-width: 1100px;
+      font-size: 0.88em;
+    }
+    .peak-boss-row:hover {
+      background: #f1f5f9;
+    }
+
+    /* --- TOAST MENU NỔI DANH SÁCH (GÓC PHẢI DƯỚI) --- */
+    .toast-preview-container {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid #cbd5e1;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+      padding: 12px 16px;
+      border-radius: 12px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      backdrop-filter: blur(5px);
+      max-width: 450px;
+      min-width: 340px;
+      user-select: none;
+    }
+    .toast-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.85em;
+      font-weight: bold;
+      color: #475569;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 6px;
+      cursor: grab;
+    }
+    .toast-header:active { cursor: grabbing; }
+    .toast-controls {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .toast-btn-ctrl {
+      background: #e2e8f0;
+      border: none;
+      border-radius: 4px;
+      width: 22px;
+      height: 22px;
+      font-weight: bold;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9em;
+      padding: 0;
+    }
+    .toast-btn-ctrl:hover { background: #cbd5e1; }
+    .toast-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .preview-chip {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: 0.85em;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 500;
+      gap: 8px;
+    }
+    .preview-chip.urgent {
+      background: #ffe3e3;
+      border-color: #ff8787;
+      color: #c92a2a;
+    }
+    .preview-name { font-weight: bold; font-style: italic; min-width: 90px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
+    .preview-target { color: #64748b; font-size: 0.9em; }
+    .preview-remain { font-weight: bold; }
+
+    /* --- TIMELINE TOAST MENU --- */
+    .timeline-float-menu {
+      background: rgba(255, 255, 255, 0.98);
+      border: 1px solid #cbd5e1;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+      border-radius: 12px;
+      padding: 10px 18px;
+      width: 95%;
+      max-width: 1030px;
       user-select: none;
     }
     .timeline-float-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 0.88em;
+      font-size: 0.9em;
       font-weight: bold;
       color: #1e293b;
-      border-bottom: 1px solid #f1f5f9;
-      padding-bottom: 4px;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 6px;
     }
     .timeline-input-group {
       display: flex;
       align-items: center;
       gap: 5px;
       font-size: 0.85em;
-      color: #64748b;
+      color: #555;
     }
     .timeline-input-group input {
-      width: 55px;
+      width: 50px;
       text-align: center;
       padding: 3px;
-      border: 1px solid #cbd5e1;
+      border: 1px solid #ccc;
       border-radius: 4px;
       font-weight: bold;
     }
     .timeline-bar-wrapper {
       position: relative;
       width: 100%;
-      height: 120px;
+      height: 125px;
       background: transparent;
-      margin-top: 8px;
-      margin-bottom: 4px;
+      margin-top: 10px;
+      margin-bottom: 6px;
     }
     .timeline-track-line {
       position: absolute;
@@ -147,7 +295,7 @@
       width: 100%;
       height: 4px;
       transform: translateY(-50%);
-      background: #cbd5e1;
+      background: #94a3b8;
       border-radius: 2px;
     }
     
@@ -156,7 +304,7 @@
       top: 50%;
       width: 2px;
       height: 10px;
-      background: #94a3b8;
+      background: #64748b;
       transform: translate(-50%, -50%);
       z-index: 2;
     }
@@ -165,7 +313,7 @@
       top: calc(50% + 10px);
       transform: translateX(-50%);
       font-size: 0.68em;
-      color: #64748b;
+      color: #94a3b8;
       font-weight: 500;
       white-space: nowrap;
     }
@@ -202,21 +350,21 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 3px;
+      gap: 4px;
       z-index: 10;
     }
 
     .timeline-boss-tag {
-      background: #0f172a;
+      background: #111827;
       color: white;
       font-size: 0.72em;
       font-weight: bold;
-      padding: 3px 8px;
-      border-radius: 8px;
+      padding: 4px 8px;
+      border-radius: 10px;
       text-align: center;
       line-height: 1.15;
       white-space: pre-line;
-      box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+      box-shadow: 0 3px 5px rgba(0,0,0,0.2);
       position: relative;
     }
     .timeline-target-tag {
@@ -225,14 +373,14 @@
       font-size: 0.68em;
       font-weight: 600;
       padding: 2px 6px;
-      border-radius: 5px;
+      border-radius: 6px;
       white-space: nowrap;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.12);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.15);
     }
 
     .timeline-indicator.level-top {
       bottom: 50%;
-      margin-bottom: 6px;
+      margin-bottom: 8px;
       flex-direction: column;
     }
     .timeline-indicator.level-top .timeline-boss-tag::after {
@@ -243,14 +391,14 @@
       transform: translateX(-50%);
       border-width: 5px 5px 0;
       border-style: solid;
-      border-color: #0f172a transparent;
+      border-color: #111827 transparent;
       display: block;
       width: 0;
     }
 
     .timeline-indicator.level-bottom {
       top: 50%;
-      margin-top: 6px;
+      margin-top: 8px;
       flex-direction: column-reverse;
     }
     .timeline-indicator.level-bottom .timeline-boss-tag::before {
@@ -261,13 +409,13 @@
       transform: translateX(-50%);
       border-width: 0 5px 5px;
       border-style: solid;
-      border-color: transparent transparent #0f172a;
+      border-color: transparent transparent #111827;
       display: block;
       width: 0;
     }
 
     .timeline-indicator.urgent .timeline-boss-tag {
-      background: #ef4444;
+      background: #dc3545;
       animation: pulse-tag 1s infinite;
     }
     @keyframes pulse-tag {
@@ -276,90 +424,31 @@
       100% { opacity: 1; }
     }
 
-    /* --- PANEL THÔNG TIN VÀ DANH SÁCH PEAK BOSS (HIỂN THỊ KHI BẤM TÌM KIẾM) --- */
-    .peak-analytics-panel {
-      display: none;
-      width: 100%;
-      max-width: 1100px;
-      background: #ffffff;
-      border: 2px solid #f59e0b;
-      border-radius: 12px;
-      padding: 16px;
-      box-shadow: 0 8px 24px rgba(217, 119, 6, 0.12);
-      margin-top: 5px;
-    }
-    .peak-analytics-header {
+    .timeline-labels {
       display: flex;
       justify-content: space-between;
-      align-items: center;
-      font-size: 0.95em;
+      font-size: 0.8em;
+      color: #334155;
       font-weight: bold;
-      color: #b45309;
-      border-bottom: 1px solid #fef3c7;
-      padding-bottom: 8px;
-      margin-bottom: 12px;
-    }
-    .peak-metrics-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-      gap: 10px;
-      margin-bottom: 14px;
-    }
-    .metric-card {
-      background: #fffbeb;
-      border: 1px solid #fde68a;
-      border-radius: 8px;
-      padding: 10px 14px;
-      font-size: 0.88em;
-      color: #451a03;
-    }
-    .metric-card strong { color: #92400e; }
-    
-    .peak-boss-list-container {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      max-height: 220px;
-      overflow-y: auto;
-      background: #fafafa;
-      border-radius: 8px;
-      border: 1px solid #f1f5f9;
-      padding: 10px;
-    }
-    .peak-boss-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background: #ffffff;
-      padding: 8px 14px;
-      border-radius: 6px;
-      border: 1px solid #e2e8f0;
-      font-size: 0.88em;
-    }
-    .peak-boss-item:hover {
-      border-color: #cbd5e1;
-      background: #f8fafc;
+      border-top: 1px dashed #e2e8f0;
+      padding-top: 4px;
     }
 
-    /* --- LAYOUT DANH SÁCH CARD BOSS --- */
-    .main-content-container {
-      width: 95%;
-      max-width: 1100px;
-      margin: 20px auto 0 auto;
-    }
-
+    /* --- LAYOUT CARD --- */
     .grid-container { 
       display: flex;
       flex-direction: column;
       gap: 12px;
-      width: 100%;
+      width: 95%;
+      max-width: 1030px;
+      margin: 0 auto;
     }
     
     .card { 
       background: white; 
-      border-radius: 10px; 
-      padding: 14px 20px; 
-      border: 1px solid #e2e8f0; 
+      border-radius: 8px; 
+      padding: 12px 20px; 
+      border: 1px solid #e0e0e0; 
       box-shadow: 0 2px 4px rgba(0,0,0,0.02);
       display: flex;
       align-items: center;
@@ -371,38 +460,38 @@
     .card-left {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 15px;
       min-width: 180px;
     }
-    .card-title { font-size: 1.1em; font-weight: bold; font-style: italic; color: #0f172a; }
+    .card-title { font-size: 1.1em; font-weight: bold; font-style: italic; }
 
     .card-center {
       flex-grow: 1;
       display: flex;
       flex-direction: column;
-      gap: 6px;
-      min-width: 240px;
+      gap: 4px;
+      min-width: 220px;
     }
     .time-info-row {
       display: flex;
       justify-content: space-between;
-      font-size: 0.88em;
+      font-size: 0.9em;
       font-weight: 500;
     }
-    .time-target { color: #64748b; font-style: italic; }
-    .time-remaining { font-weight: bold; color: #1e293b; }
+    .time-target { color: #555; font-style: italic; }
+    .time-remaining { font-weight: bold; color: #333; }
     
     .gauge-container {
       width: 100%;
-      background: #f1f5f9;
-      height: 7px;
-      border-radius: 4px;
+      background: #e2e8f0;
+      height: 6px;
+      border-radius: 3px;
       overflow: hidden;
     }
     .gauge-bar {
       height: 100%;
       width: 0%;
-      background: #2563eb;
+      background: #3b82f6;
       transition: width 0.2s linear, background-color 0.3s ease;
     }
 
@@ -412,88 +501,19 @@
       gap: 10px;
     }
 
-    .input-group { display: flex; align-items: center; gap: 4px; font-size: 0.88em; }
-    .input-group input { width: 44px; text-align: center; padding: 4px; border: 1px solid #cbd5e1; border-radius: 4px; font-weight: 600; }
+    .input-group { display: flex; align-items: center; gap: 4px; }
+    .input-group input { width: 40px; text-align: center; padding: 4px; border: 1px solid #ccc; border-radius: 4px; }
     .actions { display: flex; gap: 4px; }
-
-    /* --- TOAST PREVIEW FLOATING (GÓC DƯỚI BÊN PHẢI) --- */
-    .toast-preview-container {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      background: rgba(255, 255, 255, 0.96);
-      border: 1px solid #cbd5e1;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
-      padding: 12px 16px;
-      border-radius: 12px;
-      z-index: 9999;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      backdrop-filter: blur(5px);
-      max-width: 420px;
-      min-width: 330px;
-      user-select: none;
-    }
-    .toast-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 0.85em;
-      font-weight: bold;
-      color: #475569;
-      border-bottom: 1px solid #e2e8f0;
-      padding-bottom: 6px;
-      cursor: grab;
-    }
-    .toast-header:active { cursor: grabbing; }
-    .toast-controls { display: flex; align-items: center; gap: 5px; }
-    .toast-btn-ctrl {
-      background: #e2e8f0;
-      border: none;
-      border-radius: 4px;
-      width: 22px;
-      height: 22px;
-      font-weight: bold;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 0.9em;
-      padding: 0;
-    }
-    .toast-btn-ctrl:hover { background: #cbd5e1; }
-    .toast-list { display: flex; flex-direction: column; gap: 6px; }
-    .preview-chip {
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      padding: 6px 10px;
-      border-radius: 8px;
-      font-size: 0.85em;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-weight: 500;
-      gap: 8px;
-    }
-    .preview-chip.urgent {
-      background: #fef2f2;
-      border-color: #fca5a5;
-      color: #991b1b;
-    }
-    .preview-name { font-weight: bold; font-style: italic; min-width: 90px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
-    .preview-target { color: #64748b; font-size: 0.9em; }
-    .preview-remain { font-weight: bold; }
     
-    #loadingOcr { display: none; font-size: 0.85em; color: #7c3aed; font-weight: bold; margin-left: 5px; }
+    #loadingOcr { display: none; font-size: 0.85em; color: #6f42c1; font-weight: bold; margin-left: 5px; }
   </style>
 </head>
 <body>
 
-  <!-- APP HEADER CỐ ĐỊNH CHUẨN Ở ĐẦU TRANG -->
-  <header class="app-header">
-    <!-- MAIN MENU BAR -->
-    <div class="top-bar">
+  <!-- KHUNG CHỨA CỐ ĐỊNH CHUNG Ó ĐẦU TRANG -->
+  <div class="sticky-header">
+    <!-- MAIN MENU TOAST -->
+    <div class="top-bar-toast">
       <div class="security-box" id="securityBox">
         <span>🔒 Admin ID:</span>
         <input type="password" id="adminIdInput" placeholder="Nhập ID..." oninput="checkAuthMaster(this.value)">
@@ -511,15 +531,15 @@
       <span id="loadingOcr">⏳ AI đang đọc ảnh & tự động cập nhật...</span>
 
       <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-left: auto;">
-        <input type="text" id="geminiKey" placeholder="Gemini API Key" class="locked-action" style="width: 130px; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px;" onfocus="this.select()" oninput="saveSettingsToFirebase()">
-        <input type="text" id="tgToken" placeholder="Telegram Token" class="locked-action" style="width: 150px; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px;" onfocus="this.select()" oninput="saveSettingsToFirebase()">
-        <input type="text" id="tgChatId" placeholder="Chat ID" class="locked-action" style="width: 90px; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px;" onfocus="this.select()" oninput="saveSettingsToFirebase()">
+        <input type="text" id="geminiKey" placeholder="Gemini API Key" class="locked-action" style="width: 130px; padding: 6px; border: 1px solid #ccc; border-radius: 4px;" onfocus="this.select()" oninput="saveSettingsToFirebase()">
+        <input type="text" id="tgToken" placeholder="Telegram Token" class="locked-action" style="width: 150px; padding: 6px; border: 1px solid #ccc; border-radius: 4px;" onfocus="this.select()" oninput="saveSettingsToFirebase()">
+        <input type="text" id="tgChatId" placeholder="Chat ID" class="locked-action" style="width: 90px; padding: 6px; border: 1px solid #ccc; border-radius: 4px;" onfocus="this.select()" oninput="saveSettingsToFirebase()">
       </div>
     </div>
 
-    <!-- TIMELINE RAIDBOSS BAR -->
-    <div class="timeline-bar-card" id="timelineFloatMenu">
-      <div class="timeline-float-header">
+    <!-- TIMELINE TOAST MENU -->
+    <div class="timeline-float-menu" id="timelineFloatMenu">
+      <div class="timeline-float-header" id="timelineFloatHeader">
         <span>📈 TIMELINE RAIDBOSS</span>
         <div class="timeline-input-group" onclick="event.stopPropagation()">
           <span>Khoảng:</span>
@@ -535,31 +555,29 @@
         <span id="timelineEndLabel">--:--:--</span>
       </div>
     </div>
+  </div>
 
-    <!-- PANEL HỈNH THỊ CHI TIẾT PEAK BOSS VÀ DANH SÁCH -->
-    <div class="peak-analytics-panel" id="peakAnalyticsPanel">
-      <div class="peak-analytics-header">
-        <span id="peakAnalyticsTitle">🎯 KẾT QUẢ TÌM KHUNG GIỜ ĐÔNG BOSS NHẤT</span>
-        <button class="toast-btn-ctrl" onclick="document.getElementById('peakAnalyticsPanel').style.display='none'" title="Đóng panel">✖</button>
-      </div>
-      
-      <div class="peak-metrics-grid" id="peakMetricsGrid">
-        <!-- JS sẽ inject thông tin tổng quan, Min/Max Delta tại đây -->
-      </div>
-
-      <div class="peak-boss-list-container" id="peakBossListContainer">
-        <!-- JS sẽ render danh sách các boss xuất hiện tại đây -->
-      </div>
+  <!-- TOAST MENU HIỂN THỊ KẾT QUẢ TÌM GIỜ BOSS ĐÔNG NHẤT VÀ DANH SÁCH CHI TIẾT -->
+  <div class="peak-toast-container" id="peakToastContainer">
+    <div class="peak-toast-header">
+      <span>🎯 PHÂN TÍCH KHUNG GIỜ ĐÔNG BOSS NHẤT (9 GIỜ TỚI)</span>
+      <button class="toast-btn-ctrl" onclick="document.getElementById('peakToastContainer').style.display='none'" title="Đóng">✖</button>
     </div>
-  </header>
-</header>
 
-  <!-- NỘI DUNG CHÍNH: DANH SÁCH CARD TIMERS NỐI TIẾP -->
-  <main class="main-content-container">
-    <div class="grid-container" id="cardContainer"></div>
-  </main>
+    <!-- 4 Thẻ tóm tắt thông tin quan trọng -->
+    <div class="peak-summary-grid" id="peakSummaryContent">
+      <!-- Cập nhật qua JS -->
+    </div>
 
-  <!-- TOAST PREVIEW FLOATING (GÓC PHẢI DƯỚI MÀN HÌNH) -->
+    <!-- Danh sách các boss trong khung giờ -->
+    <div class="peak-boss-list-container" id="peakBossListContent">
+      <!-- Cập nhật qua JS -->
+    </div>
+  </div>
+
+  <div class="grid-container" id="cardContainer"></div>
+
+  <!-- TOAST MENU NỔI DANH SÁCH (GÓC PHẢI DƯỚI) -->
   <div class="toast-preview-container" id="toastPreviewContainer">
     <div class="toast-header" id="toastHeader">
       <span id="toastTitle">🔔 SẮP ĐẾN GIỜ (3)</span>
@@ -650,7 +668,7 @@
     if (status) {
       box.className = "security-box unlocked";
       statusText.innerText = "(Đã cấp quyền Master)";
-      statusText.style.color = "#166534";
+      statusText.style.color = "#155724";
     } else {
       box.className = "security-box";
       statusText.innerText = "(Chế độ Xem)";
@@ -674,7 +692,6 @@
     }
   };
 
-  // Kéo thả cho Toast Preview góc phải dưới
   const toastContainer = document.getElementById('toastPreviewContainer');
   const toastHeader = document.getElementById('toastHeader');
   let isDraggingToast = false;
@@ -1005,8 +1022,8 @@
     window.cards[idx].startTime = now;
     window.cards[idx].target = now + totalSecs * 1000;
     window.cards[idx].warned60s = false;
-
-    saveCardsToFirebase();
+    
+    saveCardsToFirebase(); 
     render();
   };
 
@@ -1032,7 +1049,7 @@
     render();
   };
 
-  // --- THUẬT TOÁN TÌM KHUNG GIỜ ĐÔNG BOSS NHẤT VÀ HIỂN THỊ DANH SÁCH ---
+  // --- HÀM TÌM KHUNG GIỜ ĐÔNG BOSS NHẤT VÀ TÍNH DELTA KHOẢNG CÁCH THỜI GIAN ---
   window.findPeakBossTime = function() {
     const now = Date.now();
     const activeCards = window.cards.filter(c => c.target && c.target > now);
@@ -1071,6 +1088,7 @@
     const startTimeStr = new Date(bestStart).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     const endTimeStr = new Date(bestStart + windowMs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
+    // Hàm format thời gian đẹp mắt
     function formatDuration(ms) {
       let totalSecs = Math.floor(ms / 1000);
       let h = Math.floor(totalSecs / 3600);
@@ -1081,87 +1099,87 @@
       return `${s} giây`;
     }
 
-    let minDeltaInfo = "Không đủ số lượng Boss";
-    let maxDeltaInfo = "Không đủ số lượng Boss";
+    // Tính Delta nhỏ nhất và Delta lớn nhất cùng với cặp Boss tương ứng
+    let minDeltaVal = Infinity;
+    let minDeltaPair = "";
+    let maxDeltaVal = -1;
+    let maxDeltaPair = "";
 
-    if (bestMatchedCards.length >= 2) {
-      let minDiff = Infinity;
-      let maxDiff = -1;
-      let minPair = null;
-      let maxPair = null;
-
+    if (bestMatchedCards.length > 1) {
       for (let i = 0; i < bestMatchedCards.length - 1; i++) {
-        let bossA = bestMatchedCards[i];
-        let bossB = bestMatchedCards[i+1];
-        let diffMs = bossB.target - bossA.target;
+        let b1 = bestMatchedCards[i];
+        let b2 = bestMatchedCards[i+1];
+        let diffMs = b2.target - b1.target;
 
-        if (diffMs < minDiff) {
-          minDiff = diffMs;
-          minPair = { bossA, bossB, diffMs };
+        if (diffMs < minDeltaVal) {
+          minDeltaVal = diffMs;
+          minDeltaPair = `(${b1.name} ➔ ${b2.name})`;
         }
-        if (diffMs > maxDiff) {
-          maxDiff = diffMs;
-          maxPair = { bossA, bossB, diffMs };
+        if (diffMs > maxDeltaVal) {
+          maxDeltaVal = diffMs;
+          maxDeltaPair = `(${b1.name} ➔ ${b2.name})`;
         }
-      }
-
-      if (minPair) {
-        minDeltaInfo = `<strong>${formatDuration(minPair.diffMs)}</strong> <br><span style="font-size:0.85em; color:#64748b;">(${minPair.bossA.name} ➔ ${minPair.bossB.name})</span>`;
-      }
-      if (maxPair) {
-        maxDeltaInfo = `<strong>${formatDuration(maxPair.diffMs)}</strong> <br><span style="font-size:0.85em; color:#64748b;">(${maxPair.bossA.name} ➔ ${maxPair.bossB.name})</span>`;
       }
     }
 
-    // Render Metrics Grid
-    const metricsGrid = document.getElementById('peakMetricsGrid');
-    metricsGrid.innerHTML = `
-      <div class="metric-card">
-        ⏳ <b>Khung Giờ Cao Điểm:</b><br>
-        <strong>${startTimeStr} - ${endTimeStr}</strong> (${spanHours}h)
+    let minDeltaDisplay = minDeltaVal !== Infinity ? formatDuration(minDeltaVal) : "Không có";
+    let maxDeltaDisplay = maxDeltaVal !== -1 ? formatDuration(maxDeltaVal) : "Không có";
+
+    // 1. Render 4 Thẻ Thông Tin Tóm Tắt
+    const summaryEl = document.getElementById('peakSummaryContent');
+    summaryEl.innerHTML = `
+      <div class="peak-info-card">
+        <span class="peak-card-title">⏳ Khung Giờ Cao Điểm:</span>
+        <span class="peak-card-val">${startTimeStr} - ${endTimeStr}</span>
+        <span class="peak-card-sub">Khoảng dài ${spanHours}h</span>
       </div>
-      <div class="metric-card">
-        🔥 <b>Số Lượng Boss Spawn:</b><br>
-        <strong>${maxCount} Boss</strong>
+      <div class="peak-info-card">
+        <span class="peak-card-title">🔥 Số Lượng Boss Spawn:</span>
+        <span class="peak-card-val" style="color: #d97706;">${maxCount} Boss</span>
+        <span class="peak-card-sub">Mật độ cao nhất</span>
       </div>
-      <div class="metric-card">
-        ⚡ <b>Min Delta (Gần nhất):</b><br>
-        ${minDeltaInfo}
+      <div class="peak-info-card">
+        <span class="peak-card-title">⚡ Min Delta (Gần nhất):</span>
+        <span class="peak-card-val">${minDeltaDisplay}</span>
+        <span class="peak-card-sub">${minDeltaPair || '(Chỉ có 1 Boss)'}</span>
       </div>
-      <div class="metric-card">
-        🌙 <b>Max Delta (Cách xa nhất):</b><br>
-        ${maxDeltaInfo}
+      <div class="peak-info-card">
+        <span class="peak-card-title">🌙 Max Delta (Cách xa nhất):</span>
+        <span class="peak-card-val">${maxDeltaDisplay}</span>
+        <span class="peak-card-sub">${maxDeltaPair || '(Chỉ có 1 Boss)'}</span>
       </div>
     `;
 
-    // Render Danh sách Boss
-    const listContainer = document.getElementById('peakBossListContainer');
+    // 2. Render Danh Sách Chi Tiết Các Boss Xếp Theo Thứ Tự Thời Gian
+    const listEl = document.getElementById('peakBossListContent');
     let listHtml = '';
-    bestMatchedCards.forEach((b, i) => {
-      let targetTimeStr = new Date(b.target).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      let nextDeltaStr = '';
+    bestMatchedCards.forEach((c, i) => {
+      const tStr = new Date(c.target).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      
+      let deltaNote = '';
       if (i < bestMatchedCards.length - 1) {
-        let diff = bestMatchedCards[i+1].target - b.target;
-        nextDeltaStr = `<span style="color:#94a3b8; font-size:0.82em;"> (Delta tới boss tiếp: ${formatDuration(diff)})</span>`;
+        let diffSecs = Math.round((bestMatchedCards[i+1].target - c.target) / 1000);
+        let m = Math.floor(diffSecs / 60);
+        let s = diffSecs % 60;
+        deltaNote = `<span style="font-size: 0.8em; color: #64748b; margin-left: 8px;">(➔ Boss tiếp theo: +${m > 0 ? m + 'p ' : ''}${s}s)</span>`;
+      } else {
+        deltaNote = `<span style="font-size: 0.8em; color: #94a3b8; margin-left: 8px;">(Boss cuối trong khung giờ)</span>`;
       }
 
       listHtml += `
-        <div class="peak-boss-item">
+        <div class="peak-boss-row">
           <div>
-            <span style="font-weight: bold; color: #0f172a;">#${i + 1} ${b.name}</span>
-            ${nextDeltaStr}
+            <span style="font-weight: bold; color: #1e293b;">#${i + 1}. ⚔️ ${c.name}</span>
+            ${deltaNote}
           </div>
-          <div style="font-weight: bold; color: #2563eb;">
-            ⏰ ${targetTimeStr}
-          </div>
+          <span style="color: #0284c7; font-weight: bold;">⏰ ${tStr}</span>
         </div>
       `;
     });
-    listContainer.innerHTML = listHtml;
+    listEl.innerHTML = listHtml;
 
-    // Mở Panel Analytics
-    const analyticsPanel = document.getElementById('peakAnalyticsPanel');
-    analyticsPanel.style.display = 'block';
+    // Hiển thị Toast Menu kết quả
+    document.getElementById('peakToastContainer').style.display = 'flex';
   };
 
   function checkAndUpdateTimers() {
@@ -1193,7 +1211,7 @@
           } else if (percent <= 40) {
             gaugeEl.style.backgroundColor = '#f59e0b';
           } else {
-            gaugeEl.style.backgroundColor = '#2563eb';
+            gaugeEl.style.backgroundColor = '#3b82f6';
           }
         }
 
@@ -1202,7 +1220,7 @@
           const m = String(Math.floor((remainSecs % 3600) / 60)).padStart(2, '0');
           const s = String(remainSecs % 60).padStart(2, '0');
           el.innerText = `Remaining: ${h}:${m}:${s}`;
-          el.style.color = remainSecs <= 30 ? '#dc2626' : '#1e293b';
+          el.style.color = remainSecs <= 30 ? 'red' : '#333';
 
           if (remainSecs <= 60 && !c.warned60s) {
             c.warned60s = true;
@@ -1211,7 +1229,7 @@
           }
         } else {
           el.innerText = "Remaining: Done!";
-          el.style.color = '#16a34a';
+          el.style.color = 'green';
           if (gaugeEl) gaugeEl.style.width = '0%';
 
           if (!c.warned60s) {
@@ -1223,7 +1241,7 @@
       } else {
         if (targetEl) targetEl.innerText = `Target: --`;
         el.innerText = `Remaining: --`;
-        el.style.color = '#1e293b';
+        el.style.color = '#333';
         if (gaugeEl) gaugeEl.style.width = '0%';
       }
     });
@@ -1269,7 +1287,7 @@
     toastList.innerHTML = html;
   }
 
-  // --- HÀM CẬP NHẬT TIMELINE BAR CHUẨN ---
+  // --- HÀM CẬP NHẬT TIMELINE CHUẨN ---
   function updateTimelineBar(now) {
     const spanInput = document.getElementById('timelineSpanInput');
     let spanHours = spanInput ? (parseFloat(spanInput.value) || 2) : 2;
@@ -1334,7 +1352,7 @@
     let validCards = window.cards.filter(c => c.target && c.target >= startTime && c.target <= endTime);
     validCards.sort((a, b) => a.target - b.target);
 
-    const wrapperWidth = wrapper.clientWidth || 1000;
+    const wrapperWidth = wrapper.clientWidth || 990;
     let placedBubbles = [];
 
     validCards.forEach(c => {
