@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lander Timer Web v5.2 (Timeline Dual-Bubble Target Time)</title>
+  <title>Lander Timer Web v5.3 (Advanced Visual Timeline)</title>
   <style>
     * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     body { background-color: #f4f6f9; margin: 0; padding: 20px; padding-bottom: 80px; }
@@ -133,7 +133,7 @@
     .preview-target { color: #64748b; font-size: 0.9em; }
     .preview-remain { font-weight: bold; }
 
-    /* --- TIMELINE INLINE BAR (PHÂN TẦNG TRÊN / DƯỚI & TARGET BUBBLE) --- */
+    /* --- TIMELINE INLINE BAR TRỰC QUAN MỚI --- */
     .timeline-section {
       background: white;
       border: 1px solid #e0e0e0;
@@ -172,21 +172,43 @@
     .timeline-bar-wrapper {
       position: relative;
       width: 100%;
-      height: 140px; /* Tăng không gian chiều cao để chứa bộ đôi Target-Time Bubble */
+      height: 150px; /* Không gian rộng rãi cho các vạch ticks và dual-bubble */
       background: transparent;
-      margin-top: 15px;
+      margin-top: 20px;
       margin-bottom: 15px;
     }
-    .timeline-track-fill {
+    .timeline-track-line {
       position: absolute;
       top: 50%;
       left: 0;
       width: 100%;
       height: 4px;
       transform: translateY(-50%);
-      background: #cbd5e1;
+      background: #94a3b8;
       border-radius: 2px;
     }
+    
+    /* Vạch chia mốc thời gian phụ (Ticks) & Nhãn mờ dưới nền */
+    .timeline-tick {
+      position: absolute;
+      top: 50%;
+      width: 2px;
+      height: 10px;
+      background: #64748b;
+      transform: translate(-50%, -50%);
+      z-index: 2;
+    }
+    .timeline-tick-label {
+      position: absolute;
+      top: calc(50% + 12px);
+      transform: translateX(-50%);
+      font-size: 0.7em;
+      color: #94a3b8;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    /* Các indicator (Dual-Bubble) */
     .timeline-indicator {
       position: absolute;
       transform: translateX(-50%);
@@ -197,7 +219,6 @@
       z-index: 10;
     }
 
-    /* Phong cách chung cho Tag Tên Boss & Tag Target-Time */
     .timeline-boss-tag {
       background: #111827;
       color: white;
@@ -212,7 +233,7 @@
       position: relative;
     }
     .timeline-target-tag {
-      background: #0284c7; /* Màu xanh lam nhạt hơn để phân biệt với tên boss */
+      background: #0284c7;
       color: white;
       font-size: 0.68em;
       font-weight: 600;
@@ -222,11 +243,11 @@
       box-shadow: 0 2px 4px rgba(0,0,0,0.15);
     }
 
-    /* --- TẦNG TRÊN (LEVEL TOP): Target-time nằm TRÊN ĐẦU Bubble Tên Boss --- */
+    /* --- TẦNG TRÊN --- */
     .timeline-indicator.level-top {
       bottom: 50%;
-      margin-bottom: 8px;
-      flex-direction: column; /* Xếp Target tag ở trên, Boss tag ở dưới */
+      margin-bottom: 10px;
+      flex-direction: column;
     }
     .timeline-indicator.level-top .timeline-boss-tag::after {
       content: '';
@@ -244,11 +265,11 @@
       border-color: #dc3545 transparent;
     }
 
-    /* --- TẦNG DƯỚI (LEVEL BOTTOM): Target-time nằm DƯỚI Bubble Tên Boss --- */
+    /* --- TẦNG DƯỚI --- */
     .timeline-indicator.level-bottom {
       top: 50%;
-      margin-top: 8px;
-      flex-direction: column-reverse; /* Xếp Boss tag ở trên trỏ vào trục, Target tag ở dưới */
+      margin-top: 10px;
+      flex-direction: column-reverse;
     }
     .timeline-indicator.level-bottom .timeline-boss-tag::before {
       content: '';
@@ -275,12 +296,17 @@
       50% { opacity: 0.6; }
       100% { opacity: 1; }
     }
+
+    /* Thanh nhãn trục thời gian 2 đầu (Now & End) */
     .timeline-labels {
       display: flex;
       justify-content: space-between;
-      font-size: 0.8em;
-      color: #64748b;
-      font-weight: 500;
+      font-size: 0.85em;
+      color: #334155;
+      font-weight: bold;
+      margin-top: 5px;
+      border-top: 1px dashed #e2e8f0;
+      padding-top: 8px;
     }
 
     /* --- LAYOUT DẠNG DÒNG (ROW) CHO CARD --- */
@@ -391,12 +417,12 @@
       </div>
     </div>
     <div class="timeline-bar-wrapper" id="timelineBarWrapper">
-      <div class="timeline-track-fill"></div>
-      <!-- Các bộ đôi Bubble (Tên Boss & Target-time) sẽ được tạo tự động -->
+      <div class="timeline-track-line"></div>
+      <!-- Các vạch ticks, nhãn mờ và Dual-Bubble indicators được sinh tự động tại đây -->
     </div>
     <div class="timeline-labels">
-      <span id="timelineStartLabel">--:--:--</span>
-      <span id="timelineEndLabel">--:--:--</span>
+      <span id="timelineStartLabel">🟢 NOW: --:--:--</span>
+      <span id="timelineEndLabel">END (>>) --:--:--</span>
     </div>
   </div>
 
@@ -980,7 +1006,7 @@
     toastList.innerHTML = html;
   }
 
-  // --- HÀM TẠO DUAL-BUBBLE THÔNG MINH CHO TIMELINE ---
+  // --- HÀM CẬP NHẬT TIMELINE VỚI TICKS MỖI 15 PHÚT VÀ HIỂN THỊ TRỰC QUAN NOW / END (>>) ---
   function updateTimelineBar(now) {
     const spanInput = document.getElementById('timelineSpanInput');
     let spanHours = spanInput ? (parseFloat(spanInput.value) || 2) : 2;
@@ -991,13 +1017,38 @@
     const startTime = now;
     const endTime = now + spanMs;
 
-    document.getElementById('timelineStartLabel').innerText = new Date(startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    document.getElementById('timelineEndLabel').innerText = new Date(endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    document.getElementById('timelineStartLabel').innerText = `🟢 NOW: ${new Date(startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
+    document.getElementById('timelineEndLabel').innerText = `END (>>) ${new Date(endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
 
     const wrapper = document.getElementById('timelineBarWrapper');
-    const existingIndicators = wrapper.querySelectorAll('.timeline-indicator');
-    existingIndicators.forEach(el => el.remove());
+    
+    // Xóa các thành phần động cũ (giữ lại thanh line gốc)
+    const oldDynamicElements = wrapper.querySelectorAll('.timeline-indicator, .timeline-tick, .timeline-tick-label');
+    oldDynamicElements.forEach(el => el.remove());
 
+    // --- 1. TỰ ĐỘNG SINH CÁC VẠCH TICKS MỖI 15 PHÚT ---
+    const intervalMs = 15 * 60 * 1000; // 15 phút
+    let currentTickTime = Math.ceil(startTime / intervalMs) * intervalMs;
+    
+    while (currentTickTime < endTime) {
+      const ratio = (currentTickTime - startTime) / spanMs;
+      const leftPercent = ratio * 100;
+
+      const tickEl = document.createElement('div');
+      tickEl.className = 'timeline-tick';
+      tickEl.style.left = `${leftPercent}%`;
+      wrapper.appendChild(tickEl);
+
+      const tickLabel = document.createElement('div');
+      tickLabel.className = 'timeline-tick-label';
+      tickLabel.style.left = `${leftPercent}%`;
+      tickLabel.innerText = new Date(currentTickTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      wrapper.appendChild(tickLabel);
+
+      currentTickTime += intervalMs;
+    }
+
+    // --- 2. VẼ BỘ ĐÔI DUAL-BUBBLE THÔNG MINH CHO CÁC BOSS TRONG KHOẢNG ---
     let validCards = window.cards.filter(c => c.target && c.target >= startTime && c.target <= endTime);
     validCards.sort((a, b) => a.target - b.target);
 
@@ -1020,7 +1071,6 @@
 
       const targetTimeString = new Date(c.target).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
-      // Ước lượng chiều rộng pixel thực tế của bộ đôi bubble
       const maxLineLength = Math.max(...displayName.split('\n').map(l => l.length));
       const estimatedWidthPx = Math.max(75, maxLineLength * 7 + 24);
 
@@ -1042,7 +1092,6 @@
       indicator.className = `timeline-indicator ${chosenLevel} ${isUrgent ? 'urgent' : ''}`;
       indicator.style.left = `${leftPercent}%`;
       
-      // Xây dựng 2 Bubble: Tên Boss & Target-time (thứ tự trên/dưới do CSS flexbox điều khiển)
       indicator.innerHTML = `
         <span class="timeline-target-tag">⏰ ${targetTimeString}</span>
         <span class="timeline-boss-tag">${displayName}</span>
