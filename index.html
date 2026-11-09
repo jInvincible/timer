@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lander Timer Web v5.4 (Dynamic Ticks Timeline)</title>
+  <title>Lander Timer Web v5.5 (Floating Timeline Toast Menu)</title>
   <style>
     * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     body { background-color: #f4f6f9; margin: 0; padding: 20px; padding-bottom: 80px; }
@@ -56,7 +56,7 @@
       font-weight: bold;
     }
 
-    /* --- TOAST MENU NỔI DANH SÁCH (GÓC PHẢI) --- */
+    /* --- TOAST MENU NỔI DANH SÁCH (GÓC PHẢI DƯỚI) --- */
     .toast-preview-container {
       position: fixed;
       bottom: 20px;
@@ -133,27 +133,33 @@
     .preview-target { color: #64748b; font-size: 0.9em; }
     .preview-remain { font-weight: bold; }
 
-    /* --- TIMELINE INLINE BAR V5.4 --- */
-    .timeline-section {
-      background: white;
-      border: 1px solid #e0e0e0;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-      border-radius: 8px;
-      padding: 15px 20px;
-      margin-bottom: 20px;
-      max-width: 900px;
-      margin-left: auto;
-      margin-right: auto;
+    /* --- TIMELINE FLOATING TOAST MENU (CÓ THỂ KÉO THẢ) --- */
+    .timeline-float-menu {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      background: rgba(255, 255, 255, 0.96);
+      border: 1px solid #cbd5e1;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+      border-radius: 12px;
+      padding: 14px 18px;
+      z-index: 9988;
+      width: 520px;
+      backdrop-filter: blur(6px);
+      user-select: none;
     }
-    .timeline-header {
+    .timeline-float-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
       font-size: 0.9em;
       font-weight: bold;
-      color: #333;
-      margin-bottom: 10px;
+      color: #1e293b;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 8px;
+      cursor: grab;
     }
+    .timeline-float-header:active { cursor: grabbing; }
     .timeline-input-group {
       display: flex;
       align-items: center;
@@ -162,7 +168,7 @@
       color: #555;
     }
     .timeline-input-group input {
-      width: 55px;
+      width: 50px;
       text-align: center;
       padding: 3px;
       border: 1px solid #ccc;
@@ -172,10 +178,10 @@
     .timeline-bar-wrapper {
       position: relative;
       width: 100%;
-      height: 150px;
+      height: 140px;
       background: transparent;
-      margin-top: 20px;
-      margin-bottom: 15px;
+      margin-top: 15px;
+      margin-bottom: 10px;
     }
     .timeline-track-line {
       position: absolute;
@@ -202,10 +208,37 @@
       position: absolute;
       top: calc(50% + 12px);
       transform: translateX(-50%);
-      font-size: 0.7em;
+      font-size: 0.68em;
       color: #94a3b8;
       font-weight: 500;
       white-space: nowrap;
+    }
+
+    /* TICK XANH BIỂU DIỄN THỜI ĐIỂM HIỆN TẠI (NOW) TRÊN TRỤC */
+    .timeline-now-tick {
+      position: absolute;
+      top: 50%;
+      width: 4px;
+      height: 18px;
+      background: #10b981; /* Xanh lá nổi bật */
+      transform: translate(-50%, -50%);
+      z-index: 5;
+      border-radius: 2px;
+      box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+    }
+    .timeline-now-label {
+      position: absolute;
+      top: calc(50% - 28px);
+      transform: translateX(-50%);
+      font-size: 0.7em;
+      background: #10b981;
+      color: white;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-weight: bold;
+      white-space: nowrap;
+      z-index: 6;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.15);
     }
 
     /* Các indicator (Dual-Bubble) */
@@ -297,16 +330,14 @@
       100% { opacity: 1; }
     }
 
-    /* Thanh nhãn trục thời gian 2 đầu (Đã loại bỏ chữ END và >>) */
     .timeline-labels {
       display: flex;
       justify-content: space-between;
-      font-size: 0.85em;
+      font-size: 0.8em;
       color: #334155;
       font-weight: bold;
-      margin-top: 5px;
       border-top: 1px dashed #e2e8f0;
-      padding-top: 8px;
+      padding-top: 6px;
     }
 
     /* --- LAYOUT DẠNG DÒNG (ROW) CHO CARD --- */
@@ -407,21 +438,22 @@
     </div>
   </div>
 
-  <div class="timeline-section" id="timelineSection">
-    <div class="timeline-header">
-      <span>📈 TIMELINE BIỂU DIỄN THỜI GIAN RAIDBOSS</span>
-      <div class="timeline-input-group">
-        <span>Khoảng biểu diễn:</span>
+  <!-- TIMELINE FLOATING TOAST MENU (CÓ THỂ KÉO THẢ) -->
+  <div class="timeline-float-menu" id="timelineFloatMenu">
+    <div class="timeline-float-header" id="timelineFloatHeader">
+      <span>📈 TIMELINE RAIDBOSS</span>
+      <div class="timeline-input-group" onclick="event.stopPropagation()">
+        <span>Khoảng:</span>
         <input type="number" id="timelineSpanInput" value="2" min="0.5" max="9" step="0.5" onchange="saveTimelineSpan(this.value)">
-        <span>giờ</span>
+        <span>h</span>
       </div>
     </div>
     <div class="timeline-bar-wrapper" id="timelineBarWrapper">
       <div class="timeline-track-line"></div>
-      <!-- Các vạch ticks động & Dual-Bubble indicators -->
+      <!-- Ticks, tick xanh NOW & Dual-Bubble indicators sinh động tự động -->
     </div>
     <div class="timeline-labels">
-      <span id="timelineStartLabel">🟢 NOW: --:--:--</span>
+      <span id="timelineStartLabel">--:--:--</span>
       <span id="timelineEndLabel">--:--:--</span>
     </div>
   </div>
@@ -543,14 +575,51 @@
     }
   };
 
+  // --- KÉO THẢ TIMELINE FLOATING MENU ---
+  const timelineMenu = document.getElementById('timelineFloatMenu');
+  const timelineHeader = document.getElementById('timelineFloatHeader');
+  let isDraggingTimeline = false;
+  let tStartX, tStartY, tInitialX, tInitialY;
+
+  timelineHeader.addEventListener('mousedown', (e) => {
+    isDraggingTimeline = true;
+    tStartX = e.clientX;
+    startY = e.clientY;
+    
+    const rect = timelineMenu.getBoundingClientRect();
+    tInitialX = rect.left;
+    tInitialY = rect.top;
+
+    timelineMenu.style.top = `${tInitialY}px`;
+    timelineMenu.style.left = `${tInitialX}px`;
+
+    document.addEventListener('mousemove', onTimelineMouseMove);
+    document.addEventListener('mouseup', onTimelineMouseUp);
+  });
+
+  function onTimelineMouseMove(e) {
+    if (!isDraggingTimeline) return;
+    const dx = e.clientX - tStartX;
+    const dy = e.clientY - startY;
+
+    timelineMenu.style.left = `${tInitialX + dx}px`;
+    timelineMenu.style.top = `${tInitialY + dy}px`;
+  }
+
+  function onTimelineMouseUp() {
+    isDraggingTimeline = false;
+    document.removeEventListener('mousemove', onTimelineMouseMove);
+    document.removeEventListener('mouseup', onTimelineMouseUp);
+  }
+
+  // --- KÉO THẢ TOAST PREVIEW MENU ---
   const toastContainer = document.getElementById('toastPreviewContainer');
   const toastHeader = document.getElementById('toastHeader');
-
-  let isDragging = false;
+  let isDraggingToast = false;
   let startX, startY, initialX, initialY;
 
   toastHeader.addEventListener('mousedown', (e) => {
-    isDragging = true;
+    isDraggingToast = true;
     startX = e.clientX;
     startY = e.clientY;
     
@@ -563,12 +632,12 @@
     toastContainer.style.left = `${initialX}px`;
     toastContainer.style.top = `${initialY}px`;
 
-    document.addEventListener('mousemove', onMouseMove);
-    document.addEventListener('mouseup', onMouseUp);
+    document.addEventListener('mousemove', onToastMouseMove);
+    document.addEventListener('mouseup', onToastMouseUp);
   });
 
-  function onMouseMove(e) {
-    if (!isDragging) return;
+  function onToastMouseMove(e) {
+    if (!isDraggingToast) return;
     const dx = e.clientX - startX;
     const dy = e.clientY - startY;
 
@@ -576,10 +645,10 @@
     toastContainer.style.top = `${initialY + dy}px`;
   }
 
-  function onMouseUp() {
-    isDragging = false;
-    document.removeEventListener('mousemove', onMouseMove);
-    document.removeEventListener('mouseup', onMouseUp);
+  function onToastMouseUp() {
+    isDraggingToast = false;
+    document.removeEventListener('mousemove', onToastMouseMove);
+    document.removeEventListener('mouseup', onToastMouseUp);
   }
 
   window.adjustToastLimit = function(delta) {
@@ -1006,7 +1075,7 @@
     toastList.innerHTML = html;
   }
 
-  // --- HÀM CẬP NHẬT TIMELINE VỚI TICKS ĐỘNG VÀ NHÃN SẠCH SẼ ---
+  // --- HÀM CẬP NHẬT TIMELINE VỚI TICK XANH NOW & TICKS ĐỘNG ---
   function updateTimelineBar(now) {
     const spanInput = document.getElementById('timelineSpanInput');
     let spanHours = spanInput ? (parseFloat(spanInput.value) || 2) : 2;
@@ -1017,25 +1086,37 @@
     const startTime = now;
     const endTime = now + spanMs;
 
-    // Cập nhật mốc thời gian Now và End (đã loại bỏ chữ END và >>)
-    document.getElementById('timelineStartLabel').innerText = `🟢 NOW: ${new Date(startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
-    document.getElementById('timelineEndLabel').innerText = `${new Date(endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
+    document.getElementById('timelineStartLabel').innerText = new Date(startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    document.getElementById('timelineEndLabel').innerText = new Date(endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
     const wrapper = document.getElementById('timelineBarWrapper');
     
-    const oldDynamicElements = wrapper.querySelectorAll('.timeline-indicator, .timeline-tick, .timeline-tick-label');
+    // Xóa các thành phần động cũ
+    const oldDynamicElements = wrapper.querySelectorAll('.timeline-indicator, .timeline-tick, .timeline-tick-label, .timeline-now-tick, .timeline-now-label');
     oldDynamicElements.forEach(el => el.remove());
 
-    // --- 1. TỰ ĐỘNG CHIA TICKS TÙY THEO KHOẢNG BIỂU DIỄN ---
+    // --- 1. VẼ TICK XANH BIỂU DIỄN THỜI ĐIỂM HIỆN TẠI (NOW) ---
+    const nowTick = document.createElement('div');
+    nowTick.className = 'timeline-now-tick';
+    nowTick.style.left = `0%`;
+    wrapper.appendChild(nowTick);
+
+    const nowLabel = document.createElement('div');
+    nowLabel.className = 'timeline-now-label';
+    nowLabel.style.left = `0%`;
+    nowLabel.innerText = `NOW`;
+    wrapper.appendChild(nowLabel);
+
+    // --- 2. TỰ ĐỘNG CHIA TICKS TÙY THEO KHOẢNG BIỂU DIỄN ---
     let intervalMs;
     if (spanHours <= 1) {
-      intervalMs = 5 * 60 * 1000;    // Khoảng <= 1h: Chia mỗi 5 phút
+      intervalMs = 5 * 60 * 1000;    // <= 1h: mỗi 5 phút
     } else if (spanHours <= 3) {
-      intervalMs = 15 * 60 * 1000;   // Khoảng từ 1h - 3h: Chia mỗi 15 phút
+      intervalMs = 15 * 60 * 1000;   // 1h - 3h: mỗi 15 phút
     } else if (spanHours <= 6) {
-      intervalMs = 30 * 60 * 1000;   // Khoảng từ 3h - 6h: Chia mỗi 30 phút
+      intervalMs = 30 * 60 * 1000;   // 3h - 6h: mỗi 30 phút
     } else {
-      intervalMs = 60 * 60 * 1000;   // Khoảng từ 6h - 9h: Chia mỗi 1 giờ
+      intervalMs = 60 * 60 * 1000;   // 6h - 9h: mỗi 1 giờ
     }
 
     let currentTickTime = Math.ceil(startTime / intervalMs) * intervalMs;
@@ -1058,11 +1139,11 @@
       currentTickTime += intervalMs;
     }
 
-    // --- 2. VẼ BỘ ĐÔI DUAL-BUBBLE THÔNG MINH ---
+    // --- 3. VẼ BỘ ĐÔI DUAL-BUBBLE THÔNG MINH CHO BOSS ---
     let validCards = window.cards.filter(c => c.target && c.target >= startTime && c.target <= endTime);
     validCards.sort((a, b) => a.target - b.target);
 
-    const wrapperWidth = wrapper.clientWidth || 800;
+    const wrapperWidth = wrapper.clientWidth || 450;
     let placedBubbles = [];
 
     validCards.forEach(c => {
