@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lander Timer Web v5.0 (Timeline Top/Bottom Staggered)</title>
+  <title>Lander Timer Web v5.1 (Smart Collision Timeline)</title>
   <style>
     * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     body { background-color: #f4f6f9; margin: 0; padding: 20px; padding-bottom: 80px; }
@@ -133,7 +133,7 @@
     .preview-target { color: #64748b; font-size: 0.9em; }
     .preview-remain { font-weight: bold; }
 
-    /* --- TIMELINE INLINE BAR (PHÂN TẦNG TRÊN & DƯỚI) --- */
+    /* --- TIMELINE INLINE BAR (PHÂN TẦNG THÔNG MINH TRÊN / DƯỚI) --- */
     .timeline-section {
       background: white;
       border: 1px solid #e0e0e0;
@@ -162,7 +162,7 @@
       color: #555;
     }
     .timeline-input-group input {
-      width: 50px;
+      width: 55px;
       text-align: center;
       padding: 3px;
       border: 1px solid #ccc;
@@ -172,14 +172,14 @@
     .timeline-bar-wrapper {
       position: relative;
       width: 100%;
-      height: 90px; /* Đủ chiều cao rộng rãi chứa tầng Trên và tầng Dưới */
+      height: 110px; /* Tăng không gian để xử lý an toàn nhiều tầng */
       background: transparent;
-      margin-top: 10px;
-      margin-bottom: 10px;
+      margin-top: 15px;
+      margin-bottom: 15px;
     }
     .timeline-track-fill {
       position: absolute;
-      top: 50%; /* Trục nằm chính giữa wrapper */
+      top: 50%;
       left: 0;
       width: 100%;
       height: 4px;
@@ -196,10 +196,10 @@
       z-index: 10;
     }
 
-    /* --- TẦNG 1: TRÊN THẦN TIMELINE --- */
+    /* --- TẦNG TRÊN --- */
     .timeline-indicator.level-top {
       bottom: 50%;
-      margin-bottom: 6px;
+      margin-bottom: 8px;
     }
     .timeline-indicator.level-top .timeline-boss-tag::after {
       content: '';
@@ -217,10 +217,10 @@
       border-color: #dc3545 transparent;
     }
 
-    /* --- TẦNG 2: DƯỚI THANH TIMELINE --- */
+    /* --- TẦNG DƯỚI --- */
     .timeline-indicator.level-bottom {
       top: 50%;
-      margin-top: 6px;
+      margin-top: 8px;
     }
     .timeline-indicator.level-bottom .timeline-boss-tag::before {
       content: '';
@@ -367,19 +367,19 @@
     </div>
   </div>
 
-  <!-- TIMELINE INLINE BAR (PHÂN TẦNG TRÊN VÀ DƯỚI) -->
+  <!-- TIMELINE INLINE BAR VỚI GIỚI HẠN 0.5H ĐẾN 9H -->
   <div class="timeline-section" id="timelineSection">
     <div class="timeline-header">
       <span>📈 TIMELINE BIỂU DIỄN THỜI GIAN RAIDBOSS</span>
       <div class="timeline-input-group">
         <span>Khoảng biểu diễn:</span>
-        <input type="number" id="timelineSpanInput" value="3" min="1" max="24" onchange="saveTimelineSpan(this.value)">
+        <input type="number" id="timelineSpanInput" value="2" min="0.5" max="9" step="0.5" onchange="saveTimelineSpan(this.value)">
         <span>giờ</span>
       </div>
     </div>
     <div class="timeline-bar-wrapper" id="timelineBarWrapper">
       <div class="timeline-track-fill"></div>
-      <!-- Các indicator tên boss sẽ được phân tầng TÊN / DƯỚI tự động vào đây -->
+      <!-- Các indicator được phân tầng thông minh tránh đè nhau -->
     </div>
     <div class="timeline-labels">
       <span id="timelineStartLabel">--:--:--</span>
@@ -429,14 +429,22 @@
   let isRemoteUpdating = false;
   let currentOcrImageBlob = null;
 
+  // Khôi phục giá trị khoảng thời gian timeline từ localStorage, đảm bảo nằm trong khoảng [0.5, 9]
   const savedSpan = localStorage.getItem('lander_timeline_span');
   if (savedSpan) {
+    let val = parseFloat(savedSpan);
+    if (val < 0.5) val = 0.5;
+    if (val > 9) val = 9;
     const inputEl = document.getElementById('timelineSpanInput');
-    if (inputEl) inputEl.value = savedSpan;
+    if (inputEl) inputEl.value = val;
   }
 
   window.saveTimelineSpan = function(val) {
-    localStorage.setItem('lander_timeline_span', val);
+    let num = parseFloat(val);
+    if (isNaN(num) || num < 0.5) num = 0.5;
+    if (num > 9) num = 9;
+    document.getElementById('timelineSpanInput').value = num;
+    localStorage.setItem('lander_timeline_span', num);
     checkAndUpdateTimers();
   };
 
@@ -960,12 +968,14 @@
     toastList.innerHTML = html;
   }
 
-  // --- HÀM CẬP NHẬT TIMELINE VỚI PHÂN TẦNG TÊN (TRÊN THẦN TIMELINE) VÀ DƯỚI (DƯỚI THANH TIMELINE) ---
+  // --- THUẬT TOÁN PHÂN TẦNG THÔNG MINH DỰA TRÊN KHOẢNG BIỂU DIỄN VÀ KÍCH THƯỚC PIXEL THỰC TẾ ---
   function updateTimelineBar(now) {
     const spanInput = document.getElementById('timelineSpanInput');
-    const spanHours = spanInput ? (parseFloat(spanInput.value) || 3) : 3;
-    const spanMs = spanHours * 3600 * 1000;
+    let spanHours = spanInput ? (parseFloat(spanInput.value) || 2) : 2;
+    if (spanHours < 0.5) spanHours = 0.5;
+    if (spanHours > 9) spanHours = 9;
 
+    const spanMs = spanHours * 3600 * 1000;
     const startTime = now;
     const endTime = now + spanMs;
 
@@ -979,11 +989,16 @@
     let validCards = window.cards.filter(c => c.target && c.target >= startTime && c.target <= endTime);
     validCards.sort((a, b) => a.target - b.target);
 
-    let lastPositions = { 'top': -999, 'bottom': -999 };
+    const wrapperWidth = wrapper.clientWidth || 800; // Chiều rộng pixel thực tế của thanh timeline
+
+    // Mảng lưu vị trí pixel tâm (leftPx) và tầng của các bubble đã được xếp
+    let placedBubbles = [];
 
     validCards.forEach(c => {
       const ratio = (c.target - startTime) / spanMs;
       const leftPercent = ratio * 100;
+      const leftPx = (ratio * wrapperWidth);
+
       const remainSecs = Math.ceil((c.target - now) / 1000);
       const isUrgent = remainSecs <= 60;
 
@@ -993,17 +1008,30 @@
         displayName = parts[0] + '\n' + parts.slice(1).join(' ');
       }
 
-      // Tự động phân tầng: Nếu khoảng cách bé hơn 8% so với bong bóng tầng TÊN gần nhất, sẽ đẩy xuống tầng DƯỚI
-      let levelClass = 'level-top';
-      if (Math.abs(leftPercent - lastPositions['top']) < 8) {
-        levelClass = 'level-bottom';
-        lastPositions['bottom'] = leftPercent;
-      } else {
-        lastPositions['top'] = leftPercent;
+      // Ước lượng chiều rộng pixel của bubble (mỗi ký tự ~ 7px + padding ~ 25px)
+      const maxLineLength = Math.max(...displayName.split('\n').map(l => l.length));
+      const estimatedWidthPx = Math.max(70, maxLineLength * 7 + 20);
+
+      // Thuật toán kiểm tra va chạm: 
+      // Kiểm tra lần lượt các tầng: 'level-top' (tầng trên) -> 'level-bottom' (tầng dưới)
+      // Nếu ở khoảng biểu diễn ngắn (ví dụ 1h), các bubble sẽ gần nhau hơn và bị đè pixel -> tự động bật sang tầng ngược lại.
+      let chosenLevel = 'level-top';
+      let hasConflictTop = placedBubbles.some(b => b.level === 'level-top' && Math.abs(b.leftPx - leftPx) < (estimatedWidthPx / 2 + b.widthPx / 2 + 10));
+
+      if (hasConflictTop) {
+        let hasConflictBottom = placedBubbles.some(b => b.level === 'level-bottom' && Math.abs(b.leftPx - leftPx) < (estimatedWidthPx / 2 + b.widthPx / 2 + 10));
+        if (!hasConflictBottom) {
+          chosenLevel = 'level-bottom';
+        } else {
+          // Nếu cả 2 tầng đều bị kẹt sát, ưu tiên luân phiên theo thứ tự
+          chosenLevel = placedBubbles.filter(b => b.level === 'level-top').length <= placedBubbles.filter(b => b.level === 'level-bottom').length ? 'level-top' : 'level-bottom';
+        }
       }
 
+      placedBubbles.push({ leftPx, widthPx: estimatedWidthPx, level: chosenLevel });
+
       const indicator = document.createElement('div');
-      indicator.className = `timeline-indicator ${levelClass} ${isUrgent ? 'urgent' : ''}`;
+      indicator.className = `timeline-indicator ${chosenLevel} ${isUrgent ? 'urgent' : ''}`;
       indicator.style.left = `${leftPercent}%`;
       indicator.innerHTML = `<span class="timeline-boss-tag">${displayName}</span>`;
       wrapper.appendChild(indicator);
