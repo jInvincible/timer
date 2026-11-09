@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lander Timer Web v4.2 (Row Layout)</title>
+  <title>Lander Timer Web v4.3 (Auto-Select Input & Target Time Toast)</title>
   <style>
     * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     body { background-color: #f4f6f9; margin: 0; padding: 20px; padding-bottom: 80px; }
@@ -41,8 +41,8 @@
       flex-direction: column;
       gap: 8px;
       backdrop-filter: blur(5px);
-      max-width: 380px;
-      min-width: 280px;
+      max-width: 450px;
+      min-width: 340px;
       user-select: none;
     }
     .toast-header {
@@ -92,15 +92,18 @@
       justify-content: space-between;
       align-items: center;
       font-weight: 500;
+      gap: 8px;
     }
     .preview-chip.urgent {
       background: #ffe3e3;
       border-color: #ff8787;
       color: #c92a2a;
     }
-    .preview-name { font-weight: bold; font-style: italic; }
+    .preview-name { font-weight: bold; font-style: italic; min-width: 90px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
+    .preview-target { color: #64748b; font-size: 0.9em; }
+    .preview-remain { font-weight: bold; }
 
-    /* --- LAYOUT DẠNG DÒNG (ROW) CHO MỖI CARD --- */
+    /* --- LAYOUT DẠNG DÒNG (ROW) --- */
     .grid-container { 
       display: flex;
       flex-direction: column;
@@ -186,14 +189,15 @@
     <span id="loadingOcr">⏳ AI đang đọc ảnh & tự động cập nhật...</span>
 
     <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-left: auto;">
-      <input type="text" id="geminiKey" placeholder="Gemini API Key" style="width: 150px; padding: 6px; border: 1px solid #ccc; border-radius: 4px;" oninput="saveSettingsToFirebase()">
-      <input type="text" id="tgToken" placeholder="Telegram Token" style="width: 180px; padding: 6px; border: 1px solid #ccc; border-radius: 4px;" oninput="saveSettingsToFirebase()">
-      <input type="text" id="tgChatId" placeholder="Chat ID" style="width: 110px; padding: 6px; border: 1px solid #ccc; border-radius: 4px;" oninput="saveSettingsToFirebase()">
+      <input type="text" id="geminiKey" placeholder="Gemini API Key" style="width: 150px; padding: 6px; border: 1px solid #ccc; border-radius: 4px;" onfocus="this.select()" oninput="saveSettingsToFirebase()">
+      <input type="text" id="tgToken" placeholder="Telegram Token" style="width: 180px; padding: 6px; border: 1px solid #ccc; border-radius: 4px;" onfocus="this.select()" oninput="saveSettingsToFirebase()">
+      <input type="text" id="tgChatId" placeholder="Chat ID" style="width: 110px; padding: 6px; border: 1px solid #ccc; border-radius: 4px;" onfocus="this.select()" oninput="saveSettingsToFirebase()">
     </div>
   </div>
 
   <div class="grid-container" id="cardContainer"></div>
 
+  <!-- TOAST MENU NỔI CÓ THỂ KÉO THẢ -->
   <div class="toast-preview-container" id="toastPreviewContainer">
     <div class="toast-header" id="toastHeader">
       <span id="toastTitle">🔔 SẮP ĐẾN GIỜ (3)</span>
@@ -507,9 +511,9 @@
 
         <div class="card-right">
           <div class="input-group">
-            H: <input type="number" id="h-${idx}" value="${c.h}" oninput="window.cards[${idx}].h=+this.value; saveCardsToFirebase();" onkeydown="if(event.key==='Enter') setAlarm(${idx})">
-            M: <input type="number" id="m-${idx}" value="${c.m}" oninput="window.cards[${idx}].m=+this.value; saveCardsToFirebase();" onkeydown="if(event.key==='Enter') setAlarm(${idx})">
-            S: <input type="number" id="s-${idx}" value="${c.s}" oninput="window.cards[${idx}].s=+this.value; saveCardsToFirebase();" onkeydown="if(event.key==='Enter') setAlarm(${idx})">
+            H: <input type="number" id="h-${idx}" value="${c.h}" onfocus="this.select()" oninput="window.cards[${idx}].h=+this.value; saveCardsToFirebase();" onkeydown="if(event.key==='Enter') setAlarm(${idx})">
+            M: <input type="number" id="m-${idx}" value="${c.m}" onfocus="this.select()" oninput="window.cards[${idx}].m=+this.value; saveCardsToFirebase();" onkeydown="if(event.key==='Enter') setAlarm(${idx})">
+            S: <input type="number" id="s-${idx}" value="${c.s}" onfocus="this.select()" oninput="window.cards[${idx}].s=+this.value; saveCardsToFirebase();" onkeydown="if(event.key==='Enter') setAlarm(${idx})">
           </div>
           <div class="actions">
             <button class="btn-set" onclick="setAlarm(${idx})">⏰ Set</button>
@@ -686,11 +690,13 @@
       const m = String(Math.floor((remainSecs % 3600) / 60)).padStart(2, '0');
       const s = String(remainSecs % 60).padStart(2, '0');
       const isUrgent = remainSecs <= 60;
+      const targetTimeString = new Date(c.target).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
       html += `
         <div class="preview-chip ${isUrgent ? 'urgent' : ''}">
-          <span class="preview-name">${c.name}:</span>
-          <span>${h}:${m}:${s}</span>
+          <span class="preview-name">${c.name}</span>
+          <span class="preview-target">⏰ ${targetTimeString}</span>
+          <span class="preview-remain">${h}:${m}:${s}</span>
         </div>
       `;
     });
