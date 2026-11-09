@@ -542,9 +542,9 @@
   window.adjustToastLimit = function(delta) {
     limitCount += delta;
     if (limitCount < 1) limitCount = 1;
-    if (limitCount > 10) limitCount = 10;
+    if (limitCount > 30) limitCount = 30;
     document.getElementById('toastLimitDisplay').innerText = limitCount;
-    document.getElementById('toastTitle').innerText = `🔔 SẮP ĐẾN GIỜ (${limitCount})`;
+    document.getElementById('toastTitle').innerText = `🔔 SẮP ĐẾN GIỜ (TOP ${limitCount})`;
     checkAndUpdateTimers();
   };
 
