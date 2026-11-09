@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lander Timer Web v4.3 (Auto-Select Input & Target Time Toast)</title>
+  <title>Lander Timer Web v4.4 (Web Worker Background Timer)</title>
   <style>
     * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     body { background-color: #f4f6f9; margin: 0; padding: 20px; padding-bottom: 80px; }
@@ -237,6 +237,24 @@
   let isRemoteUpdating = false;
   let currentOcrImageBlob = null;
 
+  // --- KHỞI TẠO WEB WORKER TỪ BLOB (BACKGROUND THREAD) ---
+  const workerCode = `
+    setInterval(function() {
+      postMessage('tick');
+    }, 200);
+  `;
+  const blob = new Blob([workerCode], { type: 'application/javascript' });
+  const workerUrl = URL.createObjectURL(blob);
+  const timerWorker = new Worker(workerUrl);
+
+  // Lắng nghe tín hiệu nhịp đập từ Worker ngầm (hoạt động kể cả khi tab inactive)
+  timerWorker.onmessage = function(e) {
+    if (e.data === 'tick') {
+      checkAndUpdateTimers();
+    }
+  };
+
+  // --- LOGIC KÉO THẢ (DRAG & DROP) CHO TOAST MENU ---
   const toastContainer = document.getElementById('toastPreviewContainer');
   const toastHeader = document.getElementById('toastHeader');
 
@@ -702,14 +720,6 @@
     });
     toastList.innerHTML = html;
   }
-
-  setInterval(checkAndUpdateTimers, 200);
-
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible") {
-      checkAndUpdateTimers();
-    }
-  });
 </script>
 </body>
 </html>
