@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lander Timer Web v5.5 (Floating Timeline Toast Menu)</title>
+  <title>Lander Timer Web v5.6 (Wide Floating Timeline Toast Menu)</title>
   <style>
     * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     body { background-color: #f4f6f9; margin: 0; padding: 20px; padding-bottom: 80px; }
@@ -17,6 +17,9 @@
       border-radius: 8px; 
       box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
       flex-wrap: wrap;
+      max-width: 860px;
+      margin-left: auto;
+      margin-right: auto;
     }
     button, .btn-upload { padding: 8px 14px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.9em; display: inline-flex; align-items: center; justify-content: center; }
     .btn-add { background: #007bff; color: white; }
@@ -133,7 +136,7 @@
     .preview-target { color: #64748b; font-size: 0.9em; }
     .preview-remain { font-weight: bold; }
 
-    /* --- TIMELINE FLOATING TOAST MENU (CÓ THỂ KÉO THẢ) --- */
+    /* --- TIMELINE FLOATING TOAST MENU (ĐỘ RỘNG = 120% CARD WIDTH ~ 1030px) --- */
     .timeline-float-menu {
       position: fixed;
       top: 20px;
@@ -144,7 +147,7 @@
       border-radius: 12px;
       padding: 14px 18px;
       z-index: 9988;
-      width: 520px;
+      width: 1030px; /* Đúng bằng 120% chiều rộng của card (~860px) */
       backdrop-filter: blur(6px);
       user-select: none;
     }
@@ -220,7 +223,7 @@
       top: 50%;
       width: 4px;
       height: 18px;
-      background: #10b981; /* Xanh lá nổi bật */
+      background: #10b981;
       transform: translate(-50%, -50%);
       z-index: 5;
       border-radius: 2px;
@@ -345,7 +348,7 @@
       display: flex;
       flex-direction: column;
       gap: 12px;
-      max-width: 900px;
+      max-width: 860px; /* Chiều rộng chuẩn của 1 card */
       margin: 0 auto;
     }
     
@@ -438,7 +441,7 @@
     </div>
   </div>
 
-  <!-- TIMELINE FLOATING TOAST MENU (CÓ THỂ KÉO THẢ) -->
+  <!-- TIMELINE FLOATING TOAST MENU (ĐỘ RỘNG = 1030px = 120% CARD) -->
   <div class="timeline-float-menu" id="timelineFloatMenu">
     <div class="timeline-float-header" id="timelineFloatHeader">
       <span>📈 TIMELINE RAIDBOSS</span>
@@ -450,7 +453,7 @@
     </div>
     <div class="timeline-bar-wrapper" id="timelineBarWrapper">
       <div class="timeline-track-line"></div>
-      <!-- Ticks, tick xanh NOW & Dual-Bubble indicators sinh động tự động -->
+      <!-- Ticks, tick xanh NOW & Dual-Bubble indicators -->
     </div>
     <div class="timeline-labels">
       <span id="timelineStartLabel">--:--:--</span>
@@ -1091,7 +1094,6 @@
 
     const wrapper = document.getElementById('timelineBarWrapper');
     
-    // Xóa các thành phần động cũ
     const oldDynamicElements = wrapper.querySelectorAll('.timeline-indicator, .timeline-tick, .timeline-tick-label, .timeline-now-tick, .timeline-now-label');
     oldDynamicElements.forEach(el => el.remove());
 
@@ -1143,7 +1145,7 @@
     let validCards = window.cards.filter(c => c.target && c.target >= startTime && c.target <= endTime);
     validCards.sort((a, b) => a.target - b.target);
 
-    const wrapperWidth = wrapper.clientWidth || 450;
+    const wrapperWidth = wrapper.clientWidth || 990;
     let placedBubbles = [];
 
     validCards.forEach(c => {
