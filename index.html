@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lander Timer Web v4.4 (Web Worker Background Timer)</title>
+  <title>Lander Timer Web v4.5 (Security ID Whitelist)</title>
   <style>
     * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     body { background-color: #f4f6f9; margin: 0; padding: 20px; padding-bottom: 80px; }
@@ -26,6 +26,37 @@
     .btn-close { background: #dc3545; color: white; }
     .btn-edit { background: #e9ecef; border: 1px solid #ced4da; padding: 2px 6px; font-size: 0.85em; }
     
+    /* Trạng thái bị khóa quyền */
+    .locked-element {
+      opacity: 0.4;
+      pointer-events: none !important;
+      cursor: not-allowed !important;
+    }
+
+    .security-box {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      background: #fff3cd;
+      border: 1px solid #ffeeba;
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-size: 0.85em;
+    }
+    .security-box.unlocked {
+      background: #d4edda;
+      border-color: #c3e6cb;
+      color: #155724;
+    }
+    .security-box input {
+      border: 1px solid #ced4da;
+      border-radius: 4px;
+      padding: 4px 8px;
+      width: 110px;
+      text-align: center;
+      font-weight: bold;
+    }
+
     /* --- TOAST MENU NỔI CÓ THỂ KÉO THẢ --- */
     .toast-preview-container {
       position: fixed;
@@ -179,19 +210,26 @@
 <body>
 
   <div class="top-bar">
-    <button class="btn-add" onclick="addCard()">+ Add Card</button>
-    <button class="btn-wipe" onclick="wipeAll()">🧹 Wipe All</button>
+    <!-- KHU VỰC BẢO MẬT PHÂN QUYỀN ID -->
+    <div class="security-box" id="securityBox">
+      <span>🔒 Admin ID:</span>
+      <input type="password" id="adminIdInput" placeholder="Nhập ID..." oninput="checkAuthMaster(this.value)">
+      <span id="authStatusText" style="font-weight: bold; font-size: 0.8em; color: #856404;">(Chế độ Xem)</span>
+    </div>
+
+    <button class="btn-add locked-action" onclick="addCard()">+ Add Card</button>
+    <button class="btn-wipe locked-action" onclick="wipeAll()">🧹 Wipe All</button>
     
-    <label class="btn-ocr btn-upload" title="Hoặc nhấn Ctrl + V để dán ảnh trực tiếp từ Clipboard">
+    <label class="btn-ocr btn-upload locked-action" title="Hoặc nhấn Ctrl + V để dán ảnh trực tiếp từ Clipboard">
       🤖 AI Scan Image (Hoặc Ctrl+V)
       <input type="file" id="ocrFileinput" accept="image/*" style="display: none;" onchange="handleFileSelected(event)">
     </label>
     <span id="loadingOcr">⏳ AI đang đọc ảnh & tự động cập nhật...</span>
 
     <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-left: auto;">
-      <input type="text" id="geminiKey" placeholder="Gemini API Key" style="width: 150px; padding: 6px; border: 1px solid #ccc; border-radius: 4px;" onfocus="this.select()" oninput="saveSettingsToFirebase()">
-      <input type="text" id="tgToken" placeholder="Telegram Token" style="width: 180px; padding: 6px; border: 1px solid #ccc; border-radius: 4px;" onfocus="this.select()" oninput="saveSettingsToFirebase()">
-      <input type="text" id="tgChatId" placeholder="Chat ID" style="width: 110px; padding: 6px; border: 1px solid #ccc; border-radius: 4px;" onfocus="this.select()" oninput="saveSettingsToFirebase()">
+      <input type="text" id="geminiKey" placeholder="Gemini API Key" class="locked-action" style="width: 130px; padding: 6px; border: 1px solid #ccc; border-radius: 4px;" onfocus="this.select()" oninput="saveSettingsToFirebase()">
+      <input type="text" id="tgToken" placeholder="Telegram Token" class="locked-action" style="width: 150px; padding: 6px; border: 1px solid #ccc; border-radius: 4px;" onfocus="this.select()" oninput="saveSettingsToFirebase()">
+      <input type="text" id="tgChatId" placeholder="Chat ID" class="locked-action" style="width: 90px; padding: 6px; border: 1px solid #ccc; border-radius: 4px;" onfocus="this.select()" oninput="saveSettingsToFirebase()">
     </div>
   </div>
 
@@ -237,7 +275,27 @@
   let isRemoteUpdating = false;
   let currentOcrImageBlob = null;
 
-  // --- KHỞI TẠO WEB WORKER TỪ BLOB (BACKGROUND THREAD) ---
+  // --- CẤU HÌNH DANH SÁCH ID ĐƯỢC PHÉP CẬP NHẬT (WHITELIST ID) ---
+  const MASTER_IDS = ["admin123", "landerboss99", "bossmaster"]; 
+  window.isAuthorized = false; // Mặc định chưa có quyền
+
+  window.checkAuthMaster = function(inputVal) {
+    const trimmed = inputVal.trim();
+    if (MASTER_IDS.includes(trimmed)) {
+      window.isAuthorized = true;
+      document.getElementById('securityBox').className = "security-box unlocked";
+      document.getElementById('authStatusText').innerText = "(Đã cấp quyền Master)";
+      document.getElementById('authStatusText').style.color = "#155724";
+    } else {
+      window.isAuthorized = false;
+      document.getElementById('securityBox').className = "security-box";
+      document.getElementById('authStatusText').innerText = "(Chế độ Xem)";
+      document.getElementById('authStatusText').style.color = "#856404";
+    }
+    render(); // Vẽ lại để cập nhật trạng thái khóa/mở các nút bấm
+  };
+
+  // --- KHỞI TẠO WEB WORKER TỪ BLOB ---
   const workerCode = `
     setInterval(function() {
       postMessage('tick');
@@ -247,14 +305,13 @@
   const workerUrl = URL.createObjectURL(blob);
   const timerWorker = new Worker(workerUrl);
 
-  // Lắng nghe tín hiệu nhịp đập từ Worker ngầm (hoạt động kể cả khi tab inactive)
   timerWorker.onmessage = function(e) {
     if (e.data === 'tick') {
       checkAndUpdateTimers();
     }
   };
 
-  // --- LOGIC KÉO THẢ (DRAG & DROP) CHO TOAST MENU ---
+  // --- LOGIC KÉO THẢ CHO TOAST MENU ---
   const toastContainer = document.getElementById('toastPreviewContainer');
   const toastHeader = document.getElementById('toastHeader');
 
@@ -331,11 +388,13 @@
   });
 
   window.saveCardsToFirebase = function() {
+    if (!window.isAuthorized) return; // Chặn nếu chưa nhập đúng ID bảo mật
     if (isRemoteUpdating) return;
     set(ref(db, 'lander_cards'), window.cards);
   };
 
   window.saveSettingsToFirebase = function() {
+    if (!window.isAuthorized) return; // Chặn nếu chưa cấp quyền
     const geminiKey = document.getElementById('geminiKey').value.trim();
     const token = document.getElementById('tgToken').value.trim();
     const chatId = document.getElementById('tgChatId').value.trim();
@@ -355,6 +414,7 @@
   };
 
   document.addEventListener('paste', function(event) {
+    if (!window.isAuthorized) return; // Chặn dán ảnh nếu không có quyền
     const items = (event.clipboardData || event.originalEvent.clipboardData).items;
     for (let index in items) {
       let item = items[index];
@@ -369,6 +429,7 @@
   });
 
   window.handleFileSelected = function(event) {
+    if (!window.isAuthorized) return;
     const file = event.target.files[0];
     if (!file) return;
     processAndSendAiOcr(file);
@@ -391,8 +452,6 @@
     loadingEl.style.display = 'inline';
 
     const requestStartTime = performance.now();
-    console.log(`[AI OCR] 🚀 Bắt đầu gửi ảnh lên Gemini API lúc: ${new Date().toLocaleTimeString()}`);
-
     try {
       const base64Data = await new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -408,7 +467,7 @@
           contents: [{
             parts: [
               {
-                text: "Hãy đọc ảnh chụp danh sách Raidboss này. Với mỗi dòng, trích xuất chính xác Tên Raidboss (ví dụ: Orfen, Queen Ant, Zaken, Antharas...) và Thời gian countdown còn lại (ví dụ: 55m 50s, 7h 42m 10s). Trả về kết quả hoàn toàn dưới dạng mảng JSON thuần túy theo định dạng mẫu sau, không kèm bất kỳ giải thích nào khác: [{\"name\": \"Orfen\", \"h\": 0, \"m\": 55, \"s\": 50}]"
+                text: "Hãy đọc ảnh chụp danh sách Raidboss này. Với mỗi dòng, trích xuất chính xác Tên Raidboss và Thời gian countdown còn lại. Trả về kết quả hoàn toàn dưới dạng mảng JSON thuần túy theo định dạng mẫu sau: [{\"name\": \"Orfen\", \"h\": 0, \"m\": 55, \"s\": 50}]"
               },
               {
                 inline_data: {
@@ -422,24 +481,16 @@
       });
 
       const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.error?.message || "Lỗi kết nối Gemini API");
-      }
+      if (!response.ok) throw new Error(result.error?.message || "Lỗi kết nối Gemini API");
 
       const requestEndTime = performance.now();
       const apiResponseTimeSecs = (requestEndTime - requestStartTime) / 1000;
-      console.log(`[AI OCR] ✅ Nhận phản hồi thành công sau: ${apiResponseTimeSecs.toFixed(2)} giây`);
-
       const textResponse = result.candidates[0].content.parts[0].text;
-      console.log(`[AI OCR] 📄 JSON thô từ AI trả về:\n`, textResponse);
-
       const jsonString = textResponse.replace(/```json/g, '').replace(/```/g, '').trim();
       const bossDataArray = JSON.parse(jsonString);
 
       parseAiDataAndSync(bossDataArray, apiResponseTimeSecs);
-
     } catch (err) {
-      console.error("[AI OCR] ❌ Lỗi xử lý AI Vision:", err);
       alert("Lỗi khi xử lý ảnh bằng AI: " + err.message);
     } finally {
       loadingEl.style.display = 'none';
@@ -447,12 +498,8 @@
   }
 
   function parseAiDataAndSync(bossDataArray, apiResponseTimeSecs) {
-    let updatedCount = 0;
-    let addedCount = 0;
     const baseLatencyOffset = 20; 
     const totalCompensationSecs = baseLatencyOffset + apiResponseTimeSecs;
-
-    console.log(`[AI OCR] ⏱️ Tổng thời gian trừ bù (20s + ${apiResponseTimeSecs.toFixed(2)}s chờ API): -${totalCompensationSecs.toFixed(2)} giây`);
 
     bossDataArray.forEach(item => {
       let bossName = item.name;
@@ -464,57 +511,48 @@
       let finalTotalSecs = ocrTotalSecs - totalCompensationSecs;
       if (finalTotalSecs < 0) finalTotalSecs = 0;
 
-      if (finalTotalSecs >= 0) {
-        let newH = Math.floor(finalTotalSecs / 3600);
-        let newM = Math.floor((finalTotalSecs % 3600) / 60);
-        let newS = finalTotalSecs % 60;
+      let existingCard = window.cards.find(c => c.name.toLowerCase() === bossName.toLowerCase());
+      const now = Date.now();
 
-        let existingCard = window.cards.find(c => c.name.toLowerCase() === bossName.toLowerCase());
-        const now = Date.now();
-
-        if (existingCard) {
-          existingCard.h = newH;
-          existingCard.m = newM;
-          existingCard.s = newS;
-          existingCard.delay = finalTotalSecs;
-          existingCard.startTime = now;
-          existingCard.target = now + finalTotalSecs * 1000;
-          existingCard.warned60s = false;
-          updatedCount++;
-          console.log(`[Sync Card] 🔄 Cập nhật Boss [${bossName}]: OCR đọc được [${rawH}h ${rawM}m ${rawS}s] -> Target mới sau trừ bù: ${newH}h ${newM}m ${newS}s`);
-        } else {
-          window.cards.push({
-            id: Date.now() + Math.random(),
-            name: bossName,
-            h: newH,
-            m: newM,
-            s: newS,
-            startTime: now,
-            target: now + finalTotalSecs * 1000,
-            delay: finalTotalSecs,
-            warned60s: false
-          });
-          addedCount++;
-          console.log(`[Sync Card] ➕ Tạo mới Boss [${bossName}]: Target sau trừ bù: ${newH}h ${newM}m ${newS}s`);
-        }
+      if (existingCard) {
+        existingCard.h = Math.floor(finalTotalSecs / 3600);
+        existingCard.m = Math.floor((finalTotalSecs % 3600) / 60);
+        existingCard.s = Math.floor(finalTotalSecs % 60);
+        existingCard.delay = finalTotalSecs;
+        existingCard.startTime = now;
+        existingCard.target = now + finalTotalSecs * 1000;
+        existingCard.warned60s = false;
+      } else {
+        window.cards.push({
+          id: Date.now() + Math.random(),
+          name: bossName,
+          h: Math.floor(finalTotalSecs / 3600),
+          m: Math.floor((finalTotalSecs % 3600) / 60),
+          s: Math.floor(finalTotalSecs % 60),
+          startTime: now,
+          target: now + finalTotalSecs * 1000,
+          delay: finalTotalSecs,
+          warned60s: false
+        });
       }
     });
 
     saveCardsToFirebase();
     render();
-    console.log(`[AI OCR] ✨ Đã cập nhật giao diện và đồng bộ Firebase thành công! (Tạo mới: ${addedCount}, Cập nhật: ${updatedCount})`);
   }
 
   window.render = function() {
     const container = document.getElementById('cardContainer');
     container.innerHTML = '';
+    const lockClass = window.isAuthorized ? '' : 'locked-element';
+
     window.cards.forEach((c, idx) => {
       const cardEl = document.createElement('div');
       cardEl.className = 'card';
       cardEl.innerHTML = `
         <div class="card-left">
           <span class="card-title">${c.name}</span>
-          <button class="btn-edit" onclick="renameCard(${idx})">✎</button>
+          <button class="btn-edit ${lockClass}" onclick="renameCard(${idx})">✎</button>
         </div>
         
         <div class="card-center">
@@ -529,24 +567,36 @@
 
         <div class="card-right">
           <div class="input-group">
-            H: <input type="number" id="h-${idx}" value="${c.h}" onfocus="this.select()" oninput="window.cards[${idx}].h=+this.value; saveCardsToFirebase();" onkeydown="if(event.key==='Enter') setAlarm(${idx})">
-            M: <input type="number" id="m-${idx}" value="${c.m}" onfocus="this.select()" oninput="window.cards[${idx}].m=+this.value; saveCardsToFirebase();" onkeydown="if(event.key==='Enter') setAlarm(${idx})">
-            S: <input type="number" id="s-${idx}" value="${c.s}" onfocus="this.select()" oninput="window.cards[${idx}].s=+this.value; saveCardsToFirebase();" onkeydown="if(event.key==='Enter') setAlarm(${idx})">
+            H: <input type="number" id="h-${idx}" value="${c.h}" class="${lockClass}" ${window.isAuthorized ? 'onfocus="this.select()"' : 'disabled'} oninput="window.cards[${idx}].h=+this.value; saveCardsToFirebase();" onkeydown="if(event.key==='Enter') setAlarm(${idx})">
+            M: <input type="number" id="m-${idx}" value="${c.m}" class="${lockClass}" ${window.isAuthorized ? 'onfocus="this.select()"' : 'disabled'} oninput="window.cards[${idx}].m=+this.value; saveCardsToFirebase();" onkeydown="if(event.key==='Enter') setAlarm(${idx})">
+            S: <input type="number" id="s-${idx}" value="${c.s}" class="${lockClass}" ${window.isAuthorized ? 'onfocus="this.select()"' : 'disabled'} oninput="window.cards[${idx}].s=+this.value; saveCardsToFirebase();" onkeydown="if(event.key==='Enter') setAlarm(${idx})">
           </div>
           <div class="actions">
-            <button class="btn-set" onclick="setAlarm(${idx})">⏰ Set</button>
-            <button class="btn-wipe" onclick="wipeAlarm(${idx})">🧹 Wipe</button>
-            <button class="btn-close" onclick="removeCard(${idx})">✖ Close</button>
+            <button class="btn-set ${lockClass}" onclick="setAlarm(${idx})">⏰ Set</button>
+            <button class="btn-wipe ${lockClass}" onclick="wipeAlarm(${idx})">🧹 Wipe</button>
+            <button class="btn-close ${lockClass}" onclick="removeCard(${idx})">✖ Close</button>
           </div>
         </div>
       `;
       container.appendChild(cardEl);
+    });
+
+    // Cập nhật trạng thái khóa/mở cho các nút trên thanh top-bar
+    document.querySelectorAll('.locked-action').forEach(el => {
+      if (window.isAuthorized) {
+        el.classList.remove('locked-element');
+        if(el.tagName === 'INPUT') el.removeAttribute('disabled');
+      } else {
+        el.classList.add('locked-element');
+        if(el.tagName === 'INPUT') el.setAttribute('disabled', 'true');
+      }
     });
   };
 
   render();
 
   window.addCard = function() {
+    if (!window.isAuthorized) return;
     window.cards.push({ 
       id: Date.now(), 
       name: `Alarm ${window.cards.length + 1}`, 
@@ -559,12 +609,14 @@
   };
 
   window.removeCard = function(idx) {
+    if (!window.isAuthorized) return;
     window.cards.splice(idx, 1);
     saveCardsToFirebase(); 
     render();
   };
 
   window.renameCard = function(idx) {
+    if (!window.isAuthorized) return;
     const name = prompt("Nhập tên mới:", window.cards[idx].name);
     if (name && name.trim() !== "") { 
       window.cards[idx].name = name.trim(); 
@@ -574,6 +626,7 @@
   };
 
   window.setAlarm = function(idx) {
+    if (!window.isAuthorized) return;
     const hInput = document.getElementById(`h-${idx}`);
     const mInput = document.getElementById(`m-${idx}`);
     const sInput = document.getElementById(`s-${idx}`);
@@ -598,6 +651,7 @@
   };
 
   window.wipeAlarm = function(idx) {
+    if (!window.isAuthorized) return;
     window.cards[idx].target = null;
     window.cards[idx].delay = null;
     window.cards[idx].startTime = null;
@@ -607,6 +661,7 @@
   };
 
   window.wipeAll = function() {
+    if (!window.isAuthorized) return;
     window.cards.forEach(c => { 
       c.target = null; 
       c.delay = null; 
@@ -660,7 +715,7 @@
           if (remainSecs <= 60 && !c.warned60s) {
             c.warned60s = true;
             stateChanged = true;
-            sendTelegram(`${c.name}: Sắp đến giờ! (Còn ${remainSecs} giây)`);
+            if (window.isAuthorized) sendTelegram(`${c.name}: Sắp đến giờ! (Còn ${remainSecs} giây)`);
           }
         } else {
           el.innerText = "Remaining: Done!";
@@ -670,7 +725,7 @@
           if (!c.warned60s) {
             c.warned60s = true;
             stateChanged = true;
-            sendTelegram(`${c.name}: Đã đến thời điểm hẹn!`);
+            if (window.isAuthorized) sendTelegram(`${c.name}: Đã đến thời điểm hẹn!`);
           }
         }
       } else {
@@ -683,7 +738,7 @@
 
     updateToastPreview(now);
 
-    if (stateChanged) {
+    if (stateChanged && window.isAuthorized) {
       saveCardsToFirebase();
     }
   }
@@ -705,7 +760,7 @@
     topCards.forEach(c => {
       const remainSecs = Math.ceil((c.target - now) / 1000);
       const h = String(Math.floor(remainSecs / 3600)).padStart(2, '0');
-      const m = String(Math.floor((remainSecs % 3600) / 60)).padStart(2, '0');
+      const m = String(Math.floor((remainSecs / 3600) % 60)).padStart(2, '0'); // Fix nhỏ tính phút
       const s = String(remainSecs % 60).padStart(2, '0');
       const isUrgent = remainSecs <= 60;
       const targetTimeString = new Date(c.target).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -720,6 +775,16 @@
     });
     toastList.innerHTML = html;
   }
+
+  setInterval(() => {
+    // Chỉ Web Worker mới gọi check timer, đoạn này để dự phòng
+  }, 1000);
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      checkAndUpdateTimers();
+    }
+  });
 </script>
 </body>
 </html>
