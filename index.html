@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lander Timer Web v6.7 (Peak Timeline Scaling & Compact Chip List)</title>
+  <title>Lander Timer Web v6.8 (Toast List Auto-Height & No Scrollbar)</title>
   <style>
     :root {
       --bg-color: #f4f6f9;
@@ -181,7 +181,7 @@
       border-radius: 50%;
     }
 
-    /* --- TOAST MENU NỔI DANH SÁCH (GÓC PHẢI DƯỚI) --- */
+    /* --- TOAST MENU NỔI DANH SÁCH (GÓC PHẢI DƯỚI) - TỰ ĐỘNG TĂNG GIẢM ĐỘ DÀI, KHÔNG SCROLLBAR --- */
     .toast-preview-container {
       position: fixed; bottom: 20px; right: 20px; background: var(--toast-bg);
       border: 1px solid var(--border-color); box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
@@ -200,7 +200,8 @@
       width: 22px; height: 22px; font-weight: bold; cursor: pointer; display: inline-flex;
       align-items: center; justify-content: center; font-size: 0.9em;
     }
-    .toast-list { display: flex; flex-direction: column; gap: 6px; max-height: 300px; overflow-y: auto; }
+    /* ĐÃ BỎ SCROLL BAR, TỰ ĐỘNG CO GIÃN CHIỀU CAO THEO NỘI DUNG */
+    .toast-list { display: flex; flex-direction: column; gap: 6px; }
     .preview-chip {
       background: var(--card-bg); border: 1px solid var(--border-color); padding: 6px 10px;
       border-radius: 8px; font-size: 0.85em; display: flex; justify-content: space-between; align-items: center; font-weight: 500; gap: 8px;
@@ -352,22 +353,19 @@
       <button class="toast-btn-ctrl" onclick="document.getElementById('peakToastContainer').style.display='none'" title="Đóng">✖</button>
     </div>
 
-    <!-- Thẻ tóm tắt thông tin quan trọng -->
     <div class="peak-summary-grid" id="peakSummaryContent"></div>
 
-    <!-- Đồ thị Timeline với Safe Bounds Scaling -->
     <div class="peak-timeline-wrapper" id="peakTimelineWrapper">
       <div class="peak-timeline-line"></div>
     </div>
 
-    <!-- Danh sách thu gọn dạng Chip đồng bộ màu sắc -->
     <div class="peak-chip-list" id="peakChipListContent"></div>
   </div>
 
   <!-- DANH SÁCH CARD NẰM PHÍA DƯỚI -->
   <div class="grid-container" id="cardContainer"></div>
 
-  <!-- TOAST MENU NỔI DANH SÁCH (GÓC PHẢI DƯỚI - GIỚI HẠN 30) -->
+  <!-- TOAST MENU NỔI DANH SÁCH (GÓC PHẢI DƯỚI - TỰ ĐỘNG CO GIÃN, KHÔNG SCROLLBAR) -->
   <div class="toast-preview-container" id="toastPreviewContainer">
     <div class="toast-header" id="toastHeader">
       <span id="toastTitle">🔔 SẮP ĐẾN GIỜ (3)</span>
@@ -572,7 +570,7 @@
   window.adjustToastLimit = function(delta) {
     limitCount += delta;
     if (limitCount < 1) limitCount = 1;
-    if (limitCount > 30) limitCount = 30; // Mở rộng tối đa 30 item
+    if (limitCount > 30) limitCount = 30; // Giới hạn tối đa 30 item
     document.getElementById('toastLimitDisplay').innerText = limitCount;
     document.getElementById('toastTitle').innerText = `🔔 SẮP ĐẾN GIỜ (${limitCount})`;
     checkAndUpdateTimers();
@@ -991,7 +989,6 @@
     const colors = ['#0284c7', '#d97706', '#16a34a', '#9333ea', '#e11d48', '#0891b2', '#ca8a04'];
     const levels = ['level-top-high', 'level-top', 'level-bottom', 'level-bottom-low'];
 
-    // Safe bounds scaling [8%, 92%] để đảm bảo không boss nào bị kẹt ngoài biên màn hình/hidden container
     let rawPositions = bestMatchedCards.map(c => {
       const ratio = (c.target - bestStart) / windowMs;
       let calculatedPercent = 8 + (ratio * 84); 
@@ -1034,7 +1031,6 @@
       wrapper.appendChild(node);
     });
 
-    // Render danh sách thu gọn dạng Chip đồng bộ màu sắc
     const chipListEl = document.getElementById('peakChipListContent');
     let chipHtml = '';
     bestMatchedCards.forEach((c, idx) => {
