@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lander Timer Web v6.6 (Layout Overlap Fix)</title>
+  <title>Lander Timer Web v6.7 (Peak Timeline Scaling & Compact Chip List)</title>
   <style>
     :root {
       --bg-color: #f4f6f9;
@@ -33,7 +33,6 @@
 
     * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; transition: background-color 0.2s ease, color 0.2s ease; }
     
-    /* Sử dụng Flow Layout chuẩn, loại bỏ padding-top cứng để tránh đè lấp */
     body { 
       background-color: var(--bg-color); 
       color: var(--text-color); 
@@ -46,7 +45,7 @@
       padding-bottom: 80px; 
     }
     
-    /* --- KHUNG HEADER XẾP THEO DÒNG CHẢY TỰ NHIÊN (KHÔNG DÙNG FIXED ĐÈ LẤP) --- */
+    /* --- KHUNG HEADER XẾP THEO DÒNG CHẢY TỰ NHIÊN --- */
     .sticky-header {
       position: relative;
       width: 100%;
@@ -127,7 +126,7 @@
     .peak-card-val { font-size: 1.05em; font-weight: bold; color: var(--text-color); }
     .peak-card-sub { font-size: 0.78em; color: var(--subtext-color); font-style: italic; }
 
-    /* ĐỒ THỊ TIMELINE 4 TẦNG MÀU VỚI AUTO-SCALING */
+    /* ĐỒ THỊ TIMELINE 4 TẦNG MÀU VỚI SAFE BOUNDS SCALING */
     .peak-timeline-wrapper {
       position: relative; width: 100%; height: 210px; background: var(--card-bg);
       border: 1px solid var(--border-color); border-radius: 10px; padding: 10px; margin-top: 5px; overflow: hidden;
@@ -156,6 +155,32 @@
     }
     .peak-node-time { font-size: 0.68em; font-weight: bold; color: var(--subtext-color); margin: 2px 0; }
 
+    /* DANH SÁCH THU GỌN DẠNG CHIP ĐỒNG BỘ MÀU SẮC */
+    .peak-chip-list {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 4px;
+      border-top: 1px dashed var(--border-color);
+      padding-top: 10px;
+    }
+    .peak-chip-item {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      padding: 5px 10px;
+      border-radius: 8px;
+      font-size: 0.82em;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 500;
+    }
+    .peak-chip-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
     /* --- TOAST MENU NỔI DANH SÁCH (GÓC PHẢI DƯỚI) --- */
     .toast-preview-container {
       position: fixed; bottom: 20px; right: 20px; background: var(--toast-bg);
@@ -175,7 +200,7 @@
       width: 22px; height: 22px; font-weight: bold; cursor: pointer; display: inline-flex;
       align-items: center; justify-content: center; font-size: 0.9em;
     }
-    .toast-list { display: flex; flex-direction: column; gap: 6px; }
+    .toast-list { display: flex; flex-direction: column; gap: 6px; max-height: 300px; overflow-y: auto; }
     .preview-chip {
       background: var(--card-bg); border: 1px solid var(--border-color); padding: 6px 10px;
       border-radius: 8px; font-size: 0.85em; display: flex; justify-content: space-between; align-items: center; font-weight: 500; gap: 8px;
@@ -271,7 +296,7 @@
 </head>
 <body>
 
-  <!-- KHUNG HEADER THEO DÒNG CHẢY TỰ NHIÊN (KHÔNG ĐÈ LẤP) -->
+  <!-- KHUNG HEADER THEO DÒNG CHẢY TỰ NHIÊN -->
   <div class="sticky-header">
     <!-- MAIN MENU TOAST -->
     <div class="top-bar-toast">
@@ -320,24 +345,29 @@
     </div>
   </div>
 
-  <!-- TOAST MENU KẾT QUẢ PEAK BOSS VÀ ĐỒ THỊ TIMELINE -->
+  <!-- TOAST MENU KẾT QUẢ PEAK BOSS VÀ ĐỒ THỊ TIMELINE & CHIP LIST -->
   <div class="peak-toast-container" id="peakToastContainer">
     <div class="peak-toast-header">
       <span>🎯 PHÂN TÍCH KHUNG GIỜ ĐÔNG BOSS NHẤT (9 GIỜ TỚI)</span>
       <button class="toast-btn-ctrl" onclick="document.getElementById('peakToastContainer').style.display='none'" title="Đóng">✖</button>
     </div>
 
+    <!-- Thẻ tóm tắt thông tin quan trọng -->
     <div class="peak-summary-grid" id="peakSummaryContent"></div>
 
+    <!-- Đồ thị Timeline với Safe Bounds Scaling -->
     <div class="peak-timeline-wrapper" id="peakTimelineWrapper">
       <div class="peak-timeline-line"></div>
     </div>
+
+    <!-- Danh sách thu gọn dạng Chip đồng bộ màu sắc -->
+    <div class="peak-chip-list" id="peakChipListContent"></div>
   </div>
 
-  <!-- DANH SÁCH CARD NẰM PHÍA DƯỚI AN TOÀN TUYỆT ĐỐI -->
+  <!-- DANH SÁCH CARD NẰM PHÍA DƯỚI -->
   <div class="grid-container" id="cardContainer"></div>
 
-  <!-- TOAST MENU NỔI DANH SÁCH (GÓC PHẢI DƯỚI) -->
+  <!-- TOAST MENU NỔI DANH SÁCH (GÓC PHẢI DƯỚI - GIỚI HẠN 30) -->
   <div class="toast-preview-container" id="toastPreviewContainer">
     <div class="toast-header" id="toastHeader">
       <span id="toastTitle">🔔 SẮP ĐẾN GIỜ (3)</span>
@@ -542,9 +572,9 @@
   window.adjustToastLimit = function(delta) {
     limitCount += delta;
     if (limitCount < 1) limitCount = 1;
-    if (limitCount > 30) limitCount = 30;
+    if (limitCount > 30) limitCount = 30; // Mở rộng tối đa 30 item
     document.getElementById('toastLimitDisplay').innerText = limitCount;
-    document.getElementById('toastTitle').innerText = `🔔 SẮP ĐẾN GIỜ (TOP ${limitCount})`;
+    document.getElementById('toastTitle').innerText = `🔔 SẮP ĐẾN GIỜ (${limitCount})`;
     checkAndUpdateTimers();
   };
 
@@ -961,21 +991,27 @@
     const colors = ['#0284c7', '#d97706', '#16a34a', '#9333ea', '#e11d48', '#0891b2', '#ca8a04'];
     const levels = ['level-top-high', 'level-top', 'level-bottom', 'level-bottom-low'];
 
+    // Safe bounds scaling [8%, 92%] để đảm bảo không boss nào bị kẹt ngoài biên màn hình/hidden container
     let rawPositions = bestMatchedCards.map(c => {
       const ratio = (c.target - bestStart) / windowMs;
-      return { card: c, percent: Math.min(Math.max(ratio * 100, 5), 95) };
+      let calculatedPercent = 8 + (ratio * 84); 
+      return { card: c, percent: calculatedPercent };
     });
 
     for (let i = 1; i < rawPositions.length; i++) {
       let prev = rawPositions[i - 1];
       let curr = rawPositions[i];
-      if (curr.percent - prev.percent < 12) {
-        curr.percent = prev.percent + 12;
+      if (curr.percent - prev.percent < 10) {
+        curr.percent = prev.percent + 10;
       }
     }
-    if (rawPositions.length > 0 && rawPositions[rawPositions.length - 1].percent > 95) {
-      let diff = rawPositions[rawPositions.length - 1].percent - 95;
+    if (rawPositions.length > 0 && rawPositions[rawPositions.length - 1].percent > 92) {
+      let diff = rawPositions[rawPositions.length - 1].percent - 92;
       rawPositions.forEach(p => p.percent -= diff);
+    }
+    if (rawPositions.length > 0 && rawPositions[0].percent < 8) {
+      let diff = 8 - rawPositions[0].percent;
+      rawPositions.forEach(p => p.percent += diff);
     }
 
     rawPositions.forEach((item, idx) => {
@@ -997,6 +1033,22 @@
       `;
       wrapper.appendChild(node);
     });
+
+    // Render danh sách thu gọn dạng Chip đồng bộ màu sắc
+    const chipListEl = document.getElementById('peakChipListContent');
+    let chipHtml = '';
+    bestMatchedCards.forEach((c, idx) => {
+      const chosenColor = colors[idx % colors.length];
+      const timeStr = new Date(c.target).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      chipHtml += `
+        <div class="peak-chip-item">
+          <div class="peak-chip-dot" style="background: ${chosenColor};"></div>
+          <span style="font-weight: bold; color: var(--text-color);">${c.name}</span>
+          <span style="color: var(--subtext-color);">⏰ ${timeStr}</span>
+        </div>
+      `;
+    });
+    chipListEl.innerHTML = chipHtml;
 
     document.getElementById('peakToastContainer').style.display = 'flex';
   };
