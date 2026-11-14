@@ -453,6 +453,7 @@
   let isRemoteUpdating = false;
   let currentOcrImageBlob = null;
   let manualTimelineOffsetMs = 0;
+  let lastRenderedOrderHash = ""; // Lưu trữ trạng thái thứ tự hiển thị để tự động re-render khi cần
 
   const savedTheme = localStorage.getItem('lander_theme') || 'light';
   if (savedTheme === 'dark') {
@@ -849,6 +850,11 @@
 
   window.render = function() {
     const container = document.getElementById('cardContainer');
+    // Lưu lại thông tin input đang focus (nếu có) để tránh làm gián đoạn việc nhập liệu
+    const activeEl = document.activeElement;
+    const activeId = activeEl && activeEl.id ? activeEl.id : null;
+    const activeSelectionStart = activeEl && activeEl.selectionStart !== undefined ? activeEl.selectionStart : null;
+
     container.innerHTML = '';
     const lockClass = window.isAuthorized ? '' : 'locked-element';
 
@@ -875,6 +881,9 @@
 
       return a.originalIndex - b.originalIndex;
     });
+
+    // Cập nhật chuỗi nhận diện thứ tự hiện tại
+    lastRenderedOrderHash = indexedCards.map(item => item.card.id || item.originalIndex).join(',');
 
     indexedCards.forEach((item) => {
       const c = item.card;
@@ -913,6 +922,17 @@
       `;
       container.appendChild(cardEl);
     });
+
+    // Khôi phục focus nếu người dùng đang gõ
+    if (activeId) {
+      const restoredEl = document.getElementById(activeId);
+      if (restoredEl) {
+        restoredEl.focus();
+        if (activeSelectionStart !== null && restoredEl.type !== 'number') {
+          restoredEl.setSelectionRange(activeSelectionStart, activeSelectionStart);
+        }
+      }
+    }
 
     document.querySelectorAll('.locked-action').forEach(el => {
       if (window.isAuthorized) {
@@ -1174,6 +1194,29 @@
   function checkAndUpdateTimers() {
     const now = Date.now();
     let stateChanged = false;
+
+    // Kiểm tra xem thứ tự các card có cần cập nhật theo thời gian thực không (khi có card vừa quá giờ hoặc hết 10s giữ vị trí)
+    let expectedIndexed = window.cards.map((c, originalIndex) => ({ card: c, originalIndex }));
+    expectedIndexed.sort((a, b) => {
+      const aCard = a.card;
+      const bCard = b.card;
+      const aIsUpdatedRecently = aCard.lastUpdatedTime && (now - aCard.lastUpdatedTime < 10000);
+      const bIsUpdatedRecently = bCard.lastUpdatedTime && (now - bCard.lastUpdatedTime < 10000);
+      const aIsExpired = aCard.target && (aCard.target <= now);
+      const bIsExpired = bCard.target && (bCard.target <= now);
+      const aShouldTop = aIsExpired && !aIsUpdatedRecently;
+      const bShouldTop = bIsExpired && !bIsUpdatedRecently;
+      if (aShouldTop && !bShouldTop) return -1;
+      if (!aShouldTop && bShouldTop) return 1;
+      return a.originalIndex - b.originalIndex;
+    });
+    const currentExpectedHash = expectedIndexed.map(item => item.card.id || item.originalIndex).join(',');
+    
+    // Chỉ tự động render lại khi thứ tự thay đổi và người dùng không đang nhập số vào ô input
+    const isTypingInput = document.activeElement && document.activeElement.tagName === 'INPUT';
+    if (currentExpectedHash !== lastRenderedOrderHash && !isTypingInput) {
+      render();
+    }
 
     window.cards.forEach((c, idx) => {
       const el = document.getElementById(`remain-${idx}`);
