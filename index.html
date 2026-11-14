@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lander Timer Web v7.1 (Clean Full Code & Interval Countdown)</title>
+  <title>Lander Timer Web v7.9 (Timeline Refinement & Pill Styling)</title>
   <style>
     :root {
       --bg-color: #f4f6f9;
@@ -45,7 +45,6 @@
       padding-bottom: 80px; 
     }
     
-    /* --- KHUNG HEADER XẾP THEO DÒNG CHẢY TỰ NHIÊN --- */
     .sticky-header {
       position: relative;
       width: 100%;
@@ -58,7 +57,6 @@
       z-index: 900;
     }
 
-    /* --- MAIN MENU TOAST --- */
     .top-bar-toast { 
       display: flex; 
       gap: 10px; 
@@ -97,7 +95,6 @@
       border-radius: 4px; padding: 4px 8px; width: 110px; text-align: center; font-weight: bold;
     }
 
-    /* --- TOAST MENU KẾT QUẢ PEAK BOSS & ĐỒ THỊ TIMELINE --- */
     .peak-toast-container {
       position: relative;
       width: 100%;
@@ -126,7 +123,6 @@
     .peak-card-val { font-size: 1.05em; font-weight: bold; color: var(--text-color); }
     .peak-card-sub { font-size: 0.78em; color: var(--subtext-color); font-style: italic; }
 
-    /* ĐỒ THỊ TIMELINE 4 TẦNG MÀU VỚI SAFE BOUNDS SCALING */
     .peak-timeline-wrapper {
       position: relative; width: 100%; height: 210px; background: var(--card-bg);
       border: 1px solid var(--border-color); border-radius: 10px; padding: 10px; margin-top: 5px; overflow: hidden;
@@ -155,7 +151,6 @@
     }
     .peak-node-time { font-size: 0.68em; font-weight: bold; color: var(--subtext-color); margin: 2px 0; }
 
-    /* DANH SÁCH THU GỌN DẠNG CHIP ĐỒNG BỘ MÀU SẮC */
     .peak-chip-list {
       display: flex;
       gap: 8px;
@@ -181,7 +176,6 @@
       border-radius: 50%;
     }
 
-    /* --- TOAST MENU NỔI DANH SÁCH (GÓC PHẢI DƯỚI) - TỰ ĐỘNG CO GIÃN, KHÔNG SCROLLBAR --- */
     .toast-preview-container {
       position: fixed; bottom: 20px; right: 20px; background: var(--toast-bg);
       border: 1px solid var(--border-color); box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
@@ -211,7 +205,6 @@
     .preview-target { color: var(--subtext-color); font-size: 0.9em; }
     .preview-remain { font-weight: bold; }
 
-    /* --- TIMELINE TOAST MENU CHÍNH --- */
     .timeline-float-menu {
       background: var(--toast-bg); border: 1px solid var(--border-color);
       box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); border-radius: 12px; padding: 10px 18px;
@@ -226,22 +219,26 @@
       width: 50px; text-align: center; padding: 3px; border: 1px solid var(--border-color);
       background: var(--input-bg); color: var(--input-text); border-radius: 4px; font-weight: bold;
     }
-    .timeline-bar-wrapper { position: relative; width: 100%; height: 125px; background: transparent; margin-top: 10px; margin-bottom: 6px; }
-    .timeline-track-line { position: absolute; top: 50%; left: 0; width: 100%; height: 4px; transform: translateY(-50%); background: #94a3b8; border-radius: 2px; }
+    .timeline-bar-wrapper { 
+      position: relative; width: 100%; height: 125px; background: transparent; margin-top: 10px; margin-bottom: 6px; 
+      cursor: grab;
+    }
+    .timeline-bar-wrapper:active { cursor: grabbing; }
+    .timeline-track-line { position: absolute; top: 50%; left: 0; width: 100%; height: 4px; transform: translateY(-50%); background: #94a3b8; border-radius: 2px; pointer-events: none; }
     
-    .timeline-tick { position: absolute; top: 50%; width: 2px; height: 10px; background: #64748b; transform: translate(-50%, -50%); z-index: 2; }
-    .timeline-tick-label { position: absolute; top: calc(50% + 10px); transform: translateX(-50%); font-size: 0.68em; color: var(--subtext-color); font-weight: 500; white-space: nowrap; }
+    .timeline-tick { position: absolute; top: 50%; width: 2px; height: 10px; background: #64748b; transform: translate(-50%, -50%); z-index: 2; pointer-events: none; }
+    .timeline-tick-label { position: absolute; top: calc(50% + 10px); transform: translateX(-50%); font-size: 0.68em; color: var(--subtext-color); font-weight: 500; white-space: nowrap; pointer-events: none; }
 
     .timeline-now-tick {
       position: absolute; top: 50%; width: 4px; height: 18px; background: #10b981; transform: translate(-50%, -50%);
-      z-index: 5; border-radius: 2px; box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+      z-index: 5; border-radius: 2px; box-shadow: 0 0 6px rgba(16, 185, 129, 0.6); pointer-events: none;
     }
     .timeline-now-label {
       position: absolute; top: calc(50% - 26px); transform: translateX(-50%); font-size: 0.7em;
-      background: #10b981; color: white; padding: 1px 5px; border-radius: 4px; font-weight: bold; white-space: nowrap; z-index: 6;
+      background: #10b981; color: white; padding: 1px 5px; border-radius: 4px; font-weight: bold; white-space: nowrap; z-index: 6; pointer-events: none;
     }
 
-    .timeline-indicator { position: absolute; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 4px; z-index: 10; }
+    .timeline-indicator { position: absolute; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 4px; z-index: 10; pointer-events: none; }
     .timeline-boss-tag {
       background: #111827; color: white; font-size: 0.72em; font-weight: bold; padding: 4px 8px; border-radius: 10px;
       text-align: center; line-height: 1.15; white-space: pre-line; box-shadow: 0 3px 5px rgba(0,0,0,0.2); position: relative;
@@ -263,40 +260,41 @@
     .timeline-indicator.urgent .timeline-boss-tag { background: #dc3545; animation: pulse-tag 1s infinite; }
     @keyframes pulse-tag { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
 
+    /* NHÃN ĐẾM NGƯỢC GIỮA CÁC BOSS: Thu nhỏ 65% kích thước, tăng chữ số 10%, bỏ đồng hồ cát */
     .timeline-interval-label {
       position: absolute;
-      top: calc(50% - 34px);
-      transform: translate(-50%, -50%);
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      white-space: nowrap;
+      top: 50%;
+      transform: translate(-50%, -50%) scale(0.65);
       z-index: 8;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      background: #0f172a;
+      border: 1.5px solid #10b981;
+      padding: 3px 10px;
+      border-radius: 999px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      white-space: nowrap;
       pointer-events: none;
     }
+    body.dark-theme .timeline-interval-label {
+      background: #1e293b;
+      border-color: #10b981;
+    }
     .timeline-interval-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 0.74em;
-      font-weight: bold;
-      color: #10b981;
-      background: var(--toast-bg);
-      border: 1.5px solid #10b981;
-      padding: 2px 9px;
-      border-radius: 999px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.12);
+      color: #34d399;
+      font-size: 0.88em; /* Tăng cỡ chữ số thêm 10% */
+      font-weight: 800;
+      letter-spacing: 0.3px;
     }
     .timeline-interval-arrow {
-      color: #22c55e;
-      font-size: 0.85em;
-      font-weight: 900;
-      line-height: 1;
+      color: #10b981;
+      font-size: 0.75em;
+      font-weight: bold;
     }
 
-    .timeline-labels { display: flex; justify-content: space-between; font-size: 0.8em; color: var(--subtext-color); font-weight: bold; border-top: 1px dashed var(--border-color); padding-top: 4px; }
+    .timeline-labels { display: flex; justify-content: space-between; font-size: 0.8em; color: var(--subtext-color); font-weight: bold; border-top: 1px dashed var(--border-color); padding-top: 4px; pointer-events: none; }
 
-    /* --- LAYOUT CARD --- */
     .grid-container { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 1030px; }
     .card { 
       background: var(--card-bg); border-radius: 8px; padding: 12px 20px; border: 1px solid var(--border-color); 
@@ -327,9 +325,7 @@
 </head>
 <body>
 
-  <!-- KHUNG HEADER THEO DÒNG CHẢY TỰ NHIÊN -->
   <div class="sticky-header">
-    <!-- MAIN MENU TOAST -->
     <div class="top-bar-toast">
       <div class="security-box" id="securityBox">
         <span>🔒 Admin ID:</span>
@@ -356,7 +352,6 @@
       </div>
     </div>
 
-    <!-- TIMELINE TOAST MENU CHÍNH -->
     <div class="timeline-float-menu" id="timelineFloatMenu">
       <div class="timeline-float-header" id="timelineFloatHeader">
         <span>📈 TIMELINE RAIDBOSS</span>
@@ -376,7 +371,6 @@
     </div>
   </div>
 
-  <!-- TOAST MENU KẾT QUẢ PEAK BOSS VÀ ĐỒ THỊ TIMELINE & CHIP LIST -->
   <div class="peak-toast-container" id="peakToastContainer">
     <div class="peak-toast-header">
       <span>🎯 PHÂN TÍCH KHUNG GIỜ ĐÔNG BOSS NHẤT (9 GIỜ TỚI)</span>
@@ -392,10 +386,8 @@
     <div class="peak-chip-list" id="peakChipListContent"></div>
   </div>
 
-  <!-- DANH SÁCH CARD NẰM PHÍA DƯỚI -->
   <div class="grid-container" id="cardContainer"></div>
 
-  <!-- TOAST MENU NỔI DANH SÁCH (GÓC PHẢI DƯỚI - TỰ ĐỘNG CO GIÃN, KHÔNG SCROLLBAR) -->
   <div class="toast-preview-container" id="toastPreviewContainer">
     <div class="toast-header" id="toastHeader">
       <span id="toastTitle">🔔 SẮP ĐẾN GIỜ (3)</span>
@@ -434,6 +426,7 @@
   let limitCount = 3; 
   let isRemoteUpdating = false;
   let currentOcrImageBlob = null;
+  let manualTimelineOffsetMs = 0;
 
   const savedTheme = localStorage.getItem('lander_theme') || 'light';
   if (savedTheme === 'dark') {
@@ -596,6 +589,39 @@
     document.removeEventListener('mousemove', onToastMouseMove);
     document.removeEventListener('mouseup', onToastMouseUp);
   }
+
+  // --- KÉO TRƯỢT TIMELINE (PAN & DRAG) ---
+  const timelineWrapper = document.getElementById('timelineBarWrapper');
+  let isDraggingTimeline = false;
+  let timelineStartX = 0;
+  let timelineStartOffsetMs = 0;
+
+  timelineWrapper.addEventListener('mousedown', (e) => {
+    isDraggingTimeline = true;
+    timelineStartX = e.clientX;
+    timelineStartOffsetMs = manualTimelineOffsetMs;
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (!isDraggingTimeline) return;
+    const dx = e.clientX - timelineStartX;
+    const wrapperWidth = timelineWrapper.clientWidth || 990;
+    
+    const spanInput = document.getElementById('timelineSpanInput');
+    let spanHours = spanInput ? (parseFloat(spanInput.value) || 2) : 2;
+    const spanMs = spanHours * 3600 * 1000;
+
+    const msPerPx = spanMs / wrapperWidth;
+    manualTimelineOffsetMs = timelineStartOffsetMs - (dx * msPerPx);
+
+    updateTimelineBar(Date.now());
+  });
+
+  window.addEventListener('mouseup', () => {
+    if (isDraggingTimeline) {
+      isDraggingTimeline = false;
+    }
+  });
 
   window.adjustToastLimit = function(delta) {
     limitCount += delta;
@@ -1194,7 +1220,7 @@
 
     const spanMs = spanHours * 3600 * 1000;
     
-    const startTime = now;
+    const startTime = now + manualTimelineOffsetMs;
     const endTime = startTime + spanMs;
 
     document.getElementById('timelineStartLabel').innerText = new Date(startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -1205,16 +1231,20 @@
     const oldDynamicElements = wrapper.querySelectorAll('.timeline-indicator, .timeline-tick, .timeline-tick-label, .timeline-now-tick, .timeline-now-label, .timeline-interval-label');
     oldDynamicElements.forEach(el => el.remove());
 
-    const nowTick = document.createElement('div');
-    nowTick.className = 'timeline-now-tick';
-    nowTick.style.left = `0%`;
-    wrapper.appendChild(nowTick);
+    const nowRatio = (now - startTime) / spanMs;
+    if (nowRatio >= 0 && nowRatio <= 1) {
+      const nowPercent = nowRatio * 100;
+      const nowTick = document.createElement('div');
+      nowTick.className = 'timeline-now-tick';
+      nowTick.style.left = `${nowPercent}%`;
+      wrapper.appendChild(nowTick);
 
-    const nowLabel = document.createElement('div');
-    nowLabel.className = 'timeline-now-label';
-    nowLabel.style.left = `0%`;
-    nowLabel.innerText = `NOW`;
-    wrapper.appendChild(nowLabel);
+      const nowLabel = document.createElement('div');
+      nowLabel.className = 'timeline-now-label';
+      nowLabel.style.left = `${nowPercent}%`;
+      nowLabel.innerText = `NOW`;
+      wrapper.appendChild(nowLabel);
+    }
 
     let intervalMs;
     if (spanHours <= 1) {
@@ -1297,7 +1327,6 @@
       wrapper.appendChild(indicator);
     });
 
-    // Hiển thị khoảng thời gian đếm ngược giữa NOW -> Boss 1 và giữa các Boss với nhau
     function formatIntervalShort(ms) {
       let totalSecs = Math.max(0, Math.ceil(ms / 1000));
       let h = Math.floor(totalSecs / 3600);
@@ -1308,7 +1337,10 @@
       return `${s}s`;
     }
 
-    let timelinePoints = [{ time: startTime, px: 0, widthPx: 40 }];
+    let timelinePoints = [];
+    if (now >= startTime && now <= endTime) {
+      timelinePoints.push({ time: now, px: ((now - startTime) / spanMs) * wrapperWidth, widthPx: 40 });
+    }
     validCards.forEach(c => {
       const ratio = (c.target - startTime) / spanMs;
       const px = ratio * wrapperWidth;
@@ -1318,6 +1350,7 @@
       const estWidth = Math.max(75, maxLineLength * 7 + 24);
       timelinePoints.push({ time: c.target, px: px, widthPx: estWidth });
     });
+    timelinePoints.sort((a, b) => a.time - b.time);
 
     for (let i = 0; i < timelinePoints.length - 1; i++) {
       let p1 = timelinePoints[i];
@@ -1335,7 +1368,7 @@
         intervalEl.style.left = `${midPercent}%`;
         intervalEl.innerHTML = `
           <span class="timeline-interval-arrow">⬅</span>
-          <span class="timeline-interval-pill">⏳ ${formatIntervalShort(diffMs)}</span>
+          <span class="timeline-interval-pill">${formatIntervalShort(diffMs)}</span>
           <span class="timeline-interval-arrow">➡</span>
         `;
         wrapper.appendChild(intervalEl);
