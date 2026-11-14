@@ -258,6 +258,12 @@
     }
 
     .timeline-indicator.urgent .timeline-boss-tag { background: #dc3545; animation: pulse-tag 1s infinite; }
+    
+    /* TRẠNG THÁI QUÁ KHỨ (ĐÃ QUA DƯỚI 65 PHÚT): HIỂN THỊ MÀU XÁM */
+    .timeline-indicator.expired .timeline-boss-tag { background: #475569 !important; opacity: 0.75; }
+    .timeline-indicator.expired .timeline-target-tag { background: #64748b !important; opacity: 0.75; }
+    .timeline-indicator.expired .peak-node-pin { border-color: #64748b !important; }
+
     @keyframes pulse-tag { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
 
     /* NHÃN ĐẾM NGƯỢC GIỮA CÁC BOSS: Thu nhỏ 65% kích thước, tăng chữ số 10%, bỏ đồng hồ cát */
@@ -1277,7 +1283,12 @@
       currentTickTime += intervalMs;
     }
 
-    let validCards = window.cards.filter(c => c.target && c.target >= startTime && c.target <= endTime);
+    let validCards = window.cards.filter(c => {
+      if (!c.target) return false;
+      const passedMs = now - c.target;
+      if (passedMs > 65 * 60 * 1000) return false;
+      return c.target >= startTime && c.target <= endTime;
+    });
     validCards.sort((a, b) => a.target - b.target);
 
     const wrapperWidth = wrapper.clientWidth || 990;
@@ -1289,7 +1300,8 @@
       const leftPx = (ratio * wrapperWidth);
 
       const remainSecs = Math.ceil((c.target - now) / 1000);
-      const isUrgent = remainSecs <= 60;
+      const isUrgent = remainSecs <= 60 && remainSecs >= 0;
+      const isExpired = c.target < now;
 
       let displayName = c.name;
       const parts = c.name.trim().split(/\s+/);
@@ -1317,7 +1329,11 @@
       placedBubbles.push({ leftPx, widthPx: estimatedWidthPx, level: chosenLevel });
 
       const indicator = document.createElement('div');
-      indicator.className = `timeline-indicator ${chosenLevel} ${isUrgent ? 'urgent' : ''}`;
+      let indicatorClasses = `timeline-indicator ${chosenLevel}`;
+      if (isUrgent) indicatorClasses += ' urgent';
+      if (isExpired) indicatorClasses += ' expired';
+
+      indicator.className = indicatorClasses;
       indicator.style.left = `${leftPercent}%`;
       
       indicator.innerHTML = `
