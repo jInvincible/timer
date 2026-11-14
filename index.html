@@ -259,14 +259,12 @@
 
     .timeline-indicator.urgent .timeline-boss-tag { background: #dc3545; animation: pulse-tag 1s infinite; }
     
-    /* TRẠNG THÁI QUÁ KHỨ (ĐÃ QUA DƯỚI 65 PHÚT): HIỂN THỊ MÀU XÁM */
     .timeline-indicator.expired .timeline-boss-tag { background: #475569 !important; opacity: 0.75; }
     .timeline-indicator.expired .timeline-target-tag { background: #64748b !important; opacity: 0.75; }
     .timeline-indicator.expired .peak-node-pin { border-color: #64748b !important; }
 
     @keyframes pulse-tag { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
 
-    /* NHÃN ĐẾM NGƯỢC GIỮA CÁC BOSS: Thu nhỏ 65% kích thước, tăng chữ số 10%, bỏ đồng hồ cát */
     .timeline-interval-label {
       position: absolute;
       top: 50%;
@@ -289,7 +287,7 @@
     }
     .timeline-interval-pill {
       color: #34d399;
-      font-size: 0.88em; /* Tăng cỡ chữ số thêm 10% */
+      font-size: 0.88em;
       font-weight: 800;
       letter-spacing: 0.3px;
     }
@@ -299,7 +297,26 @@
       font-weight: bold;
     }
 
-    .timeline-labels { display: flex; justify-content: space-between; font-size: 0.8em; color: var(--subtext-color); font-weight: bold; border-top: 1px dashed var(--border-color); padding-top: 4px; pointer-events: none; }
+    /* Đưa nút NOW xuống nằm cạnh timelineStartLabel */
+    .timeline-footer-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 1px dashed var(--border-color);
+      padding-top: 4px;
+      pointer-events: auto;
+    }
+    .btn-now-jump {
+      background: #10b981;
+      color: white;
+      padding: 2px 8px;
+      font-size: 0.75em;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+      border: none;
+    }
+    .btn-now-jump:hover { background: #059669; }
 
     .grid-container { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 1030px; }
     .card { 
@@ -370,9 +387,12 @@
       <div class="timeline-bar-wrapper" id="timelineBarWrapper">
         <div class="timeline-track-line"></div>
       </div>
-      <div class="timeline-labels">
-        <span id="timelineStartLabel">--:--:--</span>
-        <span id="timelineEndLabel">--:--:--</span>
+      <div class="timeline-footer-row">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <button class="btn-now-jump" onclick="jumpToNow()" title="Đưa view về thời điểm hiện tại">NOW</button>
+          <span id="timelineStartLabel" style="font-size: 0.8em; color: var(--subtext-color); font-weight: bold;">--:--:--</span>
+        </div>
+        <span id="timelineEndLabel" style="font-size: 0.8em; color: var(--subtext-color); font-weight: bold;">--:--:--</span>
       </div>
     </div>
   </div>
@@ -493,6 +513,11 @@
     const inputEl = document.getElementById('timelineSpanInput');
     if (inputEl) inputEl.value = val;
   }
+
+  window.jumpToNow = function() {
+    manualTimelineOffsetMs = 0;
+    updateTimelineBar(Date.now());
+  };
 
   window.saveTimelineSpan = function(val) {
     let num = parseFloat(val);
@@ -799,6 +824,9 @@
         existingCard.startTime = now;
         existingCard.target = now + finalTotalSecs * 1000;
         existingCard.warned60s = false;
+        
+        // Đánh dấu vừa cập nhật để giữ vị trí đúng tạm thời
+        existingCard.lastUpdatedTime = now;
       } else {
         window.cards.push({
           id: Date.now() + Math.random(),
@@ -809,7 +837,8 @@
           startTime: now,
           target: now + finalTotalSecs * 1000,
           delay: finalTotalSecs,
-          warned60s: false
+          warned60s: false,
+          lastUpdatedTime: now
         });
       }
     });
@@ -823,7 +852,34 @@
     container.innerHTML = '';
     const lockClass = window.isAuthorized ? '' : 'locked-element';
 
-    window.cards.forEach((c, idx) => {
+    const now = Date.now();
+    // Tạo danh sách bản sao kèm index gốc để xử lý tự động đẩy card quá giờ lên trên
+    let indexedCards = window.cards.map((c, originalIndex) => ({ card: c, originalIndex }));
+
+    indexedCards.sort((a, b) => {
+      const aCard = a.card;
+      const bCard = b.card;
+      
+      const aIsUpdatedRecently = aCard.lastUpdatedTime && (now - aCard.lastUpdatedTime < 10000);
+      const bIsUpdatedRecently = bCard.lastUpdatedTime && (now - bCard.lastUpdatedTime < 10000);
+
+      const aIsExpired = aCard.target && (aCard.target <= now);
+      const bIsExpired = bCard.target && (bCard.target <= now);
+
+      // Card quá giờ (và chưa mới cập nhật trong 10s) được đẩy lên đầu
+      const aShouldTop = aIsExpired && !aIsUpdatedRecently;
+      const bShouldTop = bIsExpired && !bIsUpdatedRecently;
+
+      if (aShouldTop && !bShouldTop) return -1;
+      if (!aShouldTop && bShouldTop) return 1;
+
+      return a.originalIndex - b.originalIndex;
+    });
+
+    indexedCards.forEach((item) => {
+      const c = item.card;
+      const idx = item.originalIndex;
+
       const cardEl = document.createElement('div');
       cardEl.className = 'card';
       cardEl.innerHTML = `
@@ -921,6 +977,7 @@
     window.cards[idx].startTime = now;
     window.cards[idx].target = now + totalSecs * 1000;
     window.cards[idx].warned60s = false;
+    window.cards[idx].lastUpdatedTime = now; // Ghi nhận thời điểm vừa cập nhật để giữ vị trí đúng ngay sau khi set
     
     saveCardsToFirebase(); 
     render();
@@ -932,17 +989,20 @@
     window.cards[idx].delay = null;
     window.cards[idx].startTime = null;
     window.cards[idx].warned60s = false;
+    window.cards[idx].lastUpdatedTime = Date.now();
     saveCardsToFirebase(); 
     render();
   };
 
   window.wipeAll = function() {
     if (!window.isAuthorized) return;
+    const now = Date.now();
     window.cards.forEach(c => { 
       c.target = null; 
       c.delay = null; 
       c.startTime = null;
       c.warned60s = false;
+      c.lastUpdatedTime = now;
     });
     saveCardsToFirebase(); 
     render();
