@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lander Timer Web v6.8 (Toast List Auto-Height & No Scrollbar)</title>
+  <title>Lander Timer Web v7.1 (Clean Full Code & Interval Countdown)</title>
   <style>
     :root {
       --bg-color: #f4f6f9;
@@ -181,7 +181,7 @@
       border-radius: 50%;
     }
 
-    /* --- TOAST MENU NỔI DANH SÁCH (GÓC PHẢI DƯỚI) - TỰ ĐỘNG TĂNG GIẢM ĐỘ DÀI, KHÔNG SCROLLBAR --- */
+    /* --- TOAST MENU NỔI DANH SÁCH (GÓC PHẢI DƯỚI) - TỰ ĐỘNG CO GIÃN, KHÔNG SCROLLBAR --- */
     .toast-preview-container {
       position: fixed; bottom: 20px; right: 20px; background: var(--toast-bg);
       border: 1px solid var(--border-color); box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
@@ -200,7 +200,6 @@
       width: 22px; height: 22px; font-weight: bold; cursor: pointer; display: inline-flex;
       align-items: center; justify-content: center; font-size: 0.9em;
     }
-    /* ĐÃ BỎ SCROLL BAR, TỰ ĐỘNG CO GIÃN CHIỀU CAO THEO NỘI DUNG */
     .toast-list { display: flex; flex-direction: column; gap: 6px; }
     .preview-chip {
       background: var(--card-bg); border: 1px solid var(--border-color); padding: 6px 10px;
@@ -263,6 +262,23 @@
 
     .timeline-indicator.urgent .timeline-boss-tag { background: #dc3545; animation: pulse-tag 1s infinite; }
     @keyframes pulse-tag { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+
+    .timeline-interval-label {
+      position: absolute;
+      top: calc(50% - 34px);
+      transform: translate(-50%, -50%);
+      font-size: 0.72em;
+      font-weight: bold;
+      color: #10b981;
+      background: var(--toast-bg);
+      border: 1px solid #10b981;
+      padding: 2px 7px;
+      border-radius: 10px;
+      white-space: nowrap;
+      z-index: 8;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      pointer-events: none;
+    }
 
     .timeline-labels { display: flex; justify-content: space-between; font-size: 0.8em; color: var(--subtext-color); font-weight: bold; border-top: 1px dashed var(--border-color); padding-top: 4px; }
 
@@ -570,7 +586,7 @@
   window.adjustToastLimit = function(delta) {
     limitCount += delta;
     if (limitCount < 1) limitCount = 1;
-    if (limitCount > 30) limitCount = 30; // Giới hạn tối đa 30 item
+    if (limitCount > 30) limitCount = 30;
     document.getElementById('toastLimitDisplay').innerText = limitCount;
     document.getElementById('toastTitle').innerText = `🔔 SẮP ĐẾN GIỜ (${limitCount})`;
     checkAndUpdateTimers();
@@ -1172,7 +1188,7 @@
 
     const wrapper = document.getElementById('timelineBarWrapper');
     
-    const oldDynamicElements = wrapper.querySelectorAll('.timeline-indicator, .timeline-tick, .timeline-tick-label, .timeline-now-tick, .timeline-now-label');
+    const oldDynamicElements = wrapper.querySelectorAll('.timeline-indicator, .timeline-tick, .timeline-tick-label, .timeline-now-tick, .timeline-now-label, .timeline-interval-label');
     oldDynamicElements.forEach(el => el.remove());
 
     const nowTick = document.createElement('div');
@@ -1266,6 +1282,47 @@
       `;
       wrapper.appendChild(indicator);
     });
+
+    // Hiển thị khoảng thời gian đếm ngược giữa NOW -> Boss 1 và giữa các Boss với nhau
+    function formatIntervalShort(ms) {
+      let totalSecs = Math.max(0, Math.ceil(ms / 1000));
+      let h = Math.floor(totalSecs / 3600);
+      let m = Math.floor((totalSecs % 3600) / 60);
+      let s = totalSecs % 60;
+      if (h > 0) return `${h}h ${String(m).padStart(2, '0')}m`;
+      if (m > 0) return `${m}m ${String(s).padStart(2, '0')}s`;
+      return `${s}s`;
+    }
+
+    let timelinePoints = [{ time: startTime, px: 0, widthPx: 40 }];
+    validCards.forEach(c => {
+      const ratio = (c.target - startTime) / spanMs;
+      const px = ratio * wrapperWidth;
+      const parts = c.name.trim().split(/\s+/);
+      const displayName = parts.length >= 2 ? parts[0] + '\n' + parts.slice(1).join(' ') : c.name;
+      const maxLineLength = Math.max(...displayName.split('\n').map(l => l.length));
+      const estWidth = Math.max(75, maxLineLength * 7 + 24);
+      timelinePoints.push({ time: c.target, px: px, widthPx: estWidth });
+    });
+
+    for (let i = 0; i < timelinePoints.length - 1; i++) {
+      let p1 = timelinePoints[i];
+      let p2 = timelinePoints[i + 1];
+      let diffMs = p2.time - p1.time;
+
+      let freeGapPx = (p2.px - p2.widthPx / 2) - (p1.px + p1.widthPx / 2);
+
+      if (freeGapPx >= 65 && diffMs > 0) {
+        let midPx = (p1.px + p1.widthPx / 2 + p2.px - p2.widthPx / 2) / 2;
+        let midPercent = (midPx / wrapperWidth) * 100;
+
+        const intervalEl = document.createElement('div');
+        intervalEl.className = 'timeline-interval-label';
+        intervalEl.style.left = `${midPercent}%`;
+        intervalEl.innerText = `⏳ ${formatIntervalShort(diffMs)}`;
+        wrapper.appendChild(intervalEl);
+      }
+    }
   }
 
   document.addEventListener("visibilitychange", () => {
