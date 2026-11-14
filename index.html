@@ -267,17 +267,31 @@
       position: absolute;
       top: calc(50% - 34px);
       transform: translate(-50%, -50%);
-      font-size: 0.72em;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+      z-index: 8;
+      pointer-events: none;
+    }
+    .timeline-interval-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.74em;
       font-weight: bold;
       color: #10b981;
       background: var(--toast-bg);
-      border: 1px solid #10b981;
-      padding: 2px 7px;
-      border-radius: 10px;
-      white-space: nowrap;
-      z-index: 8;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-      pointer-events: none;
+      border: 1.5px solid #10b981;
+      padding: 2px 9px;
+      border-radius: 999px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.12);
+    }
+    .timeline-interval-arrow {
+      color: #22c55e;
+      font-size: 0.85em;
+      font-weight: 900;
+      line-height: 1;
     }
 
     .timeline-labels { display: flex; justify-content: space-between; font-size: 0.8em; color: var(--subtext-color); font-weight: bold; border-top: 1px dashed var(--border-color); padding-top: 4px; }
@@ -1312,14 +1326,18 @@
 
       let freeGapPx = (p2.px - p2.widthPx / 2) - (p1.px + p1.widthPx / 2);
 
-      if (freeGapPx >= 65 && diffMs > 0) {
+      if (freeGapPx >= 95 && diffMs > 0) {
         let midPx = (p1.px + p1.widthPx / 2 + p2.px - p2.widthPx / 2) / 2;
         let midPercent = (midPx / wrapperWidth) * 100;
 
         const intervalEl = document.createElement('div');
         intervalEl.className = 'timeline-interval-label';
         intervalEl.style.left = `${midPercent}%`;
-        intervalEl.innerText = `⏳ ${formatIntervalShort(diffMs)}`;
+        intervalEl.innerHTML = `
+          <span class="timeline-interval-arrow">⬅</span>
+          <span class="timeline-interval-pill">⏳ ${formatIntervalShort(diffMs)}</span>
+          <span class="timeline-interval-arrow">➡</span>
+        `;
         wrapper.appendChild(intervalEl);
       }
     }
