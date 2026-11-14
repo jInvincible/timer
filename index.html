@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lander Timer Web v7.9 (Timeline Refinement & Pill Styling)</title>
+  <title>Lander Timer Web v7.15 (Instant Expired Card Promotion & Auto-Restore)</title>
   <style>
     :root {
       --bg-color: #f4f6f9;
@@ -825,9 +825,6 @@
         existingCard.startTime = now;
         existingCard.target = now + finalTotalSecs * 1000;
         existingCard.warned60s = false;
-        
-        // Đánh dấu vừa cập nhật để giữ vị trí đúng tạm thời
-        existingCard.lastUpdatedTime = now;
       } else {
         window.cards.push({
           id: Date.now() + Math.random(),
@@ -838,8 +835,7 @@
           startTime: now,
           target: now + finalTotalSecs * 1000,
           delay: finalTotalSecs,
-          warned60s: false,
-          lastUpdatedTime: now
+          warned60s: false
         });
       }
     });
@@ -859,25 +855,20 @@
     const lockClass = window.isAuthorized ? '' : 'locked-element';
 
     const now = Date.now();
-    // Tạo danh sách bản sao kèm index gốc để xử lý tự động đẩy card quá giờ lên trên
+    // Tạo danh sách bản sao kèm index gốc để xử lý tự động đẩy card quá giờ lên trên ngay lập tức
     let indexedCards = window.cards.map((c, originalIndex) => ({ card: c, originalIndex }));
 
     indexedCards.sort((a, b) => {
       const aCard = a.card;
       const bCard = b.card;
-      
-      const aIsUpdatedRecently = aCard.lastUpdatedTime && (now - aCard.lastUpdatedTime < 10000);
-      const bIsUpdatedRecently = bCard.lastUpdatedTime && (now - bCard.lastUpdatedTime < 10000);
 
-      const aIsExpired = aCard.target && (aCard.target <= now);
-      const bIsExpired = bCard.target && (bCard.target <= now);
+      // Chỉ cần card đang có target và target <= now (đã hết giờ) là đẩy ngay lên đầu danh sách
+      // Khi được Set giờ mới (target > now) hoặc Wipe (target = null), điều kiện này false -> tự động về đúng originalIndex
+      const aIsExpired = Boolean(aCard.target && aCard.target <= now);
+      const bIsExpired = Boolean(bCard.target && bCard.target <= now);
 
-      // Card quá giờ (và chưa mới cập nhật trong 10s) được đẩy lên đầu
-      const aShouldTop = aIsExpired && !aIsUpdatedRecently;
-      const bShouldTop = bIsExpired && !bIsUpdatedRecently;
-
-      if (aShouldTop && !bShouldTop) return -1;
-      if (!aShouldTop && bShouldTop) return 1;
+      if (aIsExpired && !bIsExpired) return -1;
+      if (!aIsExpired && bIsExpired) return 1;
 
       return a.originalIndex - b.originalIndex;
     });
@@ -997,7 +988,6 @@
     window.cards[idx].startTime = now;
     window.cards[idx].target = now + totalSecs * 1000;
     window.cards[idx].warned60s = false;
-    window.cards[idx].lastUpdatedTime = now; // Ghi nhận thời điểm vừa cập nhật để giữ vị trí đúng ngay sau khi set
     
     saveCardsToFirebase(); 
     render();
@@ -1009,20 +999,17 @@
     window.cards[idx].delay = null;
     window.cards[idx].startTime = null;
     window.cards[idx].warned60s = false;
-    window.cards[idx].lastUpdatedTime = Date.now();
     saveCardsToFirebase(); 
     render();
   };
 
   window.wipeAll = function() {
     if (!window.isAuthorized) return;
-    const now = Date.now();
     window.cards.forEach(c => { 
       c.target = null; 
       c.delay = null; 
       c.startTime = null;
       c.warned60s = false;
-      c.lastUpdatedTime = now;
     });
     saveCardsToFirebase(); 
     render();
@@ -1195,19 +1182,13 @@
     const now = Date.now();
     let stateChanged = false;
 
-    // Kiểm tra xem thứ tự các card có cần cập nhật theo thời gian thực không (khi có card vừa quá giờ hoặc hết 10s giữ vị trí)
+    // Kiểm tra xem thứ tự các card có cần cập nhật ngay lập tức theo thời gian thực không
     let expectedIndexed = window.cards.map((c, originalIndex) => ({ card: c, originalIndex }));
     expectedIndexed.sort((a, b) => {
-      const aCard = a.card;
-      const bCard = b.card;
-      const aIsUpdatedRecently = aCard.lastUpdatedTime && (now - aCard.lastUpdatedTime < 10000);
-      const bIsUpdatedRecently = bCard.lastUpdatedTime && (now - bCard.lastUpdatedTime < 10000);
-      const aIsExpired = aCard.target && (aCard.target <= now);
-      const bIsExpired = bCard.target && (bCard.target <= now);
-      const aShouldTop = aIsExpired && !aIsUpdatedRecently;
-      const bShouldTop = bIsExpired && !bIsUpdatedRecently;
-      if (aShouldTop && !bShouldTop) return -1;
-      if (!aShouldTop && bShouldTop) return 1;
+      const aIsExpired = Boolean(a.card.target && a.card.target <= now);
+      const bIsExpired = Boolean(b.card.target && b.card.target <= now);
+      if (aIsExpired && !bIsExpired) return -1;
+      if (!aIsExpired && bIsExpired) return 1;
       return a.originalIndex - b.originalIndex;
     });
     const currentExpectedHash = expectedIndexed.map(item => item.card.id || item.originalIndex).join(',');
