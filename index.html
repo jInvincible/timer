@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lander Timer Web v7.15 (Instant Expired Card Promotion & Auto-Restore)</title>
+  <title>Lander Timer Web v7.16 (Gemini 3.1 Flash Lite & Dynamic Latency Offset)</title>
   <style>
     :root {
       --bg-color: #f4f6f9;
@@ -763,6 +763,7 @@
         reader.readAsDataURL(fileOrBlob);
       });
 
+      // Cập nhật endpoint sang gemini-3.1-flash-lite
       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -801,7 +802,10 @@
   }
 
   function parseAiDataAndSync(bossDataArray, apiResponseTimeSecs) {
-    const baseLatencyOffset = 20; 
+    // Tính toán thời gian bù trễ: cứ mỗi 30 giây (hoặc phần dư của 30s) thời gian chờ API thì cộng thêm 5 giây
+    // Ví dụ: 0.1s -> 30s => ceil(25 / 30) * 5 = 1 * 5 = 5s; 35s => ceil(35 / 30) * 5 = 2 * 5 = 10s
+    const blocksOf30s = Math.max(1, Math.ceil(apiResponseTimeSecs / 30));
+    const baseLatencyOffset = blocksOf30s * 5; 
     const totalCompensationSecs = baseLatencyOffset + apiResponseTimeSecs;
 
     bossDataArray.forEach(item => {
