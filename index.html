@@ -383,9 +383,9 @@
       <span id="loadingOcr">AI đang đọc ảnh & tự động cập nhật...</span>
 
       <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-left: auto;">
-        <input type="text" id="geminiKey" placeholder="Gemini API Key" class="locked-action" style="width: 130px; padding: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--input-text); border-radius: 4px;" onfocus="this.select()" oninput="saveSettingsToFirebase()">
-        <input type="text" id="tgToken" placeholder="Telegram Token" class="locked-action" style="width: 150px; padding: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--input-text); border-radius: 4px;" onfocus="this.select()" oninput="saveSettingsToFirebase()">
-        <input type="text" id="tgChatId" placeholder="Chat ID" class="locked-action" style="width: 90px; padding: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--input-text); border-radius: 4px;" onfocus="this.select()" oninput="saveSettingsToFirebase()">
+        <input type="text" id="geminiKey" placeholder="Gemini API Key" class="locked-action" style="width: 120px; padding: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--input-text); border-radius: 4px;" onfocus="this.select()" oninput="saveSettingsToFirebase()">
+        <input type="text" id="tgToken" placeholder="Telegram Token" class="locked-action" style="width: 135px; padding: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--input-text); border-radius: 4px;" onfocus="this.select()" oninput="saveSettingsToFirebase()">
+        <input type="text" id="tgChatId" placeholder="Chat ID" class="locked-action" style="width: 85px; padding: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--input-text); border-radius: 4px;" onfocus="this.select()" oninput="saveSettingsToFirebase()">
       </div>
     </div>
 
@@ -1263,16 +1263,18 @@
 
           if (remainSecs <= 60 && !c.warned60s) {
             c.warned60s = true;
-            claimAndSendTelegram(idx, 'warned60s', c.target, `${c.name}: Sắp đến giờ! (Còn ${remainSecs} giây)`);
+            c.warnedDone = true; // Đánh dấu đã hoàn tất thông báo cho chu kỳ này (ưu tiên mốc 60s)
+            claimAndSendTelegram(idx, 'warned60s', c.target, `⚠️ SẮP SPAWN: ${c.name} còn ${remainSecs} giây nữa!`);
             triggerWebNotification("RAIDBOSS SẮP SPAWN!", `${c.name} sắp đến giờ xuất hiện trong ${remainSecs} giây!`);
           }
         } else {
           el.innerText = "Remaining: Done!";
           el.style.color = 'green';
 
-          if (!c.warnedDone) {
+          // Chỉ gửi thông báo lúc hết giờ nếu trước đó chưa gửi thông báo 60s
+          if (!c.warned60s && !c.warnedDone) {
             c.warnedDone = true;
-            claimAndSendTelegram(idx, 'warnedDone', c.target, `${c.name}: Đã đến thời điểm hẹn!`);
+            claimAndSendTelegram(idx, 'warnedDone', c.target, `🔔 ĐÃ SPAWN: ${c.name} đã đến thời điểm hẹn!`);
             triggerWebNotification("RAIDBOSS ĐÃ SPAWN!", `${c.name} đã đến thời điểm hẹn!`);
           }
         }
