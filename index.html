@@ -444,7 +444,7 @@
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-app.js";
-  import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-database.js";
+  import { getDatabase, ref, set, onValue, runTransaction } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-database.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyBB0C4uZAKbg11qqKHWmsI-p5h1TCvHH5Y",
@@ -732,6 +732,26 @@
     }).catch(err => console.error('Lỗi gửi Telegram:', err));
   };
 
+  // Cơ chế khóa nguyên tử qua Firebase Transaction đảm bảo chỉ 1 trình duyệt duy nhất gửi Telegram
+  function claimAndSendTelegram(cardIdx, flagName, targetTimestamp, msg) {
+    if (!window.isAuthorized) return;
+    const cardRef = ref(db, `lander_cards/${cardIdx}`);
+    runTransaction(cardRef, (currentData) => {
+      if (!currentData || currentData.target !== targetTimestamp) {
+        return; // Hủy bỏ nếu dữ liệu không tồn tại hoặc target đã thay đổi
+      }
+      if (currentData[flagName]) {
+        return; // Hủy bỏ nếu một trình duyệt khác đã đánh dấu gửi rồi
+      }
+      currentData[flagName] = true;
+      return currentData;
+    }).then((result) => {
+      if (result.committed) {
+        sendTelegram(msg);
+      }
+    }).catch(err => console.error('Lỗi đồng bộ khóa Telegram:', err));
+  }
+
   document.addEventListener('paste', function(event) {
     if (!window.isAuthorized) return;
     const items = (event.clipboardData || event.originalEvent.clipboardData).items;
@@ -844,6 +864,7 @@
         existingCard.startTime = now;
         existingCard.target = now + finalTotalSecs * 1000;
         existingCard.warned60s = false;
+        existingCard.warnedDone = false;
       } else {
         window.cards.push({
           id: Date.now() + Math.random(),
@@ -854,7 +875,8 @@
           startTime: now,
           target: now + finalTotalSecs * 1000,
           delay: finalTotalSecs,
-          warned60s: false
+          warned60s: false,
+          warnedDone: false
         });
       }
     });
@@ -967,7 +989,8 @@
       name: `Alarm ${window.cards.length + 1}`, 
       h: 0, m: 5, s: 0, 
       target: null, delay: null, startTime: null,
-      warned60s: false 
+      warned60s: false,
+      warnedDone: false
     });
     saveCardsToFirebase(); 
     render();
@@ -1010,6 +1033,7 @@
     window.cards[idx].startTime = now;
     window.cards[idx].target = now + totalSecs * 1000;
     window.cards[idx].warned60s = false;
+    window.cards[idx].warnedDone = false;
     
     saveCardsToFirebase(); 
     render();
@@ -1021,6 +1045,7 @@
     window.cards[idx].delay = null;
     window.cards[idx].startTime = null;
     window.cards[idx].warned60s = false;
+    window.cards[idx].warnedDone = false;
     saveCardsToFirebase(); 
     render();
   };
@@ -1032,6 +1057,7 @@
       c.delay = null; 
       c.startTime = null;
       c.warned60s = false;
+      c.warnedDone = false;
     });
     saveCardsToFirebase(); 
     render();
@@ -1237,18 +1263,16 @@
 
           if (remainSecs <= 60 && !c.warned60s) {
             c.warned60s = true;
-            stateChanged = true;
-            if (window.isAuthorized) sendTelegram(`${c.name}: Sắp đến giờ! (Còn ${remainSecs} giây)`);
+            claimAndSendTelegram(idx, 'warned60s', c.target, `${c.name}: Sắp đến giờ! (Còn ${remainSecs} giây)`);
             triggerWebNotification("RAIDBOSS SẮP SPAWN!", `${c.name} sắp đến giờ xuất hiện trong ${remainSecs} giây!`);
           }
         } else {
           el.innerText = "Remaining: Done!";
           el.style.color = 'green';
 
-          if (!c.warned60s) {
-            c.warned60s = true;
-            stateChanged = true;
-            if (window.isAuthorized) sendTelegram(`${c.name}: Đã đến thời điểm hẹn!`);
+          if (!c.warnedDone) {
+            c.warnedDone = true;
+            claimAndSendTelegram(idx, 'warnedDone', c.target, `${c.name}: Đã đến thời điểm hẹn!`);
             triggerWebNotification("RAIDBOSS ĐÃ SPAWN!", `${c.name} đã đến thời điểm hẹn!`);
           }
         }
