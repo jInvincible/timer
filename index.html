@@ -837,9 +837,9 @@
   }
 
   function parseAiDataAndSync(bossDataArray, apiResponseTimeSecs) {
-    // Loại bỏ hoàn toàn cơ chế cộng thêm +5s mỗi 30 giây thời gian chờ API
-    // Thời gian cập nhật = Thời gian quét OCR - Thời gian chờ phản hồi từ AI API
-    const totalCompensationSecs = apiResponseTimeSecs;
+    // Thời gian set remaining time = số liệu trả về từ Gemini API - latency chờ phản hồi dữ liệu từ Gemini API - 15 giây
+    const FIXED_CLIPBOARD_OFFSET_SECS = 15;
+    const totalCompensationSecs = apiResponseTimeSecs + FIXED_CLIPBOARD_OFFSET_SECS;
 
     bossDataArray.forEach(item => {
       let bossName = item.name;
