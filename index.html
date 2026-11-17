@@ -1264,8 +1264,9 @@
           if (remainSecs <= 60 && !c.warned60s) {
             c.warned60s = true;
             c.warnedDone = true; // Đánh dấu đã hoàn tất thông báo cho chu kỳ này (ưu tiên mốc 60s)
-            claimAndSendTelegram(idx, 'warned60s', c.target, `⚠️ SẮP SPAWN: ${c.name} còn ${remainSecs} giây nữa!`);
-            triggerWebNotification("RAIDBOSS SẮP SPAWN!", `${c.name} sắp đến giờ xuất hiện trong ${remainSecs} giây!`);
+            const msg60s = `${c.name}: Sắp đến giờ! (Còn ${remainSecs} giây)`;
+            claimAndSendTelegram(idx, 'warned60s', c.target, msg60s);
+            triggerWebNotification("RAIDBOSS SẮP ĐẾN GIỜ!", msg60s);
           }
         } else {
           el.innerText = "Remaining: Done!";
@@ -1274,8 +1275,9 @@
           // Chỉ gửi thông báo lúc hết giờ nếu trước đó chưa gửi thông báo 60s
           if (!c.warned60s && !c.warnedDone) {
             c.warnedDone = true;
-            claimAndSendTelegram(idx, 'warnedDone', c.target, `🔔 ĐÃ SPAWN: ${c.name} đã đến thời điểm hẹn!`);
-            triggerWebNotification("RAIDBOSS ĐÃ SPAWN!", `${c.name} đã đến thời điểm hẹn!`);
+            const msgDone = `${c.name}: Đã đến giờ!`;
+            claimAndSendTelegram(idx, 'warnedDone', c.target, msgDone);
+            triggerWebNotification("RAIDBOSS ĐÃ ĐẾN GIỜ!", msgDone);
           }
         }
       } else {
