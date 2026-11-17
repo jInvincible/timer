@@ -389,4 +389,1066 @@
 
     .boss-card:hover {
       border-color: var(--accent-color);
-      background-color
+      background-color: var(--surface-hover);
+    }
+
+    .boss-card.expired {
+      background-color: var(--expired-bg);
+      border-color: var(--expired-border);
+      animation: pulseBorder 1.8s infinite;
+    }
+
+    @keyframes pulseBorder {
+      0%, 100% { border-color: var(--expired-border); }
+      50% { border-color: rgba(239, 68, 68, 0.35); }
+    }
+
+    .btn-card-close {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      width: 22px;
+      height: 22px;
+      padding: 0;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+      font-weight: 700;
+      line-height: 1;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0.65;
+    }
+
+    .btn-card-close:hover {
+      background-color: rgba(239, 68, 68, 0.2);
+      color: var(--danger-color);
+      opacity: 1;
+    }
+
+    .card-summary {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding-right: 18px;
+    }
+
+    .card-name {
+      font-size: 0.98rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .card-times-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-top: 2px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .card-target {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .card-remaining {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--accent-color);
+    }
+
+    .boss-card.expired .card-remaining {
+      color: var(--danger-color);
+    }
+
+    .boss-card.unset .card-remaining {
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    /* Expandable Controls inside Card */
+    .card-controls {
+      display: none;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px dashed var(--border-color);
+      cursor: default;
+    }
+
+    .boss-card.expanded .card-controls {
+      display: block;
+    }
+
+    .hms-inputs {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+
+    .hms-inputs input {
+      width: 100%;
+      background-color: var(--bg-color);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      padding: 5px 6px;
+      border-radius: 5px;
+      font-size: 0.84rem;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+      user-select: text;
+    }
+
+    .hms-inputs input:focus {
+      outline: none;
+      border-color: var(--accent-color);
+    }
+
+    .card-action-btns {
+      display: flex;
+      gap: 6px;
+    }
+
+    .card-action-btns button {
+      flex: 1;
+      padding: 5px 6px;
+      font-size: 0.78rem;
+    }
+
+    /* Toast List (Bottom Right, Auto-height, Max 30 items, No Scrollbar) */
+    .toast-container {
+      position: fixed;
+      bottom: 14px;
+      right: 14px;
+      display: flex;
+      flex-direction: column-reverse;
+      gap: 6px;
+      z-index: 9999;
+      pointer-events: none;
+      max-width: 340px;
+    }
+
+    .toast-item {
+      background-color: var(--surface-color);
+      color: var(--text-primary);
+      border-left: 4px solid var(--accent-color);
+      border-top: 1px solid var(--border-color);
+      border-right: 1px solid var(--border-color);
+      border-bottom: 1px solid var(--border-color);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      box-shadow: var(--shadow);
+      animation: slideIn 0.2s ease-out;
+      pointer-events: auto;
+    }
+
+    .toast-item.success { border-left-color: var(--success-color); }
+    .toast-item.warning { border-left-color: var(--warning-color); }
+    .toast-item.error { border-left-color: var(--danger-color); }
+
+    @keyframes slideIn {
+      from { transform: translateX(20px); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Bar -->
+  <div class="top-bar">
+    <div class="brand-section">
+      <span class="brand-title">Lander Timer</span>
+      <span class="version-badge">v7.18</span>
+      <span id="liveClock" class="clock-display">00:00:00</span>
+    </div>
+
+    <div class="toolbar-actions">
+      <button id="btnAddCard" class="primary">Add Card</button>
+      <button id="btnPasteClipboard">Paste Image</button>
+      <button id="btnWipeAll" class="danger">Wipe All</button>
+      <button id="btnToggleConfig">Settings</button>
+      <button id="btnThemeToggle">Light Mode</button>
+    </div>
+  </div>
+
+  <!-- Collapsible Settings Panel -->
+  <div id="configPanel" class="config-panel">
+    <div class="config-grid">
+      <div class="config-item">
+        <label for="cfgGeminiKey">Gemini API Key (gemini-3.1-flash-lite)</label>
+        <input type="password" id="cfgGeminiKey" placeholder="AIzaSy..." />
+      </div>
+      <div class="config-item">
+        <label for="cfgFirebaseUrl">Firebase Realtime Database URL</label>
+        <input type="text" id="cfgFirebaseUrl" placeholder="https://your-project.firebaseio.com" />
+      </div>
+      <div class="config-item">
+        <label for="cfgRoomId">Sync Room ID</label>
+        <input type="text" id="cfgRoomId" placeholder="lander-boss-room" />
+      </div>
+      <div class="config-item">
+        <label for="cfgTgToken">Telegram Bot Token</label>
+        <input type="password" id="cfgTgToken" placeholder="123456:ABC-DEF..." />
+      </div>
+      <div class="config-item">
+        <label for="cfgTgChatId">Telegram Chat ID</label>
+        <input type="text" id="cfgTgChatId" placeholder="-100123456789" />
+      </div>
+    </div>
+    <div class="config-footer">
+      <span class="paste-hint">Tip: Press Ctrl + V anywhere to parse Raidboss screenshot via Gemini AI.</span>
+      <button id="btnSaveConfig" class="primary">Save Settings</button>
+    </div>
+  </div>
+
+  <!-- Interactive Timeline -->
+  <div class="timeline-wrapper">
+    <div class="timeline-header">
+      <span>Timeline (Drag to pan)</span>
+      <div class="peak-legend">
+        <span>Density:</span>
+        <span><i class="legend-dot" style="background:#38bdf8;"></i>1</span>
+        <span><i class="legend-dot" style="background:#22c55e;"></i>2</span>
+        <span><i class="legend-dot" style="background:#f59e0b;"></i>3</span>
+        <span><i class="legend-dot" style="background:#ef4444;"></i>4+</span>
+      </div>
+    </div>
+
+    <div id="timelineViewport" class="timeline-viewport">
+      <div id="peakDensityBar" class="peak-density-bar"></div>
+      <div id="nowMarker" class="now-marker"></div>
+      <div id="timelineNodesLayer"></div>
+    </div>
+
+    <div class="timeline-footer-row">
+      <div class="timeline-start-group">
+        <span id="timelineStartLabel">--:--</span>
+        <button id="btnNowJump" class="btn-now-jump">NOW</button>
+      </div>
+      <span id="timelineEndLabel">--:--</span>
+    </div>
+  </div>
+
+  <!-- Cards Grid -->
+  <div id="cardContainer" class="card-grid"></div>
+
+  <!-- Toast Container -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <script>
+    // =========================================================
+    // STATE & STORAGE
+    // =========================================================
+    const STORAGE_KEY_CARDS = "lander_timer_cards_v718";
+    const STORAGE_KEY_CFG = "lander_timer_cfg_v718";
+    const STORAGE_KEY_THEME = "lander_timer_theme_v718";
+
+    let config = {
+      geminiKey: "",
+      firebaseUrl: "",
+      roomId: "lander-default",
+      tgToken: "",
+      tgChatId: ""
+    };
+
+    let cards = [];
+    let expandedCardId = null;
+    let lastRenderedOrderSignature = "";
+    let dbRef = null;
+    let isRemoteUpdate = false;
+
+    // Timeline Pan State (6 hours window = 21600000 ms)
+    const TIMELINE_WINDOW_MS = 6 * 3600 * 1000;
+    let timelineOffsetMs = -30 * 60 * 1000; // Start 30 mins before NOW
+    let isDraggingTimeline = false;
+    let dragStartX = 0;
+    let dragStartOffsetMs = 0;
+
+    // =========================================================
+    // INITIALIZATION
+    // =========================================================
+    function init() {
+      loadTheme();
+      loadConfig();
+      loadLocalCards();
+      initFirebase();
+      bindEvents();
+      render();
+      setInterval(tickLoop, 200);
+    }
+
+    function loadTheme() {
+      const savedTheme = localStorage.getItem(STORAGE_KEY_THEME);
+      if (savedTheme === "light") {
+        document.body.classList.add("light-mode");
+        document.getElementById("btnThemeToggle").textContent = "Dark Mode";
+      }
+    }
+
+    function loadConfig() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY_CFG);
+        if (raw) config = { ...config, ...JSON.parse(raw) };
+      } catch (e) {}
+      document.getElementById("cfgGeminiKey").value = config.geminiKey || "";
+      document.getElementById("cfgFirebaseUrl").value = config.firebaseUrl || "";
+      document.getElementById("cfgRoomId").value = config.roomId || "lander-default";
+      document.getElementById("cfgTgToken").value = config.tgToken || "";
+      document.getElementById("cfgTgChatId").value = config.tgChatId || "";
+    }
+
+    function loadLocalCards() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY_CARDS);
+        if (raw) {
+          cards = JSON.parse(raw);
+        } else {
+          // Default sample bosses
+          const defaultNames = ["Fafurion", "Antharas", "Valakas", "Baium", "Queen Ant", "Orfen", "Core", "Zaken"];
+          cards = defaultNames.map((name, idx) => ({
+            id: "boss_" + idx + "_" + Date.now(),
+            name,
+            target: null,
+            originalIndex: idx,
+            warned60s: false,
+            warnedDone: false
+          }));
+        }
+      } catch (e) {
+        cards = [];
+      }
+      normalizeOriginalIndices();
+    }
+
+    function normalizeOriginalIndices() {
+      cards.forEach((c, idx) => {
+        if (typeof c.originalIndex !== "number") c.originalIndex = idx;
+      });
+    }
+
+    // =========================================================
+    // FIREBASE SYNC & TRANSACTION LOCK
+    // =========================================================
+    function initFirebase() {
+      if (!config.firebaseUrl || !config.roomId) return;
+      try {
+        if (!firebase.apps.length) {
+          firebase.initializeApp({ databaseURL: config.firebaseUrl });
+        }
+        const db = firebase.database();
+        dbRef = db.ref("rooms/" + config.roomId.replace(/[^a-zA-Z0-9_-]/g, "_"));
+
+        dbRef.child("cards").on("value", (snapshot) => {
+          const val = snapshot.val();
+          if (!val) return;
+          isRemoteUpdate = true;
+          cards = Array.isArray(val) ? val : Object.values(val);
+          normalizeOriginalIndices();
+          localStorage.setItem(STORAGE_KEY_CARDS, JSON.stringify(cards));
+          render();
+          isRemoteUpdate = false;
+        });
+
+        showToast("Connected to Firebase Sync", "success");
+      } catch (err) {
+        console.error(err);
+        showToast("Firebase connection error", "error");
+      }
+    }
+
+    function saveAndSync() {
+      localStorage.setItem(STORAGE_KEY_CARDS, JSON.stringify(cards));
+      if (dbRef && !isRemoteUpdate) {
+        dbRef.child("cards").set(cards).catch(err => console.error("Sync error:", err));
+      }
+    }
+
+    // Unified Notification: Priority 60s alert, single push across all browsers
+    function triggerUnifiedNotification(card, remainingSecs) {
+      const secsLabel = Math.max(1, Math.ceil(remainingSecs));
+      const message = `${card.name}: Sắp đến giờ! (Còn ${secsLabel} giây)`;
+
+      if (dbRef) {
+        const cardIndex = cards.findIndex(c => c.id === card.id);
+        if (cardIndex === -1) return;
+        const cardNodeRef = dbRef.child(`cards/${cardIndex}`);
+
+        cardNodeRef.transaction((currentData) => {
+          if (!currentData) return currentData;
+          if (currentData.warned60s) return; // Abort if another browser already claimed it
+          currentData.warned60s = true;
+          currentData.warnedDone = true;
+          return currentData;
+        }, (error, committed) => {
+          if (!error && committed) {
+            sendTelegramMessage(message);
+            showBrowserNotification(message);
+          }
+        });
+      } else {
+        // Offline / Local-only fallback
+        card.warned60s = true;
+        card.warnedDone = true;
+        saveAndSync();
+        sendTelegramMessage(message);
+        showBrowserNotification(message);
+      }
+    }
+
+    async function sendTelegramMessage(text) {
+      if (!config.tgToken || !config.tgChatId) return;
+      try {
+        const url = `https://api.telegram.org/bot${config.tgToken}/sendMessage`;
+        await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: config.tgChatId,
+            text: text
+          })
+        });
+      } catch (e) {
+        console.error("Telegram Error:", e);
+      }
+    }
+
+    function showBrowserNotification(text) {
+      showToast(text, "warning");
+      if ("Notification" in window) {
+        if (Notification.permission === "granted") {
+          new Notification("Lander Timer", { body: text });
+        } else if (Notification.permission !== "denied") {
+          Notification.requestPermission().then(perm => {
+            if (perm === "granted") new Notification("Lander Timer", { body: text });
+          });
+        }
+      }
+    }
+
+    // =========================================================
+    // REAL-TIME SORTING & TIMER LOOP
+    // =========================================================
+    function getSortedCards(now) {
+      return [...cards].sort((a, b) => {
+        const aExpired = a.target !== null && a.target <= now;
+        const bExpired = b.target !== null && b.target <= now;
+
+        // Expired cards jump to top immediately
+        if (aExpired && !bExpired) return -1;
+        if (!aExpired && bExpired) return 1;
+
+        // If both expired, sort by earliest target first
+        if (aExpired && bExpired) return a.target - b.target;
+
+        // Otherwise return strictly to default originalIndex
+        return (a.originalIndex ?? 0) - (b.originalIndex ?? 0);
+      });
+    }
+
+    function tickLoop() {
+      const now = Date.now();
+      document.getElementById("liveClock").textContent = formatClockTime(now);
+
+      // Check notifications
+      cards.forEach(card => {
+        if (!card.target) return;
+        const diffMs = card.target - now;
+        const diffSecs = diffMs / 1000;
+
+        // Priority 60s alert (single notification per cycle)
+        if (diffSecs <= 60 && diffSecs > -15 && !card.warned60s) {
+          card.warned60s = true;
+          card.warnedDone = true;
+          triggerUnifiedNotification(card, diffSecs);
+        }
+      });
+
+      // Check if card order changed (e.g. a card just expired)
+      const sorted = getSortedCards(now);
+      const currentSignature = sorted.map(c => `${c.id}:${c.target !== null && c.target <= now ? 1 : 0}`).join("|");
+
+      if (currentSignature !== lastRenderedOrderSignature) {
+        const activeEl = document.activeElement;
+        const isTyping = activeEl && activeEl.tagName === "INPUT" && activeEl.closest(".boss-card");
+        if (!isTyping) {
+          render();
+          return;
+        }
+      }
+
+      // Fast text-only update for countdowns & timeline
+      updateLiveCountdowns(now);
+      renderTimeline(now);
+    }
+
+    function updateLiveCountdowns(now) {
+      cards.forEach(card => {
+        const remEl = document.getElementById(`rem_${card.id}`);
+        const cardEl = document.getElementById(`card_${card.id}`);
+        if (!remEl || !cardEl) return;
+
+        if (!card.target) {
+          remEl.textContent = "--:--:--";
+          cardEl.classList.remove("expired");
+          cardEl.classList.add("unset");
+          return;
+        }
+
+        cardEl.classList.remove("unset");
+        const diff = card.target - now;
+
+        if (diff <= 0) {
+          remEl.textContent = "00:00:00";
+          cardEl.classList.add("expired");
+        } else {
+          remEl.textContent = formatDuration(diff);
+          cardEl.classList.remove("expired");
+        }
+      });
+    }
+
+    // =========================================================
+    // RENDER CARDS
+    // =========================================================
+    function render() {
+      const now = Date.now();
+      const sorted = getSortedCards(now);
+      lastRenderedOrderSignature = sorted.map(c => `${c.id}:${c.target !== null && c.target <= now ? 1 : 0}`).join("|");
+
+      const container = document.getElementById("cardContainer");
+      container.innerHTML = "";
+
+      sorted.forEach(card => {
+        const isExpired = card.target !== null && card.target <= now;
+        const isUnset = card.target === null;
+        const isExpanded = expandedCardId === card.id;
+
+        const cardEl = document.createElement("div");
+        cardEl.id = `card_${card.id}`;
+        cardEl.className = `boss-card ${isExpired ? "expired" : ""} ${isUnset ? "unset" : ""} ${isExpanded ? "expanded" : ""}`;
+
+        const targetStr = card.target ? formatClockTime(card.target) : "--:--:--";
+        const remStr = isUnset ? "--:--:--" : (isExpired ? "00:00:00" : formatDuration(card.target - now));
+
+        cardEl.innerHTML = `
+          <button class="btn-card-close" title="Remove card" data-action="delete" data-id="${card.id}">x</button>
+          <div class="card-summary" data-action="toggle" data-id="${card.id}">
+            <div class="card-name">${escapeHtml(card.name)}</div>
+            <div class="card-times-row">
+              <span class="card-target">Target: ${targetStr}</span>
+              <span id="rem_${card.id}" class="card-remaining">${remStr}</span>
+            </div>
+          </div>
+          <div class="card-controls">
+            <div class="hms-inputs">
+              <input type="number" min="0" max="99" placeholder="H" id="in_h_${card.id}" />
+              <input type="number" min="0" max="59" placeholder="M" id="in_m_${card.id}" />
+              <input type="number" min="0" max="59" placeholder="S" id="in_s_${card.id}" />
+            </div>
+            <div class="card-action-btns">
+              <button class="primary" data-action="set" data-id="${card.id}">Set</button>
+              <button data-action="wipe" data-id="${card.id}">Wipe</button>
+              <button data-action="rename" data-id="${card.id}">Rename</button>
+            </div>
+          </div>
+        `;
+
+        // Handle card click/tap
+        cardEl.addEventListener("click", (e) => {
+          const actionBtn = e.target.closest("[data-action]");
+          if (e.target.tagName === "INPUT") return;
+
+          if (actionBtn) {
+            const action = actionBtn.getAttribute("data-action");
+            const id = actionBtn.getAttribute("data-id");
+            e.stopPropagation();
+
+            if (action === "toggle") {
+              expandedCardId = (expandedCardId === id) ? null : id;
+              render();
+              if (expandedCardId === id) {
+                const hInput = document.getElementById(`in_h_${id}`);
+                if (hInput) hInput.focus();
+              }
+            } else if (action === "delete") {
+              deleteCard(id);
+            } else if (action === "set") {
+              setCardTimerFromInputs(id);
+            } else if (action === "wipe") {
+              wipeCardTimer(id);
+            } else if (action === "rename") {
+              renameCard(id);
+            }
+          } else {
+            // Clicking empty area of card toggles expansion
+            expandedCardId = (expandedCardId === card.id) ? null : card.id;
+            render();
+          }
+        });
+
+        // Allow Enter key inside inputs to trigger Set
+        cardEl.querySelectorAll("input").forEach(inp => {
+          inp.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              setCardTimerFromInputs(card.id);
+            }
+          });
+        });
+
+        container.appendChild(cardEl);
+      });
+
+      renderTimeline(now);
+    }
+
+    // =========================================================
+    // CARD ACTIONS
+    // =========================================================
+    function setCardTimerFromInputs(id) {
+      const h = parseInt(document.getElementById(`in_h_${id}`)?.value || "0", 10) || 0;
+      const m = parseInt(document.getElementById(`in_m_${id}`)?.value || "0", 10) || 0;
+      const s = parseInt(document.getElementById(`in_s_${id}`)?.value || "0", 10) || 0;
+
+      const totalMs = ((h * 3600) + (m * 60) + s) * 1000;
+      if (totalMs <= 0) {
+        showToast("Enter a valid duration greater than 0", "warning");
+        return;
+      }
+
+      const card = cards.find(c => c.id === id);
+      if (!card) return;
+
+      card.target = Date.now() + totalMs;
+      card.warned60s = false;
+      card.warnedDone = false;
+      expandedCardId = null;
+
+      saveAndSync();
+      render();
+      showToast(`${card.name} set to ${formatClockTime(card.target)}`, "success");
+    }
+
+    function wipeCardTimer(id) {
+      const card = cards.find(c => c.id === id);
+      if (!card) return;
+      card.target = null;
+      card.warned60s = false;
+      card.warnedDone = false;
+      expandedCardId = null;
+
+      saveAndSync();
+      render();
+      showToast(`Wiped ${card.name}`, "info");
+    }
+
+    function renameCard(id) {
+      const card = cards.find(c => c.id === id);
+      if (!card) return;
+      const newName = prompt("Enter new Boss name:", card.name);
+      if (newName && newName.trim()) {
+        card.name = newName.trim();
+        saveAndSync();
+        render();
+      }
+    }
+
+    function deleteCard(id) {
+      const card = cards.find(c => c.id === id);
+      if (!card) return;
+      if (!confirm(`Delete "${card.name}"?`)) return;
+      cards = cards.filter(c => c.id !== id);
+      cards.forEach((c, idx) => c.originalIndex = idx);
+      if (expandedCardId === id) expandedCardId = null;
+      saveAndSync();
+      render();
+    }
+
+    // =========================================================
+    // TIMELINE RENDERING & PEAK DENSITY
+    // =========================================================
+    function renderTimeline(now) {
+      const viewport = document.getElementById("timelineViewport");
+      const nodesLayer = document.getElementById("timelineNodesLayer");
+      const nowMarker = document.getElementById("nowMarker");
+      const peakBar = document.getElementById("peakDensityBar");
+
+      const viewStart = now + timelineOffsetMs;
+      const viewEnd = viewStart + TIMELINE_WINDOW_MS;
+
+      document.getElementById("timelineStartLabel").textContent = formatShortTime(viewStart);
+      document.getElementById("timelineEndLabel").textContent = formatShortTime(viewEnd);
+
+      // Position NOW marker
+      const nowPct = ((now - viewStart) / TIMELINE_WINDOW_MS) * 100;
+      if (nowPct >= 0 && nowPct <= 100) {
+        nowMarker.style.display = "block";
+        nowMarker.style.left = `${nowPct}%`;
+      } else {
+        nowMarker.style.display = "none";
+      }
+
+      // Filter visible bosses (hide overdue > 65 mins)
+      const sixtyFiveMinsMs = 65 * 60 * 1000;
+      const activeNodes = cards
+        .filter(c => c.target !== null && (now - c.target) <= sixtyFiveMinsMs)
+        .sort((a, b) => a.target - b.target);
+
+      nodesLayer.innerHTML = "";
+      const viewportWidth = viewport.clientWidth || 800;
+
+      activeNodes.forEach((card, idx) => {
+        const pct = ((card.target - viewStart) / TIMELINE_WINDOW_MS) * 100;
+        if (pct >= -10 && pct <= 110) {
+          const isOverdue = card.target <= now;
+          const node = document.createElement("div");
+          node.className = `timeline-node ${isOverdue ? "overdue" : ""}`;
+          node.style.left = `${pct}%`;
+          node.innerHTML = `${escapeHtml(card.name)}<span class="node-time">${formatShortTime(card.target)}</span>`;
+          nodesLayer.appendChild(node);
+        }
+
+        // Interval pill between consecutive future/visible nodes
+        if (idx < activeNodes.length - 1) {
+          const nextCard = activeNodes[idx + 1];
+          const midTime = (card.target + nextCard.target) / 2;
+          const midPct = ((midTime - viewStart) / TIMELINE_WINDOW_MS) * 100;
+          const gapPx = ((nextCard.target - card.target) / TIMELINE_WINDOW_MS) * viewportWidth;
+
+          // Auto-hide pill if nodes are too close (< 52px)
+          if (midPct >= 0 && midPct <= 100 && gapPx >= 52) {
+            const gapMs = nextCard.target - card.target;
+            const gapMins = Math.round(gapMs / 60000);
+            const h = Math.floor(gapMins / 60);
+            const m = gapMins % 60;
+            const gapLabel = h > 0 ? `${h}h${m > 0 ? m + "m" : ""}` : `${m}m`;
+
+            const pill = document.createElement("div");
+            pill.className = "interval-pill";
+            pill.style.left = `${midPct}%`;
+            pill.textContent = gapLabel;
+            nodesLayer.appendChild(pill);
+          }
+        }
+      });
+
+      // 4-tier Peak Density Graph (24 buckets of 15 mins across 6h window)
+      const buckets = 24;
+      const bucketMs = TIMELINE_WINDOW_MS / buckets;
+      let peakHtml = "";
+
+      for (let i = 0; i < buckets; i++) {
+        const bStart = viewStart + i * bucketMs;
+        const bEnd = bStart + bucketMs;
+        const count = activeNodes.filter(c => c.target >= bStart && c.target < bEnd).length;
+
+        let color = "transparent";
+        if (count === 1) color = "#38bdf8";
+        else if (count === 2) color = "#22c55e";
+        else if (count === 3) color = "#f59e0b";
+        else if (count >= 4) color = "#ef4444";
+
+        peakHtml += `<div class="peak-segment" style="flex:1; background:${color};"></div>`;
+      }
+      peakBar.innerHTML = peakHtml;
+    }
+
+    // =========================================================
+    // AI CLIPBOARD OCR (v7.18 EXACT API LATENCY SUBTRACTION)
+    // =========================================================
+    const AI_PROMPT = `Extract all Raidboss names and their remaining respawn countdown timers from this screenshot.
+Return ONLY a valid JSON array with objects having keys: "name" (string), "hours" (number), "minutes" (number), "seconds" (number).
+If a boss has no timer or is already alive/spawned, omit it or set hours/minutes/seconds to 0.
+Example: [{"name": "Fafurion", "hours": 1, "minutes": 42, "seconds": 15}]`;
+
+    async function handleImageBlob(blob) {
+      if (!config.geminiKey) {
+        showToast("Please configure Gemini API Key in Settings first", "warning");
+        document.getElementById("configPanel").classList.add("open");
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64Data = reader.result.split(",")[1];
+        await parseAiDataAndSync(base64Data, blob.type || "image/png");
+      };
+      reader.readAsDataURL(blob);
+    }
+
+    async function parseAiDataAndSync(base64Image, mimeType) {
+      const apiStartTime = Date.now();
+      showToast("Analyzing clipboard image via Gemini 3.1 Flash Lite...", "info");
+
+      try {
+        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${encodeURIComponent(config.geminiKey)}`;
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{
+              parts: [
+                { text: AI_PROMPT },
+                { inline_data: { mime_type: mimeType, data: base64Image } }
+              ]
+            }]
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        const apiEndTime = Date.now();
+
+        // Exact API waiting delta
+        const apiLatencyMs = apiEndTime - apiStartTime;
+        const apiLatencySecs = (apiLatencyMs / 1000).toFixed(1);
+
+        const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
+        const cleanedJson = rawText.replace(/```json|```/gi, "").trim();
+        const parsedList = JSON.parse(cleanedJson);
+
+        let updatedCount = 0;
+
+        parsedList.forEach(item => {
+          if (!item || !item.name) return;
+          const h = Number(item.hours) || 0;
+          const m = Number(item.minutes) || 0;
+          const s = Number(item.seconds) || 0;
+
+          if (h === 0 && m === 0 && s === 0) return;
+
+          const matchedCard = cards.find(c =>
+            c.name.trim().toLowerCase() === item.name.trim().toLowerCase()
+          );
+
+          if (matchedCard) {
+            // Exact remaining time from AI API minus API waiting latency
+            const rawRemainingMs = ((h * 3600) + (m * 60) + s) * 1000;
+            const adjustedRemainingMs = Math.max(0, rawRemainingMs - apiLatencyMs);
+
+            matchedCard.target = apiEndTime + adjustedRemainingMs;
+            matchedCard.warned60s = false;
+            matchedCard.warnedDone = false;
+            updatedCount++;
+          }
+        });
+
+        if (updatedCount > 0) {
+          saveAndSync();
+          render();
+          showToast(`Updated ${updatedCount} Boss(es) (-${apiLatencySecs}s API delay)`, "success");
+        } else {
+          showToast(`No matching Boss timers found (${apiLatencySecs}s API delay)`, "warning");
+        }
+      } catch (err) {
+        console.error("AI Parse Error:", err);
+        showToast("Failed to parse image from AI API", "error");
+      }
+    }
+
+    // =========================================================
+    // UI EVENTS & HELPERS
+    // =========================================================
+    function bindEvents() {
+      // Global Ctrl+V Paste listener
+      window.addEventListener("paste", (e) => {
+        const items = e.clipboardData?.items;
+        if (!items) return;
+        for (let i = 0; i < items.length; i++) {
+          if (items[i].type.indexOf("image") !== -1) {
+            const blob = items[i].getAsFile();
+            if (blob) handleImageBlob(blob);
+            break;
+          }
+        }
+      });
+
+      // Manual Paste Button
+      document.getElementById("btnPasteClipboard").addEventListener("click", async () => {
+        try {
+          const clipboardItems = await navigator.clipboard.read();
+          for (const item of clipboardItems) {
+            const imageType = item.types.find(t => t.startsWith("image/"));
+            if (imageType) {
+              const blob = await item.getType(imageType);
+              await handleImageBlob(blob);
+              return;
+            }
+          }
+          showToast("No image found in clipboard", "warning");
+        } catch (err) {
+          showToast("Press Ctrl + V directly on the page to paste image", "info");
+        }
+      });
+
+      // Add Card
+      document.getElementById("btnAddCard").addEventListener("click", () => {
+        const name = prompt("Enter Boss name:");
+        if (!name || !name.trim()) return;
+        cards.push({
+          id: "boss_" + Date.now(),
+          name: name.trim(),
+          target: null,
+          originalIndex: cards.length,
+          warned60s: false,
+          warnedDone: false
+        });
+        saveAndSync();
+        render();
+        showToast(`Added ${name.trim()}`, "success");
+      });
+
+      // Wipe All
+      document.getElementById("btnWipeAll").addEventListener("click", () => {
+        if (!confirm("Wipe all active timers?")) return;
+        cards.forEach(c => {
+          c.target = null;
+          c.warned60s = false;
+          c.warnedDone = false;
+        });
+        expandedCardId = null;
+        saveAndSync();
+        render();
+        showToast("All timers wiped", "info");
+      });
+
+      // Toggle Settings
+      document.getElementById("btnToggleConfig").addEventListener("click", () => {
+        document.getElementById("configPanel").classList.toggle("open");
+      });
+
+      // Save Settings
+      document.getElementById("btnSaveConfig").addEventListener("click", () => {
+        config.geminiKey = document.getElementById("cfgGeminiKey").value.trim();
+        config.firebaseUrl = document.getElementById("cfgFirebaseUrl").value.trim();
+        config.roomId = document.getElementById("cfgRoomId").value.trim() || "lander-default";
+        config.tgToken = document.getElementById("cfgTgToken").value.trim();
+        config.tgChatId = document.getElementById("cfgTgChatId").value.trim();
+
+        localStorage.setItem(STORAGE_KEY_CFG, JSON.stringify(config));
+        document.getElementById("configPanel").classList.remove("open");
+        showToast("Settings saved", "success");
+        initFirebase();
+      });
+
+      // Theme Toggle
+      document.getElementById("btnThemeToggle").addEventListener("click", () => {
+        const isLight = document.body.classList.toggle("light-mode");
+        localStorage.setItem(STORAGE_KEY_THEME, isLight ? "light" : "dark");
+        document.getElementById("btnThemeToggle").textContent = isLight ? "Dark Mode" : "Light Mode";
+      });
+
+      // NOW Jump Button
+      document.getElementById("btnNowJump").addEventListener("click", () => {
+        timelineOffsetMs = -30 * 60 * 1000;
+        renderTimeline(Date.now());
+      });
+
+      // Timeline Drag-to-Pan
+      const viewport = document.getElementById("timelineViewport");
+      viewport.addEventListener("mousedown", (e) => {
+        isDraggingTimeline = true;
+        dragStartX = e.clientX;
+        dragStartOffsetMs = timelineOffsetMs;
+      });
+
+      window.addEventListener("mousemove", (e) => {
+        if (!isDraggingTimeline) return;
+        const dx = e.clientX - dragStartX;
+        const width = viewport.clientWidth || 800;
+        const deltaMs = -(dx / width) * TIMELINE_WINDOW_MS;
+        timelineOffsetMs = dragStartOffsetMs + deltaMs;
+        renderTimeline(Date.now());
+      });
+
+      window.addEventListener("mouseup", () => {
+        isDraggingTimeline = false;
+      });
+
+      // Touch support for Timeline Drag
+      viewport.addEventListener("touchstart", (e) => {
+        if (e.touches.length === 1) {
+          isDraggingTimeline = true;
+          dragStartX = e.touches[0].clientX;
+          dragStartOffsetMs = timelineOffsetMs;
+        }
+      }, { passive: true });
+
+      viewport.addEventListener("touchmove", (e) => {
+        if (!isDraggingTimeline || e.touches.length !== 1) return;
+        const dx = e.touches[0].clientX - dragStartX;
+        const width = viewport.clientWidth || 800;
+        const deltaMs = -(dx / width) * TIMELINE_WINDOW_MS;
+        timelineOffsetMs = dragStartOffsetMs + deltaMs;
+        renderTimeline(Date.now());
+      }, { passive: true });
+
+      viewport.addEventListener("touchend", () => {
+        isDraggingTimeline = false;
+      });
+    }
+
+    function showToast(message, type = "info") {
+      const container = document.getElementById("toastContainer");
+      const item = document.createElement("div");
+      item.className = `toast-item ${type}`;
+      item.textContent = message;
+      container.prepend(item);
+
+      // Keep max 30 items
+      while (container.children.length > 30) {
+        container.removeChild(container.lastChild);
+      }
+
+      setTimeout(() => {
+        if (item.parentNode) item.remove();
+      }, 6500);
+    }
+
+    function formatClockTime(ts) {
+      const d = new Date(ts);
+      const hh = String(d.getHours()).padStart(2, "0");
+      const mm = String(d.getMinutes()).padStart(2, "0");
+      const ss = String(d.getSeconds()).padStart(2, "0");
+      return `${hh}:${mm}:${ss}`;
+    }
+
+    function formatShortTime(ts) {
+      const d = new Date(ts);
+      const hh = String(d.getHours()).padStart(2, "0");
+      const mm = String(d.getMinutes()).padStart(2, "0");
+      return `${hh}:${mm}`;
+    }
+
+    function formatDuration(ms) {
+      const totalSecs = Math.max(0, Math.floor(ms / 1000));
+      const h = Math.floor(totalSecs / 3600);
+      const m = Math.floor((totalSecs % 3600) / 60);
+      const s = totalSecs % 60;
+      return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    // Start Application
+    init();
+  </script>
+</body>
+</html>
