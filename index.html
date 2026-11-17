@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lander Timer Web v7.16 (Gemini 3.1 Flash Lite & Dynamic Latency Offset)</title>
+  <title>Lander Timer Web v7.17 (Minimalist Expandable Cards & Clean Buttons)</title>
   <style>
     :root {
       --bg-color: #f4f6f9;
@@ -302,46 +302,60 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      border-top: 1px dashed var(--border-color);
-      padding-top: 4px;
-      pointer-events: auto;
+      margin-top: 6px;
     }
     .btn-now-jump {
       background: #10b981;
       color: white;
       padding: 2px 8px;
-      font-size: 0.75em;
+      font-size: 0.72em;
       border-radius: 4px;
-      cursor: pointer;
       font-weight: bold;
-      border: none;
     }
-    .btn-now-jump:hover { background: #059669; }
+    .btn-now-jump:hover {
+      background: #059669;
+    }
 
-    .grid-container { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 1030px; }
+    .grid-container { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 1030px; }
     .card { 
-      background: var(--card-bg); border-radius: 8px; padding: 12px 20px; border: 1px solid var(--border-color); 
-      box-shadow: 0 2px 4px rgba(0,0,0,0.04); display: flex; align-items: center; justify-content: space-between; gap: 15px; flex-wrap: wrap;
+      position: relative;
+      background: var(--card-bg); border-radius: 10px; padding: 14px 20px; border: 1px solid var(--border-color); 
+      box-shadow: 0 2px 4px rgba(0,0,0,0.04); display: flex; flex-direction: column; gap: 10px;
+      cursor: pointer; transition: border-color 0.2s ease, box-shadow 0.2s ease;
     }
-    
-    .card-left { display: flex; align-items: center; gap: 15px; min-width: 180px; }
-    .card-title { font-size: 1.1em; font-weight: bold; font-style: italic; color: var(--text-color); }
+    .card:hover { border-color: #94a3b8; box-shadow: 0 4px 10px rgba(0,0,0,0.06); }
+    .card.expanded { border-color: #3b82f6; }
 
-    .card-center { flex-grow: 1; display: flex; flex-direction: column; gap: 4px; min-width: 220px; }
-    .time-info-row { display: flex; justify-content: space-between; font-size: 0.9em; font-weight: 500; }
-    .time-target { color: var(--subtext-color); font-style: italic; }
-    .time-remaining { font-weight: bold; color: var(--text-color); }
-    
-    .gauge-container { width: 100%; background: var(--gauge-bg); height: 6px; border-radius: 3px; overflow: hidden; }
-    .gauge-bar { height: 100%; width: 0%; background: #3b82f6; transition: width 0.2s linear, background-color 0.3s ease; }
+    .card-main-row {
+      display: flex; align-items: center; justify-content: space-between; gap: 15px; width: 100%; padding-right: 28px; flex-wrap: wrap;
+    }
+    .card-title { font-size: 1.1em; font-weight: bold; font-style: italic; color: var(--text-color); min-width: 150px; }
+    .card-times { display: flex; align-items: center; gap: 24px; flex-grow: 1; justify-content: flex-end; flex-wrap: wrap; }
+    .time-target { color: var(--subtext-color); font-style: italic; font-size: 0.92em; }
+    .time-remaining { font-weight: bold; color: var(--text-color); font-size: 0.98em; min-width: 145px; text-align: right; }
 
-    .card-right { display: flex; align-items: center; gap: 10px; }
-    .input-group { display: flex; align-items: center; gap: 4px; color: var(--subtext-color); font-size: 0.9em; }
+    .btn-card-close {
+      position: absolute; top: 10px; right: 10px;
+      background: transparent; color: var(--subtext-color); border: none;
+      width: 24px; height: 24px; border-radius: 6px; font-size: 1em; font-weight: bold;
+      display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0;
+    }
+    .btn-card-close:hover { background: #fee2e2; color: #dc2626; }
+    body.dark-theme .btn-card-close:hover { background: #450a0a; color: #f87171; }
+
+    .card-expand-panel {
+      display: none; align-items: center; justify-content: space-between; gap: 12px;
+      padding-top: 10px; border-top: 1px dashed var(--border-color); flex-wrap: wrap;
+      cursor: default;
+    }
+    .card.expanded .card-expand-panel { display: flex; }
+
+    .input-group { display: flex; align-items: center; gap: 6px; color: var(--subtext-color); font-size: 0.9em; font-weight: 500; }
     .input-group input { 
-      width: 40px; text-align: center; padding: 4px; border: 1px solid var(--border-color); 
-      background: var(--input-bg); color: var(--input-text); border-radius: 4px; 
+      width: 48px; text-align: center; padding: 5px; border: 1px solid var(--border-color); 
+      background: var(--input-bg); color: var(--input-text); border-radius: 6px; font-weight: bold;
     }
-    .actions { display: flex; gap: 4px; }
+    .actions { display: flex; gap: 6px; align-items: center; }
     
     #loadingOcr { display: none; font-size: 0.85em; color: #6f42c1; font-weight: bold; margin-left: 5px; }
   </style>
@@ -351,22 +365,22 @@
   <div class="sticky-header">
     <div class="top-bar-toast">
       <div class="security-box" id="securityBox">
-        <span>🔒 Admin ID:</span>
+        <span>Admin ID:</span>
         <input type="password" id="adminIdInput" placeholder="Nhập ID..." oninput="checkAuthMaster(this.value)">
         <span id="authStatusText" style="font-weight: bold; font-size: 0.8em; color: #856404;">(Chế độ Xem)</span>
       </div>
 
-      <button class="btn-add locked-action" onclick="addCard()">+ Add Card</button>
-      <button class="btn-wipe locked-action" onclick="wipeAll()">🧹 Wipe All</button>
-      <button class="btn-peak" onclick="findPeakBossTime()" title="Tìm khung giờ có nhiều boss spawn nhất trong 9h tới">🎯 Tìm giờ Boss đông nhất</button>
-      <button class="btn-theme" onclick="toggleTheme()" id="themeBtnToggle">🌙 Dark Mode</button>
-      <button class="btn-notify" onclick="requestWebNotificationPermission()" id="notifyBtnToggle">🔔 Bật Thông Báo</button>
+      <button class="btn-add locked-action" onclick="addCard()">Add Card</button>
+      <button class="btn-wipe locked-action" onclick="wipeAll()">Wipe All</button>
+      <button class="btn-peak" onclick="findPeakBossTime()" title="Tìm khung giờ có nhiều boss spawn nhất trong 9h tới">Tìm giờ Boss đông nhất</button>
+      <button class="btn-theme" onclick="toggleTheme()" id="themeBtnToggle">Dark Mode</button>
+      <button class="btn-notify" onclick="requestWebNotificationPermission()" id="notifyBtnToggle">Bật Thông Báo</button>
       
       <label class="btn-ocr btn-upload locked-action" title="Hoặc nhấn Ctrl + V để dán ảnh trực tiếp từ Clipboard">
-        🤖 AI Scan Image (Hoặc Ctrl+V)
+        AI Scan Image (Ctrl+V)
         <input type="file" id="ocrFileinput" accept="image/*" style="display: none;" onchange="handleFileSelected(event)">
       </label>
-      <span id="loadingOcr">⏳ AI đang đọc ảnh & tự động cập nhật...</span>
+      <span id="loadingOcr">AI đang đọc ảnh & tự động cập nhật...</span>
 
       <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-left: auto;">
         <input type="text" id="geminiKey" placeholder="Gemini API Key" class="locked-action" style="width: 130px; padding: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--input-text); border-radius: 4px;" onfocus="this.select()" oninput="saveSettingsToFirebase()">
@@ -377,7 +391,7 @@
 
     <div class="timeline-float-menu" id="timelineFloatMenu">
       <div class="timeline-float-header" id="timelineFloatHeader">
-        <span>📈 TIMELINE RAIDBOSS</span>
+        <span>TIMELINE RAIDBOSS</span>
         <div class="timeline-input-group" onclick="event.stopPropagation()">
           <span>Khoảng:</span>
           <input type="number" id="timelineSpanInput" value="2" min="0.5" max="9" step="0.5" onchange="saveTimelineSpan(this.value)">
@@ -399,8 +413,8 @@
 
   <div class="peak-toast-container" id="peakToastContainer">
     <div class="peak-toast-header">
-      <span>🎯 PHÂN TÍCH KHUNG GIỜ ĐÔNG BOSS NHẤT (9 GIỜ TỚI)</span>
-      <button class="toast-btn-ctrl" onclick="document.getElementById('peakToastContainer').style.display='none'" title="Đóng">✖</button>
+      <span>PHÂN TÍCH KHUNG GIỜ ĐÔNG BOSS NHẤT (9 GIỜ TỚI)</span>
+      <button class="toast-btn-ctrl" onclick="document.getElementById('peakToastContainer').style.display='none'" title="Đóng">x</button>
     </div>
 
     <div class="peak-summary-grid" id="peakSummaryContent"></div>
@@ -416,7 +430,7 @@
 
   <div class="toast-preview-container" id="toastPreviewContainer">
     <div class="toast-header" id="toastHeader">
-      <span id="toastTitle">🔔 SẮP ĐẾN GIỜ (3)</span>
+      <span id="toastTitle">SẮP ĐẾN GIỜ (3)</span>
       <div class="toast-controls" onclick="event.stopPropagation()">
         <button class="toast-btn-ctrl" onclick="adjustToastLimit(-1)" title="Giảm số lượng">-</button>
         <span id="toastLimitDisplay" style="min-width: 16px; text-align: center;">3</span>
@@ -453,7 +467,8 @@
   let isRemoteUpdating = false;
   let currentOcrImageBlob = null;
   let manualTimelineOffsetMs = 0;
-  let lastRenderedOrderHash = ""; // Lưu trữ trạng thái thứ tự hiển thị để tự động re-render khi cần
+  let lastRenderedOrderHash = "";
+  let expandedCardIds = new Set(); // Lưu trạng thái các card đang được mở rộng
 
   const savedTheme = localStorage.getItem('lander_theme') || 'light';
   if (savedTheme === 'dark') {
@@ -464,12 +479,12 @@
     document.body.classList.toggle('dark-theme');
     const isDark = document.body.classList.contains('dark-theme');
     localStorage.setItem('lander_theme', isDark ? 'dark' : 'light');
-    document.getElementById('themeBtnToggle').innerText = isDark ? '☀️ Light Mode' : '🌙 Dark Mode';
+    document.getElementById('themeBtnToggle').innerText = isDark ? 'Light Mode' : 'Dark Mode';
   };
 
   const themeBtn = document.getElementById('themeBtnToggle');
   if (themeBtn) {
-    themeBtn.innerText = document.body.classList.contains('dark-theme') ? '☀️ Light Mode' : '🌙 Dark Mode';
+    themeBtn.innerText = document.body.classList.contains('dark-theme') ? 'Light Mode' : 'Dark Mode';
   }
 
   window.requestWebNotificationPermission = function() {
@@ -491,7 +506,7 @@
     const notifyBtn = document.getElementById('notifyBtnToggle');
     if (!notifyBtn) return;
     if ("Notification" in window && Notification.permission === "granted") {
-      notifyBtn.innerText = "🔔 Đã Bật Thông Báo";
+      notifyBtn.innerText = "Đã Bật Thông Báo";
       notifyBtn.style.background = "#10b981";
     }
   }
@@ -660,7 +675,7 @@
     if (limitCount < 1) limitCount = 1;
     if (limitCount > 30) limitCount = 30;
     document.getElementById('toastLimitDisplay').innerText = limitCount;
-    document.getElementById('toastTitle').innerText = `🔔 SẮP ĐẾN GIỜ (${limitCount})`;
+    document.getElementById('toastTitle').innerText = `SẮP ĐẾN GIỜ (${limitCount})`;
     checkAndUpdateTimers();
   };
 
@@ -848,9 +863,18 @@
     render();
   }
 
+  window.toggleCardExpand = function(cardKey, cardEl) {
+    if (expandedCardIds.has(cardKey)) {
+      expandedCardIds.delete(cardKey);
+      cardEl.classList.remove('expanded');
+    } else {
+      expandedCardIds.add(cardKey);
+      cardEl.classList.add('expanded');
+    }
+  };
+
   window.render = function() {
     const container = document.getElementById('cardContainer');
-    // Lưu lại thông tin input đang focus (nếu có) để tránh làm gián đoạn việc nhập liệu
     const activeEl = document.activeElement;
     const activeId = activeEl && activeEl.id ? activeEl.id : null;
     const activeSelectionStart = activeEl && activeEl.selectionStart !== undefined ? activeEl.selectionStart : null;
@@ -859,15 +883,12 @@
     const lockClass = window.isAuthorized ? '' : 'locked-element';
 
     const now = Date.now();
-    // Tạo danh sách bản sao kèm index gốc để xử lý tự động đẩy card quá giờ lên trên ngay lập tức
     let indexedCards = window.cards.map((c, originalIndex) => ({ card: c, originalIndex }));
 
     indexedCards.sort((a, b) => {
       const aCard = a.card;
       const bCard = b.card;
 
-      // Chỉ cần card đang có target và target <= now (đã hết giờ) là đẩy ngay lên đầu danh sách
-      // Khi được Set giờ mới (target > now) hoặc Wipe (target = null), điều kiện này false -> tự động về đúng originalIndex
       const aIsExpired = Boolean(aCard.target && aCard.target <= now);
       const bIsExpired = Boolean(bCard.target && bCard.target <= now);
 
@@ -877,48 +898,45 @@
       return a.originalIndex - b.originalIndex;
     });
 
-    // Cập nhật chuỗi nhận diện thứ tự hiện tại
     lastRenderedOrderHash = indexedCards.map(item => item.card.id || item.originalIndex).join(',');
 
     indexedCards.forEach((item) => {
       const c = item.card;
       const idx = item.originalIndex;
+      const cardKey = String(c.id || idx);
+      const isExpanded = expandedCardIds.has(cardKey);
 
       const cardEl = document.createElement('div');
-      cardEl.className = 'card';
+      cardEl.className = `card ${isExpanded ? 'expanded' : ''}`;
+      cardEl.onclick = () => toggleCardExpand(cardKey, cardEl);
+
       cardEl.innerHTML = `
-        <div class="card-left">
-          <span class="card-title">${c.name}</span>
-          <button class="btn-edit ${lockClass}" onclick="renameCard(${idx})">✎</button>
-        </div>
+        <button class="btn-card-close ${lockClass}" onclick="event.stopPropagation(); removeCard(${idx})" title="Close">x</button>
         
-        <div class="card-center">
-          <div class="time-info-row">
+        <div class="card-main-row">
+          <span class="card-title">${c.name}</span>
+          <div class="card-times">
             <span class="time-target" id="target-${idx}">Target: --</span>
             <span class="time-remaining" id="remain-${idx}">Remaining: --</span>
           </div>
-          <div class="gauge-container">
-            <div class="gauge-bar" id="gauge-${idx}"></div>
-          </div>
         </div>
 
-        <div class="card-right">
+        <div class="card-expand-panel" onclick="event.stopPropagation()">
           <div class="input-group">
             H: <input type="number" id="h-${idx}" value="${c.h}" class="${lockClass}" ${window.isAuthorized ? 'onfocus="this.select()"' : 'disabled'} oninput="window.cards[${idx}].h=+this.value; saveCardsToFirebase();" onkeydown="if(event.key==='Enter') setAlarm(${idx})">
             M: <input type="number" id="m-${idx}" value="${c.m}" class="${lockClass}" ${window.isAuthorized ? 'onfocus="this.select()"' : 'disabled'} oninput="window.cards[${idx}].m=+this.value; saveCardsToFirebase();" onkeydown="if(event.key==='Enter') setAlarm(${idx})">
             S: <input type="number" id="s-${idx}" value="${c.s}" class="${lockClass}" ${window.isAuthorized ? 'onfocus="this.select()"' : 'disabled'} oninput="window.cards[${idx}].s=+this.value; saveCardsToFirebase();" onkeydown="if(event.key==='Enter') setAlarm(${idx})">
           </div>
           <div class="actions">
-            <button class="btn-set ${lockClass}" onclick="setAlarm(${idx})">⏰ Set</button>
-            <button class="btn-wipe ${lockClass}" onclick="wipeAlarm(${idx})">🧹 Wipe</button>
-            <button class="btn-close ${lockClass}" onclick="removeCard(${idx})">✖ Close</button>
+            <button class="btn-edit ${lockClass}" style="padding: 6px 10px;" onclick="renameCard(${idx})">Rename</button>
+            <button class="btn-set ${lockClass}" onclick="setAlarm(${idx})">Set</button>
+            <button class="btn-wipe ${lockClass}" onclick="wipeAlarm(${idx})">Wipe</button>
           </div>
         </div>
       `;
       container.appendChild(cardEl);
     });
 
-    // Khôi phục focus nếu người dùng đang gõ
     if (activeId) {
       const restoredEl = document.getElementById(activeId);
       if (restoredEl) {
@@ -1186,7 +1204,6 @@
     const now = Date.now();
     let stateChanged = false;
 
-    // Kiểm tra xem thứ tự các card có cần cập nhật ngay lập tức theo thời gian thực không
     let expectedIndexed = window.cards.map((c, originalIndex) => ({ card: c, originalIndex }));
     expectedIndexed.sort((a, b) => {
       const aIsExpired = Boolean(a.card.target && a.card.target <= now);
@@ -1197,7 +1214,6 @@
     });
     const currentExpectedHash = expectedIndexed.map(item => item.card.id || item.originalIndex).join(',');
     
-    // Chỉ tự động render lại khi thứ tự thay đổi và người dùng không đang nhập số vào ô input
     const isTypingInput = document.activeElement && document.activeElement.tagName === 'INPUT';
     if (currentExpectedHash !== lastRenderedOrderHash && !isTypingInput) {
       render();
@@ -1206,31 +1222,11 @@
     window.cards.forEach((c, idx) => {
       const el = document.getElementById(`remain-${idx}`);
       const targetEl = document.getElementById(`target-${idx}`);
-      const gaugeEl = document.getElementById(`gauge-${idx}`);
       if (!el) return;
 
       if (c.target) {
         if (targetEl) targetEl.innerText = `Target: ${new Date(c.target).toLocaleTimeString()}`;
         const remainSecs = Math.ceil((c.target - now) / 1000);
-        
-        const totalDuration = c.delay || Math.max(remainSecs, 1);
-        const startTime = c.startTime || (c.target - totalDuration * 1000);
-        const elapsed = (now - startTime) / 1000;
-        
-        let percent = ((totalDuration - elapsed) / totalDuration) * 100;
-        if (percent < 0) percent = 0;
-        if (percent > 100) percent = 100;
-
-        if (gaugeEl) {
-          gaugeEl.style.width = `${percent}%`;
-          if (percent <= 15) {
-            gaugeEl.style.backgroundColor = '#ef4444';
-          } else if (percent <= 40) {
-            gaugeEl.style.backgroundColor = '#f59e0b';
-          } else {
-            gaugeEl.style.backgroundColor = '#3b82f6';
-          }
-        }
 
         if (remainSecs > 0) {
           const h = String(Math.floor(remainSecs / 3600)).padStart(2, '0');
@@ -1243,25 +1239,23 @@
             c.warned60s = true;
             stateChanged = true;
             if (window.isAuthorized) sendTelegram(`${c.name}: Sắp đến giờ! (Còn ${remainSecs} giây)`);
-            triggerWebNotification("⚠️ RAIDBOSS SẮP SPAWN!", `${c.name} sắp đến giờ xuất hiện trong ${remainSecs} giây!`);
+            triggerWebNotification("RAIDBOSS SẮP SPAWN!", `${c.name} sắp đến giờ xuất hiện trong ${remainSecs} giây!`);
           }
         } else {
           el.innerText = "Remaining: Done!";
           el.style.color = 'green';
-          if (gaugeEl) gaugeEl.style.width = '0%';
 
           if (!c.warned60s) {
             c.warned60s = true;
             stateChanged = true;
             if (window.isAuthorized) sendTelegram(`${c.name}: Đã đến thời điểm hẹn!`);
-            triggerWebNotification("⚔️ RAIDBOSS ĐÃ SPAWN!", `${c.name} đã đến thời điểm hẹn!`);
+            triggerWebNotification("RAIDBOSS ĐÃ SPAWN!", `${c.name} đã đến thời điểm hẹn!`);
           }
         }
       } else {
         if (targetEl) targetEl.innerText = `Target: --`;
         el.innerText = `Remaining: --`;
         el.style.color = 'var(--text-color)';
-        if (gaugeEl) gaugeEl.style.width = '0%';
       }
     });
 
