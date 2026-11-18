@@ -1,1510 +1,1495 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lander Timer Web v7.17 (Minimalist Expandable Cards & Clean Buttons)</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lander Timer Web v7.17</title>
+  <!-- Firebase SDK v9 Compat -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
   <style>
     :root {
-      --bg-color: #f4f6f9;
-      --card-bg: #ffffff;
-      --text-color: #1e293b;
-      --subtext-color: #555555;
-      --border-color: #cbd5e1;
-      --header-bg: #f4f6f9;
-      --toast-bg: rgba(255, 255, 255, 0.98);
-      --gauge-bg: #e2e8f0;
-      --input-bg: #ffffff;
-      --input-text: #000000;
-    }
-
-    body.dark-theme {
       --bg-color: #0f172a;
-      --card-bg: #1e293b;
-      --text-color: #f8fafc;
-      --subtext-color: #94a3b8;
+      --surface-color: #1e293b;
+      --surface-hover: #273549;
       --border-color: #334155;
-      --header-bg: #0f172a;
-      --toast-bg: rgba(30, 41, 59, 0.98);
-      --gauge-bg: #334155;
-      --input-bg: #0f172a;
-      --input-text: #ffffff;
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --accent-color: #38bdf8;
+      --accent-hover: #0284c7;
+      --danger-color: #ef4444;
+      --danger-hover: #dc2626;
+      --success-color: #22c55e;
+      --warning-color: #f59e0b;
+      --expired-bg: rgba(239, 68, 68, 0.14);
+      --expired-border: #ef4444;
+      --shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
     }
 
-    * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; transition: background-color 0.2s ease, color 0.2s ease; }
-    
-    body { 
-      background-color: var(--bg-color); 
-      color: var(--text-color); 
-      margin: 0; 
-      padding: 15px; 
-      display: flex;
-      flex-direction: column;
-      gap: 15px;
-      align-items: center;
-      padding-bottom: 80px; 
+    body.light-mode {
+      --bg-color: #f1f5f9;
+      --surface-color: #ffffff;
+      --surface-hover: #f8fafc;
+      --border-color: #cbd5e1;
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --accent-color: #0284c7;
+      --accent-hover: #0369a1;
+      --danger-color: #dc2626;
+      --danger-hover: #b91c1c;
+      --success-color: #16a34a;
+      --warning-color: #d97706;
+      --expired-bg: rgba(220, 38, 38, 0.08);
+      --expired-border: #dc2626;
+      --shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
     }
-    
-    .sticky-header {
-      position: relative;
-      width: 100%;
-      max-width: 1030px;
-      background: var(--header-bg);
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-primary);
+      padding: 16px 20px 60px;
+      transition: background-color 0.2s, color 0.2s;
+      user-select: none;
+    }
+
+    /* Header & Toolbar */
+    .top-bar {
       display: flex;
-      flex-direction: column;
+      flex-wrap: wrap;
       align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .brand-section {
+      display: flex;
+      align-items: baseline;
       gap: 10px;
-      z-index: 900;
     }
 
-    .top-bar-toast { 
-      display: flex; 
-      gap: 10px; 
-      align-items: center; 
-      background: var(--toast-bg); 
-      padding: 10px 16px; 
-      border-radius: 12px; 
-      box-shadow: 0 4px 15px rgba(0,0,0,0.08); 
-      flex-wrap: wrap;
-      width: 100%;
-      border: 1px solid var(--border-color);
-    }
-    
-    button, .btn-upload { padding: 8px 14px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.9em; display: inline-flex; align-items: center; justify-content: center; }
-    .btn-add { background: #007bff; color: white; }
-    .btn-wipe { background: #6c757d; color: white; }
-    .btn-ocr { background: #6f42c1; color: white; }
-    .btn-set { background: #28a745; color: white; }
-    .btn-close { background: #dc3545; color: white; }
-    .btn-edit { background: var(--input-bg); color: var(--text-color); border: 1px solid var(--border-color); padding: 2px 6px; font-size: 0.85em; }
-    .btn-peak { background: #d97706; color: white; }
-    .btn-theme { background: #475569; color: white; }
-    .btn-notify { background: #0284c7; color: white; }
-    
-    .locked-element { opacity: 0.4; pointer-events: none !important; cursor: not-allowed !important; }
-
-    .security-box {
-      display: flex; align-items: center; gap: 5px; background: #fff3cd; border: 1px solid #ffeeba;
-      padding: 5px 10px; border-radius: 6px; font-size: 0.85em; color: #856404;
-    }
-    body.dark-theme .security-box { background: #423202; border-color: #634b03; color: #ffe69c; }
-    .security-box.unlocked { background: #d4edda; border-color: #c3e6cb; color: #155724; }
-    body.dark-theme .security-box.unlocked { background: #0f3818; border-color: #1b5e2b; color: #75b798; }
-    .security-box input {
-      border: 1px solid var(--border-color); background: var(--input-bg); color: var(--input-text);
-      border-radius: 4px; padding: 4px 8px; width: 110px; text-align: center; font-weight: bold;
+    .brand-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
     }
 
-    .peak-toast-container {
-      position: relative;
-      width: 100%;
-      max-width: 1030px;
-      background: var(--toast-bg);
-      border: 2px solid #d97706;
-      box-shadow: 0 10px 30px rgba(217, 119, 6, 0.25);
-      padding: 16px 20px;
-      border-radius: 14px;
-      z-index: 950;
-      display: none;
-      flex-direction: column;
-      gap: 14px;
-    }
-    .peak-toast-header {
-      display: flex; justify-content: space-between; align-items: center; font-size: 1em;
-      font-weight: bold; color: #d97706; border-bottom: 2px solid #fde68a; padding-bottom: 8px;
+    .version-badge {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--accent-color);
+      background: rgba(56, 189, 248, 0.12);
+      padding: 2px 8px;
+      border-radius: 999px;
     }
 
-    .peak-summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
-    .peak-info-card {
-      background: rgba(217, 119, 6, 0.1); border: 1px solid #fde68a; border-radius: 8px;
-      padding: 10px 14px; display: flex; flex-direction: column; gap: 4px;
-    }
-    .peak-card-title { font-size: 0.8em; font-weight: bold; color: #d97706; text-transform: uppercase; }
-    .peak-card-val { font-size: 1.05em; font-weight: bold; color: var(--text-color); }
-    .peak-card-sub { font-size: 0.78em; color: var(--subtext-color); font-style: italic; }
-
-    .peak-timeline-wrapper {
-      position: relative; width: 100%; height: 210px; background: var(--card-bg);
-      border: 1px solid var(--border-color); border-radius: 10px; padding: 10px; margin-top: 5px; overflow: hidden;
-    }
-    .peak-timeline-line {
-      position: absolute; top: 50%; left: 30px; right: 30px; height: 4px;
-      background: #d97706; transform: translateY(-50%); border-radius: 2px;
-    }
-    .peak-node {
-      position: absolute; transform: translateX(-50%); display: flex;
-      flex-direction: column; align-items: center; z-index: 10; transition: left 0.3s ease;
-    }
-    .peak-node-pin {
-      width: 10px; height: 10px; border-radius: 50%; background: #ffffff;
-      border: 3px solid #d97706; z-index: 12;
+    .clock-display {
+      font-variant-numeric: tabular-nums;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text-secondary);
     }
 
-    .peak-node.level-top-high { bottom: 50%; margin-bottom: 45px; }
-    .peak-node.level-top { bottom: 50%; margin-bottom: 8px; }
-    .peak-node.level-bottom { top: 50%; margin-top: 8px; flex-direction: column-reverse; }
-    .peak-node.level-bottom-low { top: 50%; margin-top: 45px; flex-direction: column-reverse; }
-
-    .peak-node-tag {
-      color: white; font-size: 0.72em; font-weight: bold; padding: 3px 8px;
-      border-radius: 8px; white-space: nowrap; box-shadow: 0 3px 6px rgba(0,0,0,0.2);
-    }
-    .peak-node-time { font-size: 0.68em; font-weight: bold; color: var(--subtext-color); margin: 2px 0; }
-
-    .peak-chip-list {
+    .toolbar-actions {
       display: flex;
-      gap: 8px;
       flex-wrap: wrap;
-      margin-top: 4px;
-      border-top: 1px dashed var(--border-color);
-      padding-top: 10px;
+      align-items: center;
+      gap: 8px;
     }
-    .peak-chip-item {
-      background: var(--card-bg);
+
+    button {
+      background-color: var(--surface-color);
+      color: var(--text-primary);
       border: 1px solid var(--border-color);
-      padding: 5px 10px;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    button:hover {
+      background-color: var(--surface-hover);
+      border-color: var(--accent-color);
+    }
+
+    button:active {
+      transform: scale(0.98);
+    }
+
+    button.primary {
+      background-color: var(--accent-color);
+      color: #ffffff;
+      border-color: var(--accent-color);
+    }
+
+    button.primary:hover {
+      background-color: var(--accent-hover);
+    }
+
+    button.danger {
+      color: var(--danger-color);
+      border-color: rgba(239, 68, 68, 0.4);
+    }
+
+    button.danger:hover {
+      background-color: var(--danger-color);
+      color: #ffffff;
+    }
+
+    /* Config Drawer */
+    .config-panel {
+      display: none;
+      background-color: var(--surface-color);
+      border: 1px solid var(--border-color);
       border-radius: 8px;
-      font-size: 0.82em;
+      padding: 14px;
+      margin-bottom: 16px;
+      box-shadow: var(--shadow);
+    }
+
+    .config-panel.open {
+      display: block;
+    }
+
+    .config-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+    }
+
+    .config-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .config-item label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .config-item input {
+      background-color: var(--bg-color);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      user-select: text;
+    }
+
+    .config-footer {
+      margin-top: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .paste-hint {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+    }
+
+    /* Timeline Section */
+    .timeline-wrapper {
+      background-color: var(--surface-color);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 18px;
+      box-shadow: var(--shadow);
+      position: relative;
+    }
+
+    .timeline-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+    }
+
+    .peak-legend {
       display: flex;
       align-items: center;
-      gap: 6px;
-      font-weight: 500;
+      gap: 8px;
+      font-size: 0.72rem;
     }
-    .peak-chip-dot {
+
+    .legend-dot {
+      display: inline-block;
       width: 8px;
       height: 8px;
-      border-radius: 50%;
+      border-radius: 2px;
+      margin-right: 3px;
     }
 
-    .toast-preview-container {
-      position: fixed; bottom: 20px; right: 20px; background: var(--toast-bg);
-      border: 1px solid var(--border-color); box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-      padding: 12px 16px; border-radius: 12px; z-index: 9999; display: flex;
-      flex-direction: column; gap: 8px; backdrop-filter: blur(5px); max-width: 450px; min-width: 340px; user-select: none;
-    }
-    .toast-header {
-      display: flex; justify-content: space-between; align-items: center; font-size: 0.85em;
-      font-weight: bold; color: var(--subtext-color); border-bottom: 1px solid var(--border-color);
-      padding-bottom: 6px; cursor: grab;
-    }
-    .toast-header:active { cursor: grabbing; }
-    .toast-controls { display: flex; align-items: center; gap: 5px; }
-    .toast-btn-ctrl {
-      background: var(--gauge-bg); color: var(--text-color); border: none; border-radius: 4px;
-      width: 22px; height: 22px; font-weight: bold; cursor: pointer; display: inline-flex;
-      align-items: center; justify-content: center; font-size: 0.9em;
-    }
-    .toast-list { display: flex; flex-direction: column; gap: 6px; }
-    .preview-chip {
-      background: var(--card-bg); border: 1px solid var(--border-color); padding: 6px 10px;
-      border-radius: 8px; font-size: 0.85em; display: flex; justify-content: space-between; align-items: center; font-weight: 500; gap: 8px;
-    }
-    .preview-chip.urgent { background: #ffe3e3; border-color: #ff8787; color: #c92a2a; }
-    body.dark-theme .preview-chip.urgent { background: #451010; border-color: #962424; color: #ff8787; }
-    .preview-name { font-weight: bold; font-style: italic; min-width: 90px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
-    .preview-target { color: var(--subtext-color); font-size: 0.9em; }
-    .preview-remain { font-weight: bold; }
-
-    .timeline-float-menu {
-      background: var(--toast-bg); border: 1px solid var(--border-color);
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); border-radius: 12px; padding: 10px 18px;
-      width: 100%; user-select: none;
-    }
-    .timeline-float-header {
-      display: flex; justify-content: space-between; align-items: center; font-size: 0.9em;
-      font-weight: bold; color: var(--text-color); border-bottom: 1px solid var(--border-color); padding-bottom: 6px;
-    }
-    .timeline-input-group { display: flex; align-items: center; gap: 5px; font-size: 0.85em; color: var(--subtext-color); }
-    .timeline-input-group input {
-      width: 50px; text-align: center; padding: 3px; border: 1px solid var(--border-color);
-      background: var(--input-bg); color: var(--input-text); border-radius: 4px; font-weight: bold;
-    }
-    .timeline-bar-wrapper { 
-      position: relative; width: 100%; height: 125px; background: transparent; margin-top: 10px; margin-bottom: 6px; 
+    .timeline-viewport {
+      position: relative;
+      width: 100%;
+      height: 88px;
+      background-color: var(--bg-color);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      overflow: hidden;
       cursor: grab;
     }
-    .timeline-bar-wrapper:active { cursor: grabbing; }
-    .timeline-track-line { position: absolute; top: 50%; left: 0; width: 100%; height: 4px; transform: translateY(-50%); background: #94a3b8; border-radius: 2px; pointer-events: none; }
-    
-    .timeline-tick { position: absolute; top: 50%; width: 2px; height: 10px; background: #64748b; transform: translate(-50%, -50%); z-index: 2; pointer-events: none; }
-    .timeline-tick-label { position: absolute; top: calc(50% + 10px); transform: translateX(-50%); font-size: 0.68em; color: var(--subtext-color); font-weight: 500; white-space: nowrap; pointer-events: none; }
 
-    .timeline-now-tick {
-      position: absolute; top: 50%; width: 4px; height: 18px; background: #10b981; transform: translate(-50%, -50%);
-      z-index: 5; border-radius: 2px; box-shadow: 0 0 6px rgba(16, 185, 129, 0.6); pointer-events: none;
-    }
-    .timeline-now-label {
-      position: absolute; top: calc(50% - 26px); transform: translateX(-50%); font-size: 0.7em;
-      background: #10b981; color: white; padding: 1px 5px; border-radius: 4px; font-weight: bold; white-space: nowrap; z-index: 6; pointer-events: none;
+    .timeline-viewport:active {
+      cursor: grabbing;
     }
 
-    .timeline-indicator { position: absolute; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 4px; z-index: 10; pointer-events: none; }
-    .timeline-boss-tag {
-      background: #111827; color: white; font-size: 0.72em; font-weight: bold; padding: 4px 8px; border-radius: 10px;
-      text-align: center; line-height: 1.15; white-space: pre-line; box-shadow: 0 3px 5px rgba(0,0,0,0.2); position: relative;
-    }
-    .timeline-target-tag { background: #0284c7; color: white; font-size: 0.68em; font-weight: 600; padding: 2px 6px; border-radius: 6px; white-space: nowrap; }
-
-    .timeline-indicator.level-top { bottom: 50%; margin-bottom: 8px; flex-direction: column; }
-    .timeline-indicator.level-top .timeline-boss-tag::after {
-      content: ''; position: absolute; bottom: -5px; left: 50%; transform: translateX(-50%);
-      border-width: 5px 5px 0; border-style: solid; border-color: #111827 transparent; display: block; width: 0;
-    }
-
-    .timeline-indicator.level-bottom { top: 50%; margin-top: 8px; flex-direction: column-reverse; }
-    .timeline-indicator.level-bottom .timeline-boss-tag::before {
-      content: ''; position: absolute; top: -5px; left: 50%; transform: translateX(-50%);
-      border-width: 0 5px 5px; border-style: solid; border-color: transparent transparent #111827; display: block; width: 0;
-    }
-
-    .timeline-indicator.urgent .timeline-boss-tag { background: #dc3545; animation: pulse-tag 1s infinite; }
-    
-    .timeline-indicator.expired .timeline-boss-tag { background: #475569 !important; opacity: 0.75; }
-    .timeline-indicator.expired .timeline-target-tag { background: #64748b !important; opacity: 0.75; }
-    .timeline-indicator.expired .peak-node-pin { border-color: #64748b !important; }
-
-    @keyframes pulse-tag { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
-
-    .timeline-interval-label {
+    .peak-density-bar {
       position: absolute;
-      top: 50%;
-      transform: translate(-50%, -50%) scale(0.65);
-      z-index: 8;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 10px;
       display: flex;
-      align-items: center;
-      gap: 3px;
-      background: #0f172a;
-      border: 1.5px solid #10b981;
-      padding: 3px 10px;
-      border-radius: 999px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0.85;
+    }
+
+    .peak-segment {
+      height: 100%;
+      transition: background-color 0.2s;
+    }
+
+    .now-marker {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background-color: var(--danger-color);
+      z-index: 15;
       pointer-events: none;
     }
-    body.dark-theme .timeline-interval-label {
-      background: #1e293b;
-      border-color: #10b981;
-    }
-    .timeline-interval-pill {
-      color: #34d399;
-      font-size: 0.88em;
+
+    .now-marker::after {
+      content: "NOW";
+      position: absolute;
+      top: 2px;
+      left: 4px;
+      font-size: 0.65rem;
       font-weight: 800;
-      letter-spacing: 0.3px;
-    }
-    .timeline-interval-arrow {
-      color: #10b981;
-      font-size: 0.75em;
-      font-weight: bold;
+      color: var(--danger-color);
     }
 
-    /* Đưa nút NOW xuống nằm cạnh timelineStartLabel */
+    .timeline-node {
+      position: absolute;
+      top: 22px;
+      transform: translateX(-50%);
+      background-color: var(--surface-color);
+      border: 1px solid var(--accent-color);
+      color: var(--text-primary);
+      padding: 3px 7px;
+      border-radius: 5px;
+      font-size: 0.74rem;
+      font-weight: 600;
+      white-space: nowrap;
+      z-index: 10;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.25);
+      transition: opacity 0.2s, border-color 0.2s;
+    }
+
+    .timeline-node.overdue {
+      border-color: var(--text-secondary);
+      color: var(--text-secondary);
+      opacity: 0.65;
+    }
+
+    .timeline-node .node-time {
+      display: block;
+      font-size: 0.66rem;
+      color: var(--text-secondary);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Interval Pill (65% scale, +10% font, no icon) */
+    .interval-pill {
+      position: absolute;
+      top: 56px;
+      transform: translateX(-50%) scale(0.65);
+      background-color: rgba(56, 189, 248, 0.16);
+      border: 1px solid rgba(56, 189, 248, 0.45);
+      color: var(--accent-color);
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      z-index: 8;
+      pointer-events: none;
+    }
+
     .timeline-footer-row {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-top: 6px;
+      margin-top: 8px;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      font-variant-numeric: tabular-nums;
     }
+
+    .timeline-start-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
     .btn-now-jump {
-      background: #10b981;
-      color: white;
       padding: 2px 8px;
-      font-size: 0.72em;
+      font-size: 0.7rem;
+      font-weight: 700;
       border-radius: 4px;
-      font-weight: bold;
+      background-color: rgba(239, 68, 68, 0.15);
+      color: var(--danger-color);
+      border: 1px solid rgba(239, 68, 68, 0.4);
     }
+
     .btn-now-jump:hover {
-      background: #059669;
+      background-color: var(--danger-color);
+      color: #ffffff;
     }
 
-    .grid-container { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 1030px; }
-    .card { 
+    /* Card Container (v7.17 Minimalist Collapsible Cards) */
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(245px, 1fr));
+      gap: 12px;
+    }
+
+    .boss-card {
       position: relative;
-      background: var(--card-bg); border-radius: 10px; padding: 14px 20px; border: 1px solid var(--border-color); 
-      box-shadow: 0 2px 4px rgba(0,0,0,0.04); display: flex; flex-direction: column; gap: 10px;
-      cursor: pointer; transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      background-color: var(--surface-color);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 12px 14px;
+      box-shadow: var(--shadow);
+      cursor: pointer;
+      transition: border-color 0.15s, background-color 0.15s, transform 0.1s;
     }
-    .card:hover { border-color: #94a3b8; box-shadow: 0 4px 10px rgba(0,0,0,0.06); }
-    .card.expanded { border-color: #3b82f6; }
 
-    .card-main-row {
-      display: flex; align-items: center; justify-content: space-between; gap: 15px; width: 100%; padding-right: 28px; flex-wrap: wrap;
+    .boss-card:hover {
+      border-color: var(--accent-color);
+      background-color: var(--surface-hover);
     }
-    .card-title { font-size: 1.1em; font-weight: bold; font-style: italic; color: var(--text-color); min-width: 150px; }
-    .card-times { display: flex; align-items: center; gap: 24px; flex-grow: 1; justify-content: flex-end; flex-wrap: wrap; }
-    .time-target { color: var(--subtext-color); font-style: italic; font-size: 0.92em; }
-    .time-remaining { font-weight: bold; color: var(--text-color); font-size: 0.98em; min-width: 145px; text-align: right; }
+
+    .boss-card.expired {
+      background-color: var(--expired-bg);
+      border-color: var(--expired-border);
+      animation: pulseBorder 1.8s infinite;
+    }
+
+    @keyframes pulseBorder {
+      0%, 100% { border-color: var(--expired-border); }
+      50% { border-color: rgba(239, 68, 68, 0.35); }
+    }
 
     .btn-card-close {
-      position: absolute; top: 10px; right: 10px;
-      background: transparent; color: var(--subtext-color); border: none;
-      width: 24px; height: 24px; border-radius: 6px; font-size: 1em; font-weight: bold;
-      display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0;
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      width: 22px;
+      height: 22px;
+      padding: 0;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+      font-weight: 700;
+      line-height: 1;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0.65;
     }
-    .btn-card-close:hover { background: #fee2e2; color: #dc2626; }
-    body.dark-theme .btn-card-close:hover { background: #450a0a; color: #f87171; }
 
-    .card-expand-panel {
-      display: none; align-items: center; justify-content: space-between; gap: 12px;
-      padding-top: 10px; border-top: 1px dashed var(--border-color); flex-wrap: wrap;
+    .btn-card-close:hover {
+      background-color: rgba(239, 68, 68, 0.2);
+      color: var(--danger-color);
+      opacity: 1;
+    }
+
+    .card-summary {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding-right: 18px;
+    }
+
+    .card-name {
+      font-size: 0.98rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .card-times-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-top: 2px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .card-target {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .card-remaining {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--accent-color);
+    }
+
+    .boss-card.expired .card-remaining {
+      color: var(--danger-color);
+    }
+
+    .boss-card.unset .card-remaining {
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    /* Expandable Controls inside Card */
+    .card-controls {
+      display: none;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px dashed var(--border-color);
       cursor: default;
     }
-    .card.expanded .card-expand-panel { display: flex; }
 
-    .input-group { display: flex; align-items: center; gap: 6px; color: var(--subtext-color); font-size: 0.9em; font-weight: 500; }
-    .input-group input { 
-      width: 48px; text-align: center; padding: 5px; border: 1px solid var(--border-color); 
-      background: var(--input-bg); color: var(--input-text); border-radius: 6px; font-weight: bold;
+    .boss-card.expanded .card-controls {
+      display: block;
     }
-    .actions { display: flex; gap: 6px; align-items: center; }
-    
-    #loadingOcr { display: none; font-size: 0.85em; color: #6f42c1; font-weight: bold; margin-left: 5px; }
+
+    .hms-inputs {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+
+    .hms-inputs input {
+      width: 100%;
+      background-color: var(--bg-color);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      padding: 5px 6px;
+      border-radius: 5px;
+      font-size: 0.84rem;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+      user-select: text;
+    }
+
+    .hms-inputs input:focus {
+      outline: none;
+      border-color: var(--accent-color);
+    }
+
+    .card-action-btns {
+      display: flex;
+      gap: 6px;
+    }
+
+    .card-action-btns button {
+      flex: 1;
+      padding: 5px 6px;
+      font-size: 0.78rem;
+    }
+
+    /* Toast List (Bottom Right, Auto-height, Max 30 items, No Scrollbar) */
+    .toast-container {
+      position: fixed;
+      bottom: 14px;
+      right: 14px;
+      display: flex;
+      flex-direction: column-reverse;
+      gap: 6px;
+      z-index: 9999;
+      pointer-events: none;
+      max-width: 340px;
+    }
+
+    .toast-item {
+      background-color: var(--surface-color);
+      color: var(--text-primary);
+      border-left: 4px solid var(--accent-color);
+      border-top: 1px solid var(--border-color);
+      border-right: 1px solid var(--border-color);
+      border-bottom: 1px solid var(--border-color);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      box-shadow: var(--shadow);
+      animation: slideIn 0.2s ease-out;
+      pointer-events: auto;
+    }
+
+    .toast-item.success { border-left-color: var(--success-color); }
+    .toast-item.warning { border-left-color: var(--warning-color); }
+    .toast-item.error { border-left-color: var(--danger-color); }
+
+    @keyframes slideIn {
+      from { transform: translateX(20px); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
   </style>
 </head>
 <body>
 
-  <div class="sticky-header">
-    <div class="top-bar-toast">
-      <div class="security-box" id="securityBox">
-        <span>Admin ID:</span>
-        <input type="password" id="adminIdInput" placeholder="Nhập ID..." oninput="checkAuthMaster(this.value)">
-        <span id="authStatusText" style="font-weight: bold; font-size: 0.8em; color: #856404;">(Chế độ Xem)</span>
-      </div>
-
-      <button class="btn-add locked-action" onclick="addCard()">Add Card</button>
-      <button class="btn-wipe locked-action" onclick="wipeAll()">Wipe All</button>
-      <button class="btn-peak" onclick="findPeakBossTime()" title="Tìm khung giờ có nhiều boss spawn nhất trong 9h tới">Tìm giờ Boss đông nhất</button>
-      <button class="btn-theme" onclick="toggleTheme()" id="themeBtnToggle">Dark Mode</button>
-      <button class="btn-notify" onclick="requestWebNotificationPermission()" id="notifyBtnToggle">Bật Thông Báo</button>
-      
-      <label class="btn-ocr btn-upload locked-action" title="Hoặc nhấn Ctrl + V để dán ảnh trực tiếp từ Clipboard">
-        AI Scan Image (Ctrl+V)
-        <input type="file" id="ocrFileinput" accept="image/*" style="display: none;" onchange="handleFileSelected(event)">
-      </label>
-      <span id="loadingOcr">AI đang đọc ảnh & tự động cập nhật...</span>
-
-      <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-left: auto;">
-        <input type="text" id="geminiKey" placeholder="Gemini API Key" class="locked-action" style="width: 120px; padding: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--input-text); border-radius: 4px;" onfocus="this.select()" oninput="saveSettingsToFirebase()">
-        <input type="text" id="tgToken" placeholder="Telegram Token" class="locked-action" style="width: 135px; padding: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--input-text); border-radius: 4px;" onfocus="this.select()" oninput="saveSettingsToFirebase()">
-        <input type="text" id="tgChatId" placeholder="Chat ID" class="locked-action" style="width: 85px; padding: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--input-text); border-radius: 4px;" onfocus="this.select()" oninput="saveSettingsToFirebase()">
-      </div>
+  <!-- Top Bar -->
+  <div class="top-bar">
+    <div class="brand-section">
+      <span class="brand-title">Lander Timer</span>
+      <span class="version-badge">v7.17</span>
+      <span id="liveClock" class="clock-display">00:00:00</span>
     </div>
 
-    <div class="timeline-float-menu" id="timelineFloatMenu">
-      <div class="timeline-float-header" id="timelineFloatHeader">
-        <span>TIMELINE RAIDBOSS</span>
-        <div class="timeline-input-group" onclick="event.stopPropagation()">
-          <span>Khoảng:</span>
-          <input type="number" id="timelineSpanInput" value="2" min="0.5" max="9" step="0.5" onchange="saveTimelineSpan(this.value)">
-          <span>h</span>
-        </div>
-      </div>
-      <div class="timeline-bar-wrapper" id="timelineBarWrapper">
-        <div class="timeline-track-line"></div>
-      </div>
-      <div class="timeline-footer-row">
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <button class="btn-now-jump" onclick="jumpToNow()" title="Đưa view về thời điểm hiện tại">NOW</button>
-          <span id="timelineStartLabel" style="font-size: 0.8em; color: var(--subtext-color); font-weight: bold;">--:--:--</span>
-        </div>
-        <span id="timelineEndLabel" style="font-size: 0.8em; color: var(--subtext-color); font-weight: bold;">--:--:--</span>
-      </div>
+    <div class="toolbar-actions">
+      <button id="btnAddCard" class="primary">Add Card</button>
+      <button id="btnPasteClipboard">Paste Image</button>
+      <button id="btnWipeAll" class="danger">Wipe All</button>
+      <button id="btnToggleConfig">Settings</button>
+      <button id="btnThemeToggle">Light Mode</button>
     </div>
   </div>
 
-  <div class="peak-toast-container" id="peakToastContainer">
-    <div class="peak-toast-header">
-      <span>PHÂN TÍCH KHUNG GIỜ ĐÔNG BOSS NHẤT (9 GIỜ TỚI)</span>
-      <button class="toast-btn-ctrl" onclick="document.getElementById('peakToastContainer').style.display='none'" title="Đóng">x</button>
-    </div>
-
-    <div class="peak-summary-grid" id="peakSummaryContent"></div>
-
-    <div class="peak-timeline-wrapper" id="peakTimelineWrapper">
-      <div class="peak-timeline-line"></div>
-    </div>
-
-    <div class="peak-chip-list" id="peakChipListContent"></div>
-  </div>
-
-  <div class="grid-container" id="cardContainer"></div>
-
-  <div class="toast-preview-container" id="toastPreviewContainer">
-    <div class="toast-header" id="toastHeader">
-      <span id="toastTitle">SẮP ĐẾN GIỜ (3)</span>
-      <div class="toast-controls" onclick="event.stopPropagation()">
-        <button class="toast-btn-ctrl" onclick="adjustToastLimit(-1)" title="Giảm số lượng">-</button>
-        <span id="toastLimitDisplay" style="min-width: 16px; text-align: center;">3</span>
-        <button class="toast-btn-ctrl" onclick="adjustToastLimit(1)" title="Tăng số lượng">+</button>
+  <!-- Collapsible Settings Panel -->
+  <div id="configPanel" class="config-panel">
+    <div class="config-grid">
+      <div class="config-item">
+        <label for="cfgGeminiKey">Gemini API Key (gemini-3.1-flash-lite)</label>
+        <input type="password" id="cfgGeminiKey" placeholder="AIzaSy..." />
+      </div>
+      <div class="config-item">
+        <label for="cfgFirebaseUrl">Firebase Realtime Database URL</label>
+        <input type="text" id="cfgFirebaseUrl" placeholder="https://your-project.firebaseio.com" />
+      </div>
+      <div class="config-item">
+        <label for="cfgRoomId">Sync Room ID</label>
+        <input type="text" id="cfgRoomId" placeholder="lander-boss-room" />
+      </div>
+      <div class="config-item">
+        <label for="cfgTgToken">Telegram Bot Token</label>
+        <input type="password" id="cfgTgToken" placeholder="123456:ABC-DEF..." />
+      </div>
+      <div class="config-item">
+        <label for="cfgTgChatId">Telegram Chat ID</label>
+        <input type="text" id="cfgTgChatId" placeholder="-100123456789" />
       </div>
     </div>
-    <div class="toast-list" id="toastList">
-      <span style="color: var(--subtext-color); font-size: 0.85em; font-style: italic; text-align: center; padding: 4px;">Không có timer nào đang chạy</span>
+    <div class="config-footer">
+      <span class="paste-hint">Tip: Press Ctrl + V anywhere to parse Raidboss screenshot via Gemini AI.</span>
+      <button id="btnSaveConfig" class="primary">Save Settings</button>
     </div>
   </div>
 
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-app.js";
-  import { getDatabase, ref, set, onValue, runTransaction } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-database.js";
+  <!-- Interactive Timeline -->
+  <div class="timeline-wrapper">
+    <div class="timeline-header">
+      <span>Timeline (Drag to pan)</span>
+      <div class="peak-legend">
+        <span>Density:</span>
+        <span><i class="legend-dot" style="background:#38bdf8;"></i>1</span>
+        <span><i class="legend-dot" style="background:#22c55e;"></i>2</span>
+        <span><i class="legend-dot" style="background:#f59e0b;"></i>3</span>
+        <span><i class="legend-dot" style="background:#ef4444;"></i>4+</span>
+      </div>
+    </div>
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyBB0C4uZAKbg11qqKHWmsI-p5h1TCvHH5Y",
-    authDomain: "lander-timer-sync.firebaseapp.com",
-    databaseURL: "https://lander-timer-sync-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId: "lander-timer-sync",
-    storageBucket: "lander-timer-sync.firebasestorage.app",
-    messagingSenderId: "1027665520397",
-    appId: "1:1027665520397:web:539ea8ccdd385d6944b244"
-  };
+    <div id="timelineViewport" class="timeline-viewport">
+      <div id="peakDensityBar" class="peak-density-bar"></div>
+      <div id="nowMarker" class="now-marker"></div>
+      <div id="timelineNodesLayer"></div>
+    </div>
 
-  const app = initializeApp(firebaseConfig);
-  const db = getDatabase(app);
+    <div class="timeline-footer-row">
+      <div class="timeline-start-group">
+        <span id="timelineStartLabel">--:--</span>
+        <button id="btnNowJump" class="btn-now-jump">NOW</button>
+      </div>
+      <span id="timelineEndLabel">--:--</span>
+    </div>
+  </div>
 
-  window.cards = [
-    { id: 1, name: 'Orfen', h: 0, m: 5, s: 0, target: null, delay: null, startTime: null, warned60s: false }
-  ];
+  <!-- Cards Grid -->
+  <div id="cardContainer" class="card-grid"></div>
 
-  let limitCount = 3; 
-  let isRemoteUpdating = false;
-  let currentOcrImageBlob = null;
-  let manualTimelineOffsetMs = 0;
-  let lastRenderedOrderHash = "";
-  let expandedCardIds = new Set(); // Lưu trạng thái các card đang được mở rộng
+  <!-- Toast Container -->
+  <div id="toastContainer" class="toast-container"></div>
 
-  const savedTheme = localStorage.getItem('lander_theme') || 'light';
-  if (savedTheme === 'dark') {
-    document.body.classList.add('dark-theme');
-  }
+  <script>
+    // =========================================================
+    // STATE & STORAGE
+    // =========================================================
+    const STORAGE_KEY_CARDS = "lander_timer_cards_v717";
+    const STORAGE_KEY_CFG = "lander_timer_cfg_v717";
+    const STORAGE_KEY_THEME = "lander_timer_theme_v717";
 
-  window.toggleTheme = function() {
-    document.body.classList.toggle('dark-theme');
-    const isDark = document.body.classList.contains('dark-theme');
-    localStorage.setItem('lander_theme', isDark ? 'dark' : 'light');
-    document.getElementById('themeBtnToggle').innerText = isDark ? 'Light Mode' : 'Dark Mode';
-  };
+    let config = {
+      geminiKey: "",
+      firebaseUrl: "",
+      roomId: "lander-default",
+      tgToken: "",
+      tgChatId: ""
+    };
 
-  const themeBtn = document.getElementById('themeBtnToggle');
-  if (themeBtn) {
-    themeBtn.innerText = document.body.classList.contains('dark-theme') ? 'Light Mode' : 'Dark Mode';
-  }
+    let cards = [];
+    let expandedCardId = null;
+    let lastRenderedOrderSignature = "";
+    let dbRef = null;
+    let isRemoteUpdate = false;
 
-  window.requestWebNotificationPermission = function() {
-    if (!("Notification" in window)) {
-      alert("Trình duyệt của bạn không hỗ trợ Web Notification!");
-      return;
+    // Timeline Pan State (6 hours window = 21600000 ms)
+    const TIMELINE_WINDOW_MS = 6 * 3600 * 1000;
+    let timelineOffsetMs = -30 * 60 * 1000; // Start 30 mins before NOW
+    let isDraggingTimeline = false;
+    let dragStartX = 0;
+    let dragStartOffsetMs = 0;
+
+    // =========================================================
+    // INITIALIZATION
+    // =========================================================
+    function init() {
+      loadTheme();
+      loadConfig();
+      loadLocalCards();
+      initFirebase();
+      bindEvents();
+      render();
+      setInterval(tickLoop, 200);
     }
-    Notification.requestPermission().then(permission => {
-      if (permission === "granted") {
-        alert("Đã bật Web Notification thành công!");
-        updateNotifyBtnState();
-      } else {
-        alert("Quyền thông báo bị từ chối.");
+
+    function loadTheme() {
+      const savedTheme = localStorage.getItem(STORAGE_KEY_THEME);
+      if (savedTheme === "light") {
+        document.body.classList.add("light-mode");
+        document.getElementById("btnThemeToggle").textContent = "Dark Mode";
       }
-    });
-  };
-
-  function updateNotifyBtnState() {
-    const notifyBtn = document.getElementById('notifyBtnToggle');
-    if (!notifyBtn) return;
-    if ("Notification" in window && Notification.permission === "granted") {
-      notifyBtn.innerText = "Đã Bật Thông Báo";
-      notifyBtn.style.background = "#10b981";
     }
-  }
-  updateNotifyBtnState();
 
-  function triggerWebNotification(title, body) {
-    if ("Notification" in window && Notification.permission === "granted") {
-      new Notification(title, {
-        body: body,
-        icon: "https://cdn-icons-png.flaticon.com/512/3602/3602145.png"
+    function loadConfig() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY_CFG);
+        if (raw) config = { ...config, ...JSON.parse(raw) };
+      } catch (e) {}
+      document.getElementById("cfgGeminiKey").value = config.geminiKey || "";
+      document.getElementById("cfgFirebaseUrl").value = config.firebaseUrl || "";
+      document.getElementById("cfgRoomId").value = config.roomId || "lander-default";
+      document.getElementById("cfgTgToken").value = config.tgToken || "";
+      document.getElementById("cfgTgChatId").value = config.tgChatId || "";
+    }
+
+    function loadLocalCards() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY_CARDS);
+        if (raw) {
+          cards = JSON.parse(raw);
+        } else {
+          // Default sample bosses
+          const defaultNames = ["Fafurion", "Antharas", "Valakas", "Baium", "Queen Ant", "Orfen", "Core", "Zaken"];
+          cards = defaultNames.map((name, idx) => ({
+            id: "boss_" + idx + "_" + Date.now(),
+            name,
+            target: null,
+            originalIndex: idx,
+            warned60s: false,
+            warnedDone: false
+          }));
+        }
+      } catch (e) {
+        cards = [];
+      }
+      normalizeOriginalIndices();
+    }
+
+    function normalizeOriginalIndices() {
+      cards.forEach((c, idx) => {
+        if (typeof c.originalIndex !== "number") c.originalIndex = idx;
       });
     }
-  }
 
-  const savedSpan = localStorage.getItem('lander_timeline_span');
-  if (savedSpan) {
-    let val = parseFloat(savedSpan);
-    if (val < 0.5) val = 0.5;
-    if (val > 9) val = 9;
-    const inputEl = document.getElementById('timelineSpanInput');
-    if (inputEl) inputEl.value = val;
-  }
+    // =========================================================
+    // FIREBASE SYNC & TRANSACTION LOCK
+    // =========================================================
+    function initFirebase() {
+      if (!config.firebaseUrl || !config.roomId) return;
+      try {
+        if (!firebase.apps.length) {
+          firebase.initializeApp({ databaseURL: config.firebaseUrl });
+        }
+        const db = firebase.database();
+        dbRef = db.ref("rooms/" + config.roomId.replace(/[^a-zA-Z0-9_-]/g, "_"));
 
-  window.jumpToNow = function() {
-    manualTimelineOffsetMs = 0;
-    updateTimelineBar(Date.now());
-  };
-
-  window.saveTimelineSpan = function(val) {
-    let num = parseFloat(val);
-    if (isNaN(num) || num < 0.5) num = 0.5;
-    if (num > 9) num = 9;
-    document.getElementById('timelineSpanInput').value = num;
-    localStorage.setItem('lander_timeline_span', num);
-    checkAndUpdateTimers();
-  };
-
-  const ALLOWED_HASHES = [
-    "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9" 
-  ];
-  window.isAuthorized = false;
-
-  async function sha256(message) {
-    const msgBuffer = new TextEncoder().encode(message);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-  }
-
-  window.checkAuthMaster = async function(inputVal) {
-    const trimmed = inputVal.trim();
-    if (!trimmed) {
-      setAuthStatus(false);
-      return;
-    }
-    const hashedInput = await sha256(trimmed);
-    if (ALLOWED_HASHES.includes(hashedInput)) {
-      setAuthStatus(true);
-    } else {
-      setAuthStatus(false);
-    }
-  };
-
-  function setAuthStatus(status) {
-    window.isAuthorized = status;
-    const box = document.getElementById('securityBox');
-    const statusText = document.getElementById('authStatusText');
-    if (status) {
-      box.className = "security-box unlocked";
-      statusText.innerText = "(Đã cấp quyền Master)";
-    } else {
-      box.className = "security-box";
-      statusText.innerText = "(Chế độ Xem)";
-    }
-    render();
-  }
-
-  const workerCode = `
-    setInterval(function() {
-      postMessage('tick');
-    }, 200);
-  `;
-  const blob = new Blob([workerCode], { type: 'application/javascript' });
-  const workerUrl = URL.createObjectURL(blob);
-  const timerWorker = new Worker(workerUrl);
-
-  timerWorker.onmessage = function(e) {
-    if (e.data === 'tick') {
-      checkAndUpdateTimers();
-    }
-  };
-
-  const toastContainer = document.getElementById('toastPreviewContainer');
-  const toastHeader = document.getElementById('toastHeader');
-  let isDraggingToast = false;
-  let startX, startY, initialX, initialY;
-
-  toastHeader.addEventListener('mousedown', (e) => {
-    isDraggingToast = true;
-    startX = e.clientX;
-    startY = e.clientY;
-    
-    const rect = toastContainer.getBoundingClientRect();
-    initialX = rect.left;
-    initialY = rect.top;
-
-    toastContainer.style.bottom = 'auto';
-    toastContainer.style.right = 'auto';
-    toastContainer.style.left = `${initialX}px`;
-    toastContainer.style.top = `${initialY}px`;
-
-    document.addEventListener('mousemove', onToastMouseMove);
-    document.addEventListener('mouseup', onToastMouseUp);
-  });
-
-  function onToastMouseMove(e) {
-    if (!isDraggingToast) return;
-    const dx = e.clientX - startX;
-    const dy = e.clientY - startY;
-
-    toastContainer.style.left = `${initialX + dx}px`;
-    toastContainer.style.top = `${initialY + dy}px`;
-  }
-
-  function onToastMouseUp() {
-    isDraggingToast = false;
-    document.removeEventListener('mousemove', onToastMouseMove);
-    document.removeEventListener('mouseup', onToastMouseUp);
-  }
-
-  // --- KÉO TRƯỢT TIMELINE (PAN & DRAG) ---
-  const timelineWrapper = document.getElementById('timelineBarWrapper');
-  let isDraggingTimeline = false;
-  let timelineStartX = 0;
-  let timelineStartOffsetMs = 0;
-
-  timelineWrapper.addEventListener('mousedown', (e) => {
-    isDraggingTimeline = true;
-    timelineStartX = e.clientX;
-    timelineStartOffsetMs = manualTimelineOffsetMs;
-  });
-
-  window.addEventListener('mousemove', (e) => {
-    if (!isDraggingTimeline) return;
-    const dx = e.clientX - timelineStartX;
-    const wrapperWidth = timelineWrapper.clientWidth || 990;
-    
-    const spanInput = document.getElementById('timelineSpanInput');
-    let spanHours = spanInput ? (parseFloat(spanInput.value) || 2) : 2;
-    const spanMs = spanHours * 3600 * 1000;
-
-    const msPerPx = spanMs / wrapperWidth;
-    manualTimelineOffsetMs = timelineStartOffsetMs - (dx * msPerPx);
-
-    updateTimelineBar(Date.now());
-  });
-
-  window.addEventListener('mouseup', () => {
-    if (isDraggingTimeline) {
-      isDraggingTimeline = false;
-    }
-  });
-
-  window.adjustToastLimit = function(delta) {
-    limitCount += delta;
-    if (limitCount < 1) limitCount = 1;
-    if (limitCount > 30) limitCount = 30;
-    document.getElementById('toastLimitDisplay').innerText = limitCount;
-    document.getElementById('toastTitle').innerText = `SẮP ĐẾN GIỜ (${limitCount})`;
-    checkAndUpdateTimers();
-  };
-
-  onValue(ref(db, 'lander_cards'), (snapshot) => {
-    const data = snapshot.val();
-    if (data) {
-      const activeElement = document.activeElement;
-      const isTyping = activeElement && activeElement.tagName === 'INPUT';
-
-      if (!isTyping) {
-        isRemoteUpdating = true;
-        window.cards = data;
-        render();
-        isRemoteUpdating = false;
-      }
-    }
-  });
-
-  onValue(ref(db, 'telegram_config'), (snapshot) => {
-    const config = snapshot.val();
-    if (config) {
-      const keyInput = document.getElementById('geminiKey');
-      const tokenInput = document.getElementById('tgToken');
-      const chatIdInput = document.getElementById('tgChatId');
-      if (keyInput && keyInput.value !== config.geminiKey) keyInput.value = config.geminiKey || '';
-      if (tokenInput && tokenInput.value !== config.token) tokenInput.value = config.token || '';
-      if (chatIdInput && chatIdInput.value !== config.chatId) chatIdInput.value = config.chatId || '';
-    }
-  });
-
-  window.saveCardsToFirebase = function() {
-    if (!window.isAuthorized) return;
-    if (isRemoteUpdating) return;
-    set(ref(db, 'lander_cards'), window.cards);
-  };
-
-  window.saveSettingsToFirebase = function() {
-    if (!window.isAuthorized) return;
-    const geminiKey = document.getElementById('geminiKey').value.trim();
-    const token = document.getElementById('tgToken').value.trim();
-    const chatId = document.getElementById('tgChatId').value.trim();
-    set(ref(db, 'telegram_config'), { geminiKey, token, chatId });
-  };
-
-  window.sendTelegram = function(msg) {
-    const token = document.getElementById('tgToken').value.trim();
-    const chatId = document.getElementById('tgChatId').value.trim();
-    if (!token || !chatId) return;
-
-    fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, text: msg })
-    }).catch(err => console.error('Lỗi gửi Telegram:', err));
-  };
-
-  // Cơ chế khóa nguyên tử qua Firebase Transaction đảm bảo chỉ 1 trình duyệt duy nhất gửi Telegram
-  function claimAndSendTelegram(cardIdx, flagName, targetTimestamp, msg) {
-    if (!window.isAuthorized) return;
-    const cardRef = ref(db, `lander_cards/${cardIdx}`);
-    runTransaction(cardRef, (currentData) => {
-      if (!currentData || currentData.target !== targetTimestamp) {
-        return; // Hủy bỏ nếu dữ liệu không tồn tại hoặc target đã thay đổi
-      }
-      if (currentData[flagName]) {
-        return; // Hủy bỏ nếu một trình duyệt khác đã đánh dấu gửi rồi
-      }
-      currentData[flagName] = true;
-      return currentData;
-    }).then((result) => {
-      if (result.committed) {
-        sendTelegram(msg);
-      }
-    }).catch(err => console.error('Lỗi đồng bộ khóa Telegram:', err));
-  }
-
-  document.addEventListener('paste', function(event) {
-    if (!window.isAuthorized) return;
-    const items = (event.clipboardData || event.originalEvent.clipboardData).items;
-    for (let index in items) {
-      let item = items[index];
-      if (item.kind === 'file' && item.type.startsWith('image/')) {
-        let blob = item.getAsFile();
-        processAndSendAiOcr(blob);
-        event.preventDefault();
-        break;
-      }
-    }
-  });
-
-  window.handleFileSelected = function(event) {
-    if (!window.isAuthorized) return;
-    const file = event.target.files[0];
-    if (!file) return;
-    processAndSendAiOcr(file);
-    event.target.value = '';
-  };
-
-  async function processAndSendAiOcr(fileOrBlob) {
-    const apiKey = document.getElementById('geminiKey').value.trim();
-    if (!apiKey) {
-      alert("Vui lòng nhập Gemini API Key trước khi quét ảnh!");
-      return;
-    }
-
-    if (currentOcrImageBlob) {
-      URL.revokeObjectURL(currentOcrImageBlob);
-    }
-    currentOcrImageBlob = URL.createObjectURL(fileOrBlob);
-
-    const loadingEl = document.getElementById('loadingOcr');
-    loadingEl.style.display = 'inline';
-
-    const requestStartTime = performance.now();
-    try {
-      const base64Data = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result.split(',')[1]);
-        reader.onerror = error => reject(error);
-        reader.readAsDataURL(fileOrBlob);
-      });
-
-      // Cập nhật endpoint sang gemini-3.1-flash-lite
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
-            parts: [
-              {
-                text: "Hãy đọc ảnh chụp danh sách Raidboss này. Với mỗi dòng, trích xuất chính xác Tên Raidboss và Thời gian countdown còn lại. Trả về kết quả hoàn toàn dưới dạng mảng JSON thuần túy theo định dạng mẫu sau: [{\"name\": \"Orfen\", \"h\": 0, \"m\": 55, \"s\": 50}]"
-              },
-              {
-                inline_data: {
-                  mime_type: fileOrBlob.type || 'image/png',
-                  data: base64Data
-                }
-              }
-            ]
-          }]
-        })
-      });
-
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error?.message || "Lỗi kết nối Gemini API");
-
-      const requestEndTime = performance.now();
-      const apiResponseTimeSecs = (requestEndTime - requestStartTime) / 1000;
-      const textResponse = result.candidates[0].content.parts[0].text;
-      const jsonString = textResponse.replace(/```json/g, '').replace(/```/g, '').trim();
-      const bossDataArray = JSON.parse(jsonString);
-
-      parseAiDataAndSync(bossDataArray, apiResponseTimeSecs);
-    } catch (err) {
-      alert("Lỗi khi xử lý ảnh bằng AI: " + err.message);
-    } finally {
-      loadingEl.style.display = 'none';
-    }
-  }
-
-  function parseAiDataAndSync(bossDataArray, apiResponseTimeSecs) {
-    // Thời gian set remaining time = số liệu trả về từ Gemini API - latency chờ phản hồi dữ liệu từ Gemini API - 15 giây
-    const FIXED_CLIPBOARD_OFFSET_SECS = 15;
-    const totalCompensationSecs = apiResponseTimeSecs + FIXED_CLIPBOARD_OFFSET_SECS;
-
-    bossDataArray.forEach(item => {
-      let bossName = item.name;
-      let rawH = item.h || 0;
-      let rawM = item.m || 0;
-      let rawS = item.s || 0;
-
-      let ocrTotalSecs = (rawH * 3600) + (rawM * 60) + rawS;
-      let finalTotalSecs = ocrTotalSecs - totalCompensationSecs;
-      if (finalTotalSecs < 0) finalTotalSecs = 0;
-
-      let existingCard = window.cards.find(c => c.name.toLowerCase() === bossName.toLowerCase());
-      const now = Date.now();
-
-      if (existingCard) {
-        existingCard.h = Math.floor(finalTotalSecs / 3600);
-        existingCard.m = Math.floor((finalTotalSecs % 3600) / 60);
-        existingCard.s = Math.floor(finalTotalSecs % 60);
-        existingCard.delay = finalTotalSecs;
-        existingCard.startTime = now;
-        existingCard.target = now + finalTotalSecs * 1000;
-        existingCard.warned60s = false;
-        existingCard.warnedDone = false;
-      } else {
-        window.cards.push({
-          id: Date.now() + Math.random(),
-          name: bossName,
-          h: Math.floor(finalTotalSecs / 3600),
-          m: Math.floor((finalTotalSecs % 3600) / 60),
-          s: Math.floor(finalTotalSecs % 60),
-          startTime: now,
-          target: now + finalTotalSecs * 1000,
-          delay: finalTotalSecs,
-          warned60s: false,
-          warnedDone: false
+        dbRef.child("cards").on("value", (snapshot) => {
+          const val = snapshot.val();
+          if (!val) return;
+          isRemoteUpdate = true;
+          cards = Array.isArray(val) ? val : Object.values(val);
+          normalizeOriginalIndices();
+          localStorage.setItem(STORAGE_KEY_CARDS, JSON.stringify(cards));
+          render();
+          isRemoteUpdate = false;
         });
-      }
-    });
 
-    saveCardsToFirebase();
-    render();
-  }
-
-  window.toggleCardExpand = function(cardKey, cardEl) {
-    if (expandedCardIds.has(cardKey)) {
-      expandedCardIds.delete(cardKey);
-      cardEl.classList.remove('expanded');
-    } else {
-      expandedCardIds.add(cardKey);
-      cardEl.classList.add('expanded');
-    }
-  };
-
-  window.render = function() {
-    const container = document.getElementById('cardContainer');
-    const activeEl = document.activeElement;
-    const activeId = activeEl && activeEl.id ? activeEl.id : null;
-    const activeSelectionStart = activeEl && activeEl.selectionStart !== undefined ? activeEl.selectionStart : null;
-
-    container.innerHTML = '';
-    const lockClass = window.isAuthorized ? '' : 'locked-element';
-
-    const now = Date.now();
-    let indexedCards = window.cards.map((c, originalIndex) => ({ card: c, originalIndex }));
-
-    indexedCards.sort((a, b) => {
-      const aCard = a.card;
-      const bCard = b.card;
-
-      const aIsExpired = Boolean(aCard.target && aCard.target <= now);
-      const bIsExpired = Boolean(bCard.target && bCard.target <= now);
-
-      if (aIsExpired && !bIsExpired) return -1;
-      if (!aIsExpired && bIsExpired) return 1;
-
-      return a.originalIndex - b.originalIndex;
-    });
-
-    lastRenderedOrderHash = indexedCards.map(item => item.card.id || item.originalIndex).join(',');
-
-    indexedCards.forEach((item) => {
-      const c = item.card;
-      const idx = item.originalIndex;
-      const cardKey = String(c.id || idx);
-      const isExpanded = expandedCardIds.has(cardKey);
-
-      const cardEl = document.createElement('div');
-      cardEl.className = `card ${isExpanded ? 'expanded' : ''}`;
-      cardEl.onclick = () => toggleCardExpand(cardKey, cardEl);
-
-      cardEl.innerHTML = `
-        <button class="btn-card-close ${lockClass}" onclick="event.stopPropagation(); removeCard(${idx})" title="Close">x</button>
-        
-        <div class="card-main-row">
-          <span class="card-title">${c.name}</span>
-          <div class="card-times">
-            <span class="time-target" id="target-${idx}">Target: --</span>
-            <span class="time-remaining" id="remain-${idx}">Remaining: --</span>
-          </div>
-        </div>
-
-        <div class="card-expand-panel" onclick="event.stopPropagation()">
-          <div class="input-group">
-            H: <input type="number" id="h-${idx}" value="${c.h}" class="${lockClass}" ${window.isAuthorized ? 'onfocus="this.select()"' : 'disabled'} oninput="window.cards[${idx}].h=+this.value; saveCardsToFirebase();" onkeydown="if(event.key==='Enter') setAlarm(${idx})">
-            M: <input type="number" id="m-${idx}" value="${c.m}" class="${lockClass}" ${window.isAuthorized ? 'onfocus="this.select()"' : 'disabled'} oninput="window.cards[${idx}].m=+this.value; saveCardsToFirebase();" onkeydown="if(event.key==='Enter') setAlarm(${idx})">
-            S: <input type="number" id="s-${idx}" value="${c.s}" class="${lockClass}" ${window.isAuthorized ? 'onfocus="this.select()"' : 'disabled'} oninput="window.cards[${idx}].s=+this.value; saveCardsToFirebase();" onkeydown="if(event.key==='Enter') setAlarm(${idx})">
-          </div>
-          <div class="actions">
-            <button class="btn-edit ${lockClass}" style="padding: 6px 10px;" onclick="renameCard(${idx})">Rename</button>
-            <button class="btn-set ${lockClass}" onclick="setAlarm(${idx})">Set</button>
-            <button class="btn-wipe ${lockClass}" onclick="wipeAlarm(${idx})">Wipe</button>
-          </div>
-        </div>
-      `;
-      container.appendChild(cardEl);
-    });
-
-    if (activeId) {
-      const restoredEl = document.getElementById(activeId);
-      if (restoredEl) {
-        restoredEl.focus();
-        if (activeSelectionStart !== null && restoredEl.type !== 'number') {
-          restoredEl.setSelectionRange(activeSelectionStart, activeSelectionStart);
-        }
+        showToast("Connected to Firebase Sync", "success");
+      } catch (err) {
+        console.error(err);
+        showToast("Firebase connection error", "error");
       }
     }
 
-    document.querySelectorAll('.locked-action').forEach(el => {
-      if (window.isAuthorized) {
-        el.classList.remove('locked-element');
-        if(el.tagName === 'INPUT') el.removeAttribute('disabled');
+    function saveAndSync() {
+      localStorage.setItem(STORAGE_KEY_CARDS, JSON.stringify(cards));
+      if (dbRef && !isRemoteUpdate) {
+        dbRef.child("cards").set(cards).catch(err => console.error("Sync error:", err));
+      }
+    }
+
+    // Unified Notification: Priority 60s alert, single push across all browsers
+    function triggerUnifiedNotification(card, remainingSecs) {
+      const secsLabel = Math.max(1, Math.ceil(remainingSecs));
+      const message = `${card.name}: Sắp đến giờ! (Còn ${secsLabel} giây)`;
+
+      if (dbRef) {
+        const cardIndex = cards.findIndex(c => c.id === card.id);
+        if (cardIndex === -1) return;
+        const cardNodeRef = dbRef.child(`cards/${cardIndex}`);
+
+        cardNodeRef.transaction((currentData) => {
+          if (!currentData) return currentData;
+          if (currentData.warned60s) return; // Abort if another browser already claimed it
+          currentData.warned60s = true;
+          currentData.warnedDone = true;
+          return currentData;
+        }, (error, committed) => {
+          if (!error && committed) {
+            sendTelegramMessage(message);
+            showBrowserNotification(message);
+          }
+        });
       } else {
-        el.classList.add('locked-element');
-        if(el.tagName === 'INPUT') el.setAttribute('disabled', 'true');
-      }
-    });
-  };
-
-  render();
-
-  window.addCard = function() {
-    if (!window.isAuthorized) return;
-    window.cards.push({ 
-      id: Date.now(), 
-      name: `Alarm ${window.cards.length + 1}`, 
-      h: 0, m: 5, s: 0, 
-      target: null, delay: null, startTime: null,
-      warned60s: false,
-      warnedDone: false
-    });
-    saveCardsToFirebase(); 
-    render();
-  };
-
-  window.removeCard = function(idx) {
-    if (!window.isAuthorized) return;
-    window.cards.splice(idx, 1);
-    saveCardsToFirebase(); 
-    render();
-  };
-
-  window.renameCard = function(idx) {
-    if (!window.isAuthorized) return;
-    const name = prompt("Nhập tên mới:", window.cards[idx].name);
-    if (name && name.trim() !== "") { 
-      window.cards[idx].name = name.trim(); 
-      saveCardsToFirebase(); 
-      render(); 
-    }
-  };
-
-  window.setAlarm = function(idx) {
-    if (!window.isAuthorized) return;
-    const hInput = document.getElementById(`h-${idx}`);
-    const mInput = document.getElementById(`m-${idx}`);
-    const sInput = document.getElementById(`s-${idx}`);
-
-    if (hInput && mInput && sInput) {
-      window.cards[idx].h = Number(hInput.value) || 0;
-      window.cards[idx].m = Number(mInput.value) || 0;
-      window.cards[idx].s = Number(sInput.value) || 0;
-    }
-
-    const totalSecs = (window.cards[idx].h * 3600) + (window.cards[idx].m * 60) + window.cards[idx].s;
-    if (totalSecs <= 0) return;
-
-    const now = Date.now();
-    window.cards[idx].delay = totalSecs;
-    window.cards[idx].startTime = now;
-    window.cards[idx].target = now + totalSecs * 1000;
-    window.cards[idx].warned60s = false;
-    window.cards[idx].warnedDone = false;
-    
-    saveCardsToFirebase(); 
-    render();
-  };
-
-  window.wipeAlarm = function(idx) {
-    if (!window.isAuthorized) return;
-    window.cards[idx].target = null;
-    window.cards[idx].delay = null;
-    window.cards[idx].startTime = null;
-    window.cards[idx].warned60s = false;
-    window.cards[idx].warnedDone = false;
-    saveCardsToFirebase(); 
-    render();
-  };
-
-  window.wipeAll = function() {
-    if (!window.isAuthorized) return;
-    window.cards.forEach(c => { 
-      c.target = null; 
-      c.delay = null; 
-      c.startTime = null;
-      c.warned60s = false;
-      c.warnedDone = false;
-    });
-    saveCardsToFirebase(); 
-    render();
-  };
-
-  window.findPeakBossTime = function() {
-    const now = Date.now();
-    const activeCards = window.cards.filter(c => c.target && c.target > now);
-    if (activeCards.length === 0) {
-      alert("Không có boss nào đang chạy timer trong danh sách!");
-      return;
-    }
-
-    const spanInput = document.getElementById('timelineSpanInput');
-    let spanHours = spanInput ? (parseFloat(spanInput.value) || 2) : 2;
-    const windowMs = spanHours * 3600 * 1000;
-
-    const maxScanMs = 9 * 3600 * 1000;
-    const stepMs = 60 * 1000;
-    let bestStart = now;
-    let maxCount = -1;
-    let bestMatchedCards = [];
-
-    for (let t = now; t <= now + maxScanMs - windowMs; t += stepMs) {
-      let matched = activeCards.filter(c => c.target >= t && c.target <= t + windowMs);
-      if (matched.length > maxCount) {
-        maxCount = matched.length;
-        bestStart = t;
-        bestMatchedCards = matched;
+        // Offline / Local-only fallback
+        card.warned60s = true;
+        card.warnedDone = true;
+        saveAndSync();
+        sendTelegramMessage(message);
+        showBrowserNotification(message);
       }
     }
 
-    if (maxCount <= 0) {
-      alert("Không tìm thấy khung giờ nào có boss spawn trong 9 giờ tới.");
-      return;
+    async function sendTelegramMessage(text) {
+      if (!config.tgToken || !config.tgChatId) return;
+      try {
+        const url = `https://api.telegram.org/bot${config.tgToken}/sendMessage`;
+        await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: config.tgChatId,
+            text: text
+          })
+        });
+      } catch (e) {
+        console.error("Telegram Error:", e);
+      }
     }
 
-    bestMatchedCards.sort((a, b) => a.target - b.target);
-
-    const startTimeStr = new Date(bestStart).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    const endTimeStr = new Date(bestStart + windowMs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
-    function formatDuration(ms) {
-      let totalSecs = Math.floor(ms / 1000);
-      let h = Math.floor(totalSecs / 3600);
-      let m = Math.floor((totalSecs % 3600) / 60);
-      let s = totalSecs % 60;
-      if (h > 0) return `${h}h ${m}p ${s}s`;
-      if (m > 0) return `${m} phút ${s} giây`;
-      return `${s} giây`;
-    }
-
-    let minDeltaVal = Infinity;
-    let minDeltaPair = "";
-    let maxDeltaVal = -1;
-    let maxDeltaPair = "";
-
-    if (bestMatchedCards.length > 1) {
-      for (let i = 0; i < bestMatchedCards.length - 1; i++) {
-        let b1 = bestMatchedCards[i];
-        let b2 = bestMatchedCards[i+1];
-        let diffMs = b2.target - b1.target;
-
-        if (diffMs < minDeltaVal) {
-          minDeltaVal = diffMs;
-          minDeltaPair = `(${b1.name} ➔ ${b2.name})`;
-        }
-        if (diffMs > maxDeltaVal) {
-          maxDeltaVal = diffMs;
-          maxDeltaPair = `(${b1.name} ➔ ${b2.name})`;
+    function showBrowserNotification(text) {
+      showToast(text, "warning");
+      if ("Notification" in window) {
+        if (Notification.permission === "granted") {
+          new Notification("Lander Timer", { body: text });
+        } else if (Notification.permission !== "denied") {
+          Notification.requestPermission().then(perm => {
+            if (perm === "granted") new Notification("Lander Timer", { body: text });
+          });
         }
       }
     }
 
-    let minDeltaDisplay = minDeltaVal !== Infinity ? formatDuration(minDeltaVal) : "Không có";
-    let maxDeltaDisplay = maxDeltaVal !== -1 ? formatDuration(maxDeltaVal) : "Không có";
+    // =========================================================
+    // REAL-TIME SORTING & TIMER LOOP
+    // =========================================================
+    function getSortedCards(now) {
+      return [...cards].sort((a, b) => {
+        const aExpired = a.target !== null && a.target <= now;
+        const bExpired = b.target !== null && b.target <= now;
 
-    const summaryEl = document.getElementById('peakSummaryContent');
-    summaryEl.innerHTML = `
-      <div class="peak-info-card">
-        <span class="peak-card-title">⏳ Khung Giờ Cao Điểm:</span>
-        <span class="peak-card-val">${startTimeStr} - ${endTimeStr}</span>
-        <span class="peak-card-sub">Khoảng dài ${spanHours}h</span>
-      </div>
-      <div class="peak-info-card">
-        <span class="peak-card-title">🔥 Số Lượng Boss Spawn:</span>
-        <span class="peak-card-val" style="color: #d97706;">${maxCount} Boss</span>
-        <span class="peak-card-sub">Mật độ cao nhất</span>
-      </div>
-      <div class="peak-info-card">
-        <span class="peak-card-title">⚡ Min Delta (Gần nhau):</span>
-        <span class="peak-card-val">${minDeltaDisplay}</span>
-        <span class="peak-card-sub">${minDeltaPair || '(Chỉ có 1 Boss)'}</span>
-      </div>
-      <div class="peak-info-card">
-        <span class="peak-card-title">🌙 Max Delta (Cách xa):</span>
-        <span class="peak-card-val">${maxDeltaDisplay}</span>
-        <span class="peak-card-sub">${maxDeltaPair || '(Chỉ có 1 Boss)'}</span>
-      </div>
-    `;
+        // Expired cards jump to top immediately
+        if (aExpired && !bExpired) return -1;
+        if (!aExpired && bExpired) return 1;
 
-    const wrapper = document.getElementById('peakTimelineWrapper');
-    const oldNodes = wrapper.querySelectorAll('.peak-node');
-    oldNodes.forEach(n => n.remove());
+        // If both expired, sort by earliest target first
+        if (aExpired && bExpired) return a.target - b.target;
 
-    const colors = ['#0284c7', '#d97706', '#16a34a', '#9333ea', '#e11d48', '#0891b2', '#ca8a04'];
-    const levels = ['level-top-high', 'level-top', 'level-bottom', 'level-bottom-low'];
+        // Otherwise return strictly to default originalIndex
+        return (a.originalIndex ?? 0) - (b.originalIndex ?? 0);
+      });
+    }
 
-    let rawPositions = bestMatchedCards.map(c => {
-      const ratio = (c.target - bestStart) / windowMs;
-      let calculatedPercent = 8 + (ratio * 84); 
-      return { card: c, percent: calculatedPercent };
-    });
+    function tickLoop() {
+      const now = Date.now();
+      document.getElementById("liveClock").textContent = formatClockTime(now);
 
-    for (let i = 1; i < rawPositions.length; i++) {
-      let prev = rawPositions[i - 1];
-      let curr = rawPositions[i];
-      if (curr.percent - prev.percent < 10) {
-        curr.percent = prev.percent + 10;
+      // Check notifications
+      cards.forEach(card => {
+        if (!card.target) return;
+        const diffMs = card.target - now;
+        const diffSecs = diffMs / 1000;
+
+        // Priority 60s alert (single notification per cycle)
+        if (diffSecs <= 60 && diffSecs > -15 && !card.warned60s) {
+          card.warned60s = true;
+          card.warnedDone = true;
+          triggerUnifiedNotification(card, diffSecs);
+        }
+      });
+
+      // Check if card order changed (e.g. a card just expired)
+      const sorted = getSortedCards(now);
+      const currentSignature = sorted.map(c => `${c.id}:${c.target !== null && c.target <= now ? 1 : 0}`).join("|");
+
+      if (currentSignature !== lastRenderedOrderSignature) {
+        const activeEl = document.activeElement;
+        const isTyping = activeEl && activeEl.tagName === "INPUT" && activeEl.closest(".boss-card");
+        if (!isTyping) {
+          render();
+          return;
+        }
+      }
+
+      // Fast text-only update for countdowns & timeline
+      updateLiveCountdowns(now);
+      renderTimeline(now);
+    }
+
+    function updateLiveCountdowns(now) {
+      cards.forEach(card => {
+        const remEl = document.getElementById(`rem_${card.id}`);
+        const cardEl = document.getElementById(`card_${card.id}`);
+        if (!remEl || !cardEl) return;
+
+        if (!card.target) {
+          remEl.textContent = "--:--:--";
+          cardEl.classList.remove("expired");
+          cardEl.classList.add("unset");
+          return;
+        }
+
+        cardEl.classList.remove("unset");
+        const diff = card.target - now;
+
+        if (diff <= 0) {
+          remEl.textContent = "00:00:00";
+          cardEl.classList.add("expired");
+        } else {
+          remEl.textContent = formatDuration(diff);
+          cardEl.classList.remove("expired");
+        }
+      });
+    }
+
+    // =========================================================
+    // RENDER & SINGLE-EXPANDED CARD FOCUS LOGIC
+    // =========================================================
+    function openOrToggleCard(id) {
+      if (expandedCardId === id) {
+        expandedCardId = null;
+        if (document.activeElement) document.activeElement.blur();
+        render();
+        return;
+      }
+
+      // Select new card (automatically collapses previously expanded card)
+      expandedCardId = id;
+      render();
+
+      // Auto-focus and select Hour input box immediately
+      requestAnimationFrame(() => {
+        const hInput = document.getElementById(`in_h_${id}`);
+        if (hInput) {
+          hInput.focus();
+          hInput.select();
+        }
+      });
+    }
+
+    function render() {
+      const now = Date.now();
+      const sorted = getSortedCards(now);
+      lastRenderedOrderSignature = sorted.map(c => `${c.id}:${c.target !== null && c.target <= now ? 1 : 0}`).join("|");
+
+      const container = document.getElementById("cardContainer");
+      container.innerHTML = "";
+
+      sorted.forEach(card => {
+        const isExpired = card.target !== null && card.target <= now;
+        const isUnset = card.target === null;
+        const isExpanded = expandedCardId === card.id;
+
+        const cardEl = document.createElement("div");
+        cardEl.id = `card_${card.id}`;
+        cardEl.className = `boss-card ${isExpired ? "expired" : ""} ${isUnset ? "unset" : ""} ${isExpanded ? "expanded" : ""}`;
+
+        const targetStr = card.target ? formatClockTime(card.target) : "--:--:--";
+        const remStr = isUnset ? "--:--:--" : (isExpired ? "00:00:00" : formatDuration(card.target - now));
+
+        cardEl.innerHTML = `
+          <button class="btn-card-close" title="Remove card" data-action="delete" data-id="${card.id}">x</button>
+          <div class="card-summary" data-action="toggle" data-id="${card.id}">
+            <div class="card-name">${escapeHtml(card.name)}</div>
+            <div class="card-times-row">
+              <span class="card-target">Target: ${targetStr}</span>
+              <span id="rem_${card.id}" class="card-remaining">${remStr}</span>
+            </div>
+          </div>
+          <div class="card-controls">
+            <div class="hms-inputs">
+              <input type="number" min="0" max="99" placeholder="H" id="in_h_${card.id}" />
+              <input type="number" min="0" max="59" placeholder="M" id="in_m_${card.id}" />
+              <input type="number" min="0" max="59" placeholder="S" id="in_s_${card.id}" />
+            </div>
+            <div class="card-action-btns">
+              <button class="primary" data-action="set" data-id="${card.id}">Set</button>
+              <button data-action="wipe" data-id="${card.id}">Wipe</button>
+              <button data-action="rename" data-id="${card.id}">Rename</button>
+            </div>
+          </div>
+        `;
+
+        // Handle card click/tap
+        cardEl.addEventListener("click", (e) => {
+          if (e.target.tagName === "INPUT") {
+            e.stopPropagation();
+            return;
+          }
+
+          const actionBtn = e.target.closest("[data-action]");
+          if (actionBtn) {
+            const action = actionBtn.getAttribute("data-action");
+            const id = actionBtn.getAttribute("data-id");
+            e.stopPropagation();
+
+            if (action === "toggle") {
+              openOrToggleCard(id);
+            } else if (action === "delete") {
+              deleteCard(id);
+            } else if (action === "set") {
+              setCardTimerFromInputs(id);
+            } else if (action === "wipe") {
+              wipeCardTimer(id);
+            } else if (action === "rename") {
+              renameCard(id);
+            }
+            return;
+          }
+
+          // Clicking anywhere else inside an unselected card expands it and auto-focuses Hour
+          e.stopPropagation();
+          if (expandedCardId !== card.id) {
+            openOrToggleCard(card.id);
+          }
+        });
+
+        // Allow Enter key inside inputs to trigger Set
+        cardEl.querySelectorAll("input").forEach(inp => {
+          inp.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              setCardTimerFromInputs(card.id);
+            }
+          });
+        });
+
+        container.appendChild(cardEl);
+      });
+
+      renderTimeline(now);
+    }
+
+    // =========================================================
+    // CARD ACTIONS
+    // =========================================================
+    function setCardTimerFromInputs(id) {
+      const h = parseInt(document.getElementById(`in_h_${id}`)?.value || "0", 10) || 0;
+      const m = parseInt(document.getElementById(`in_m_${id}`)?.value || "0", 10) || 0;
+      const s = parseInt(document.getElementById(`in_s_${id}`)?.value || "0", 10) || 0;
+
+      const totalMs = ((h * 3600) + (m * 60) + s) * 1000;
+      if (totalMs <= 0) {
+        showToast("Enter a valid duration greater than 0", "warning");
+        return;
+      }
+
+      const card = cards.find(c => c.id === id);
+      if (!card) return;
+
+      card.target = Date.now() + totalMs;
+      card.warned60s = false;
+      card.warnedDone = false;
+      expandedCardId = null;
+      if (document.activeElement) document.activeElement.blur();
+
+      saveAndSync();
+      render();
+      showToast(`${card.name} set to ${formatClockTime(card.target)}`, "success");
+    }
+
+    function wipeCardTimer(id) {
+      const card = cards.find(c => c.id === id);
+      if (!card) return;
+      card.target = null;
+      card.warned60s = false;
+      card.warnedDone = false;
+      expandedCardId = null;
+      if (document.activeElement) document.activeElement.blur();
+
+      saveAndSync();
+      render();
+      showToast(`Wiped ${card.name}`, "info");
+    }
+
+    function renameCard(id) {
+      const card = cards.find(c => c.id === id);
+      if (!card) return;
+      const newName = prompt("Enter new Boss name:", card.name);
+      if (newName && newName.trim()) {
+        card.name = newName.trim();
+        saveAndSync();
+        render();
       }
     }
-    if (rawPositions.length > 0 && rawPositions[rawPositions.length - 1].percent > 92) {
-      let diff = rawPositions[rawPositions.length - 1].percent - 92;
-      rawPositions.forEach(p => p.percent -= diff);
-    }
-    if (rawPositions.length > 0 && rawPositions[0].percent < 8) {
-      let diff = 8 - rawPositions[0].percent;
-      rawPositions.forEach(p => p.percent += diff);
-    }
 
-    rawPositions.forEach((item, idx) => {
-      const c = item.card;
-      const leftPercent = item.percent;
-      const chosenColor = colors[idx % colors.length];
-      const chosenLevel = levels[idx % 4];
-
-      const timeStr = new Date(c.target).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
-      const node = document.createElement('div');
-      node.className = `peak-node ${chosenLevel}`;
-      node.style.left = `${leftPercent}%`;
-
-      node.innerHTML = `
-        <span class="peak-node-time">${timeStr}</span>
-        <span class="peak-node-tag" style="background: ${chosenColor};">${c.name}</span>
-        <div class="peak-node-pin" style="border-color: ${chosenColor};"></div>
-      `;
-      wrapper.appendChild(node);
-    });
-
-    const chipListEl = document.getElementById('peakChipListContent');
-    let chipHtml = '';
-    bestMatchedCards.forEach((c, idx) => {
-      const chosenColor = colors[idx % colors.length];
-      const timeStr = new Date(c.target).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      chipHtml += `
-        <div class="peak-chip-item">
-          <div class="peak-chip-dot" style="background: ${chosenColor};"></div>
-          <span style="font-weight: bold; color: var(--text-color);">${c.name}</span>
-          <span style="color: var(--subtext-color);">⏰ ${timeStr}</span>
-        </div>
-      `;
-    });
-    chipListEl.innerHTML = chipHtml;
-
-    document.getElementById('peakToastContainer').style.display = 'flex';
-  };
-
-  function checkAndUpdateTimers() {
-    const now = Date.now();
-    let stateChanged = false;
-
-    let expectedIndexed = window.cards.map((c, originalIndex) => ({ card: c, originalIndex }));
-    expectedIndexed.sort((a, b) => {
-      const aIsExpired = Boolean(a.card.target && a.card.target <= now);
-      const bIsExpired = Boolean(b.card.target && b.card.target <= now);
-      if (aIsExpired && !bIsExpired) return -1;
-      if (!aIsExpired && bIsExpired) return 1;
-      return a.originalIndex - b.originalIndex;
-    });
-    const currentExpectedHash = expectedIndexed.map(item => item.card.id || item.originalIndex).join(',');
-    
-    const isTypingInput = document.activeElement && document.activeElement.tagName === 'INPUT';
-    if (currentExpectedHash !== lastRenderedOrderHash && !isTypingInput) {
+    function deleteCard(id) {
+      const card = cards.find(c => c.id === id);
+      if (!card) return;
+      if (!confirm(`Delete "${card.name}"?`)) return;
+      cards = cards.filter(c => c.id !== id);
+      cards.forEach((c, idx) => c.originalIndex = idx);
+      if (expandedCardId === id) expandedCardId = null;
+      saveAndSync();
       render();
     }
 
-    window.cards.forEach((c, idx) => {
-      const el = document.getElementById(`remain-${idx}`);
-      const targetEl = document.getElementById(`target-${idx}`);
-      if (!el) return;
+    // =========================================================
+    // TIMELINE RENDERING & PEAK DENSITY
+    // =========================================================
+    function renderTimeline(now) {
+      const viewport = document.getElementById("timelineViewport");
+      const nodesLayer = document.getElementById("timelineNodesLayer");
+      const nowMarker = document.getElementById("nowMarker");
+      const peakBar = document.getElementById("peakDensityBar");
 
-      if (c.target) {
-        if (targetEl) targetEl.innerText = `Target: ${new Date(c.target).toLocaleTimeString()}`;
-        const remainSecs = Math.ceil((c.target - now) / 1000);
+      const viewStart = now + timelineOffsetMs;
+      const viewEnd = viewStart + TIMELINE_WINDOW_MS;
 
-        if (remainSecs > 0) {
-          const h = String(Math.floor(remainSecs / 3600)).padStart(2, '0');
-          const m = String(Math.floor((remainSecs % 3600) / 60)).padStart(2, '0');
-          const s = String(remainSecs % 60).padStart(2, '0');
-          el.innerText = `Remaining: ${h}:${m}:${s}`;
-          el.style.color = remainSecs <= 30 ? 'red' : 'var(--text-color)';
+      document.getElementById("timelineStartLabel").textContent = formatShortTime(viewStart);
+      document.getElementById("timelineEndLabel").textContent = formatShortTime(viewEnd);
 
-          if (remainSecs <= 60 && !c.warned60s) {
-            c.warned60s = true;
-            c.warnedDone = true; // Đánh dấu đã hoàn tất thông báo cho chu kỳ này (ưu tiên mốc 60s)
-            const msg60s = `${c.name}: Sắp đến giờ! (Còn ${remainSecs} giây)`;
-            claimAndSendTelegram(idx, 'warned60s', c.target, msg60s);
-            triggerWebNotification("RAIDBOSS SẮP ĐẾN GIỜ!", msg60s);
-          }
-        } else {
-          el.innerText = "Remaining: Done!";
-          el.style.color = 'green';
-
-          // Chỉ gửi thông báo lúc hết giờ nếu trước đó chưa gửi thông báo 60s
-          if (!c.warned60s && !c.warnedDone) {
-            c.warnedDone = true;
-            const msgDone = `${c.name}: Đã đến giờ!`;
-            claimAndSendTelegram(idx, 'warnedDone', c.target, msgDone);
-            triggerWebNotification("RAIDBOSS ĐÃ ĐẾN GIỜ!", msgDone);
-          }
-        }
+      // Position NOW marker
+      const nowPct = ((now - viewStart) / TIMELINE_WINDOW_MS) * 100;
+      if (nowPct >= 0 && nowPct <= 100) {
+        nowMarker.style.display = "block";
+        nowMarker.style.left = `${nowPct}%`;
       } else {
-        if (targetEl) targetEl.innerText = `Target: --`;
-        el.innerText = `Remaining: --`;
-        el.style.color = 'var(--text-color)';
-      }
-    });
-
-    updateToastPreview(now);
-    updateTimelineBar(now);
-
-    if (stateChanged && window.isAuthorized) {
-      saveCardsToFirebase();
-    }
-  }
-
-  function updateToastPreview(now) {
-    const toastList = document.getElementById('toastList');
-    if (!toastList) return;
-
-    let activeCards = window.cards.filter(c => c.target && (c.target - now > 0));
-    activeCards.sort((a, b) => a.target - b.target);
-    let topCards = activeCards.slice(0, limitCount);
-
-    if (topCards.length === 0) {
-      toastList.innerHTML = `<span style="color: var(--subtext-color); font-size: 0.85em; font-style: italic; text-align: center; padding: 4px;">Không có timer nào đang chạy</span>`;
-      return;
-    }
-
-    let html = '';
-    topCards.forEach(c => {
-      const remainSecs = Math.ceil((c.target - now) / 1000);
-      const h = String(Math.floor(remainSecs / 3600)).padStart(2, '0');
-      const m = String(Math.floor((remainSecs % 3600) / 60)).padStart(2, '0');
-      const s = String(remainSecs % 60).padStart(2, '0');
-      const isUrgent = remainSecs <= 60;
-      const targetTimeString = new Date(c.target).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
-      html += `
-        <div class="preview-chip ${isUrgent ? 'urgent' : ''}">
-          <span class="preview-name">${c.name}</span>
-          <span class="preview-target">⏰ ${targetTimeString}</span>
-          <span class="preview-remain">${h}:${m}:${s}</span>
-        </div>
-      `;
-    });
-    toastList.innerHTML = html;
-  }
-
-  function updateTimelineBar(now) {
-    const spanInput = document.getElementById('timelineSpanInput');
-    let spanHours = spanInput ? (parseFloat(spanInput.value) || 2) : 2;
-    if (spanHours < 0.5) spanHours = 0.5;
-    if (spanHours > 9) spanHours = 9;
-
-    const spanMs = spanHours * 3600 * 1000;
-    
-    const startTime = now + manualTimelineOffsetMs;
-    const endTime = startTime + spanMs;
-
-    document.getElementById('timelineStartLabel').innerText = new Date(startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    document.getElementById('timelineEndLabel').innerText = new Date(endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
-    const wrapper = document.getElementById('timelineBarWrapper');
-    
-    const oldDynamicElements = wrapper.querySelectorAll('.timeline-indicator, .timeline-tick, .timeline-tick-label, .timeline-now-tick, .timeline-now-label, .timeline-interval-label');
-    oldDynamicElements.forEach(el => el.remove());
-
-    const nowRatio = (now - startTime) / spanMs;
-    if (nowRatio >= 0 && nowRatio <= 1) {
-      const nowPercent = nowRatio * 100;
-      const nowTick = document.createElement('div');
-      nowTick.className = 'timeline-now-tick';
-      nowTick.style.left = `${nowPercent}%`;
-      wrapper.appendChild(nowTick);
-
-      const nowLabel = document.createElement('div');
-      nowLabel.className = 'timeline-now-label';
-      nowLabel.style.left = `${nowPercent}%`;
-      nowLabel.innerText = `NOW`;
-      wrapper.appendChild(nowLabel);
-    }
-
-    let intervalMs;
-    if (spanHours <= 1) {
-      intervalMs = 5 * 60 * 1000;
-    } else if (spanHours <= 3) {
-      intervalMs = 15 * 60 * 1000;
-    } else if (spanHours <= 6) {
-      intervalMs = 30 * 60 * 1000;
-    } else {
-      intervalMs = 60 * 60 * 1000;
-    }
-
-    let currentTickTime = Math.ceil(startTime / intervalMs) * intervalMs;
-    
-    while (currentTickTime < endTime) {
-      const ratio = (currentTickTime - startTime) / spanMs;
-      const leftPercent = ratio * 100;
-
-      const tickEl = document.createElement('div');
-      tickEl.className = 'timeline-tick';
-      tickEl.style.left = `${leftPercent}%`;
-      wrapper.appendChild(tickEl);
-
-      const tickLabel = document.createElement('div');
-      tickLabel.className = 'timeline-tick-label';
-      tickLabel.style.left = `${leftPercent}%`;
-      tickLabel.innerText = new Date(currentTickTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      wrapper.appendChild(tickLabel);
-
-      currentTickTime += intervalMs;
-    }
-
-    let validCards = window.cards.filter(c => {
-      if (!c.target) return false;
-      const passedMs = now - c.target;
-      if (passedMs > 65 * 60 * 1000) return false;
-      return c.target >= startTime && c.target <= endTime;
-    });
-    validCards.sort((a, b) => a.target - b.target);
-
-    const wrapperWidth = wrapper.clientWidth || 990;
-    let placedBubbles = [];
-
-    validCards.forEach(c => {
-      const ratio = (c.target - startTime) / spanMs;
-      const leftPercent = ratio * 100;
-      const leftPx = (ratio * wrapperWidth);
-
-      const remainSecs = Math.ceil((c.target - now) / 1000);
-      const isUrgent = remainSecs <= 60 && remainSecs >= 0;
-      const isExpired = c.target < now;
-
-      let displayName = c.name;
-      const parts = c.name.trim().split(/\s+/);
-      if (parts.length >= 2) {
-        displayName = parts[0] + '\n' + parts.slice(1).join(' ');
+        nowMarker.style.display = "none";
       }
 
-      const targetTimeString = new Date(c.target).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      // Filter visible bosses (hide overdue > 65 mins)
+      const sixtyFiveMinsMs = 65 * 60 * 1000;
+      const activeNodes = cards
+        .filter(c => c.target !== null && (now - c.target) <= sixtyFiveMinsMs)
+        .sort((a, b) => a.target - b.target);
 
-      const maxLineLength = Math.max(...displayName.split('\n').map(l => l.length));
-      const estimatedWidthPx = Math.max(75, maxLineLength * 7 + 24);
+      nodesLayer.innerHTML = "";
+      const viewportWidth = viewport.clientWidth || 800;
 
-      let chosenLevel = 'level-top';
-      let hasConflictTop = placedBubbles.some(b => b.level === 'level-top' && Math.abs(b.leftPx - leftPx) < (estimatedWidthPx / 2 + b.widthPx / 2 + 10));
-
-      if (hasConflictTop) {
-        let hasConflictBottom = placedBubbles.some(b => b.level === 'level-bottom' && Math.abs(b.leftPx - leftPx) < (estimatedWidthPx / 2 + b.widthPx / 2 + 10));
-        if (!hasConflictBottom) {
-          chosenLevel = 'level-bottom';
-        } else {
-          chosenLevel = placedBubbles.filter(b => b.level === 'level-top').length <= placedBubbles.filter(b => b.level === 'level-bottom').length ? 'level-top' : 'level-bottom';
+      activeNodes.forEach((card, idx) => {
+        const pct = ((card.target - viewStart) / TIMELINE_WINDOW_MS) * 100;
+        if (pct >= -10 && pct <= 110) {
+          const isOverdue = card.target <= now;
+          const node = document.createElement("div");
+          node.className = `timeline-node ${isOverdue ? "overdue" : ""}`;
+          node.style.left = `${pct}%`;
+          node.innerHTML = `${escapeHtml(card.name)}<span class="node-time">${formatShortTime(card.target)}</span>`;
+          nodesLayer.appendChild(node);
         }
+
+        // Interval pill between consecutive future/visible nodes
+        if (idx < activeNodes.length - 1) {
+          const nextCard = activeNodes[idx + 1];
+          const midTime = (card.target + nextCard.target) / 2;
+          const midPct = ((midTime - viewStart) / TIMELINE_WINDOW_MS) * 100;
+          const gapPx = ((nextCard.target - card.target) / TIMELINE_WINDOW_MS) * viewportWidth;
+
+          // Auto-hide pill if nodes are too close (< 52px)
+          if (midPct >= 0 && midPct <= 100 && gapPx >= 52) {
+            const gapMs = nextCard.target - card.target;
+            const gapMins = Math.round(gapMs / 60000);
+            const h = Math.floor(gapMins / 60);
+            const m = gapMins % 60;
+            const gapLabel = h > 0 ? `${h}h${m > 0 ? m + "m" : ""}` : `${m}m`;
+
+            const pill = document.createElement("div");
+            pill.className = "interval-pill";
+            pill.style.left = `${midPct}%`;
+            pill.textContent = gapLabel;
+            nodesLayer.appendChild(pill);
+          }
+        }
+      });
+
+      // 4-tier Peak Density Graph (24 buckets of 15 mins across 6h window)
+      const buckets = 24;
+      const bucketMs = TIMELINE_WINDOW_MS / buckets;
+      let peakHtml = "";
+
+      for (let i = 0; i < buckets; i++) {
+        const bStart = viewStart + i * bucketMs;
+        const bEnd = bStart + bucketMs;
+        const count = activeNodes.filter(c => c.target >= bStart && c.target < bEnd).length;
+
+        let color = "transparent";
+        if (count === 1) color = "#38bdf8";
+        else if (count === 2) color = "#22c55e";
+        else if (count === 3) color = "#f59e0b";
+        else if (count >= 4) color = "#ef4444";
+
+        peakHtml += `<div class="peak-segment" style="flex:1; background:${color};"></div>`;
+      }
+      peakBar.innerHTML = peakHtml;
+    }
+
+    // =========================================================
+    // AI CLIPBOARD OCR (GEMINI DATA - API LATENCY - 15s)
+    // =========================================================
+    const AI_PROMPT = `Extract all Raidboss names and their remaining respawn countdown timers from this screenshot.
+Return ONLY a valid JSON array with objects having keys: "name" (string), "hours" (number), "minutes" (number), "seconds" (number).
+If a boss has no timer or is already alive/spawned, omit it or set hours/minutes/seconds to 0.
+Example: [{"name": "Fafurion", "hours": 1, "minutes": 42, "seconds": 15}]`;
+
+    async function handleImageBlob(blob) {
+      if (!config.geminiKey) {
+        showToast("Please configure Gemini API Key in Settings first", "warning");
+        document.getElementById("configPanel").classList.add("open");
+        return;
       }
 
-      placedBubbles.push({ leftPx, widthPx: estimatedWidthPx, level: chosenLevel });
-
-      const indicator = document.createElement('div');
-      let indicatorClasses = `timeline-indicator ${chosenLevel}`;
-      if (isUrgent) indicatorClasses += ' urgent';
-      if (isExpired) indicatorClasses += ' expired';
-
-      indicator.className = indicatorClasses;
-      indicator.style.left = `${leftPercent}%`;
-      
-      indicator.innerHTML = `
-        <span class="timeline-target-tag">⏰ ${targetTimeString}</span>
-        <span class="timeline-boss-tag">${displayName}</span>
-      `;
-      wrapper.appendChild(indicator);
-    });
-
-    function formatIntervalShort(ms) {
-      let totalSecs = Math.max(0, Math.ceil(ms / 1000));
-      let h = Math.floor(totalSecs / 3600);
-      let m = Math.floor((totalSecs % 3600) / 60);
-      let s = totalSecs % 60;
-      if (h > 0) return `${h}h ${String(m).padStart(2, '0')}m`;
-      if (m > 0) return `${m}m ${String(s).padStart(2, '0')}s`;
-      return `${s}s`;
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64Data = reader.result.split(",")[1];
+        await parseAiDataAndSync(base64Data, blob.type || "image/png");
+      };
+      reader.readAsDataURL(blob);
     }
 
-    let timelinePoints = [];
-    if (now >= startTime && now <= endTime) {
-      timelinePoints.push({ time: now, px: ((now - startTime) / spanMs) * wrapperWidth, widthPx: 40 });
-    }
-    validCards.forEach(c => {
-      const ratio = (c.target - startTime) / spanMs;
-      const px = ratio * wrapperWidth;
-      const parts = c.name.trim().split(/\s+/);
-      const displayName = parts.length >= 2 ? parts[0] + '\n' + parts.slice(1).join(' ') : c.name;
-      const maxLineLength = Math.max(...displayName.split('\n').map(l => l.length));
-      const estWidth = Math.max(75, maxLineLength * 7 + 24);
-      timelinePoints.push({ time: c.target, px: px, widthPx: estWidth });
-    });
-    timelinePoints.sort((a, b) => a.time - b.time);
+    async function parseAiDataAndSync(base64Image, mimeType) {
+      const apiStartTime = Date.now();
+      showToast("Analyzing clipboard image via Gemini 3.1 Flash Lite...", "info");
 
-    for (let i = 0; i < timelinePoints.length - 1; i++) {
-      let p1 = timelinePoints[i];
-      let p2 = timelinePoints[i + 1];
-      let diffMs = p2.time - p1.time;
+      try {
+        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${encodeURIComponent(config.geminiKey)}`;
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{
+              parts: [
+                { text: AI_PROMPT },
+                { inline_data: { mime_type: mimeType, data: base64Image } }
+              ]
+            }]
+          })
+        });
 
-      let freeGapPx = (p2.px - p2.widthPx / 2) - (p1.px + p1.widthPx / 2);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
 
-      if (freeGapPx >= 95 && diffMs > 0) {
-        let midPx = (p1.px + p1.widthPx / 2 + p2.px - p2.widthPx / 2) / 2;
-        let midPercent = (midPx / wrapperWidth) * 100;
+        const data = await response.json();
+        const apiEndTime = Date.now();
 
-        const intervalEl = document.createElement('div');
-        intervalEl.className = 'timeline-interval-label';
-        intervalEl.style.left = `${midPercent}%`;
-        intervalEl.innerHTML = `
-          <span class="timeline-interval-arrow">⬅</span>
-          <span class="timeline-interval-pill">${formatIntervalShort(diffMs)}</span>
-          <span class="timeline-interval-arrow">➡</span>
-        `;
-        wrapper.appendChild(intervalEl);
+        // Latency waiting for Gemini API + fixed 15s capture-to-paste offset
+        const apiLatencyMs = apiEndTime - apiStartTime;
+        const fixedCaptureOffsetMs = 15 * 1000;
+        const totalSubtractedSecs = ((apiLatencyMs + fixedCaptureOffsetMs) / 1000).toFixed(1);
+
+        const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
+        const cleanedJson = rawText.replace(/```json|```/gi, "").trim();
+        const parsedList = JSON.parse(cleanedJson);
+
+        let updatedCount = 0;
+
+        parsedList.forEach(item => {
+          if (!item || !item.name) return;
+          const h = Number(item.hours) || 0;
+          const m = Number(item.minutes) || 0;
+          const s = Number(item.seconds) || 0;
+
+          if (h === 0 && m === 0 && s === 0) return;
+
+          const matchedCard = cards.find(c =>
+            c.name.trim().toLowerCase() === item.name.trim().toLowerCase()
+          );
+
+          if (matchedCard) {
+            // Remaining time = Gemini API data - API latency - 15s
+            const rawRemainingMs = ((h * 3600) + (m * 60) + s) * 1000;
+            const adjustedRemainingMs = Math.max(0, rawRemainingMs - apiLatencyMs - fixedCaptureOffsetMs);
+
+            matchedCard.target = apiEndTime + adjustedRemainingMs;
+            matchedCard.warned60s = false;
+            matchedCard.warnedDone = false;
+            updatedCount++;
+          }
+        });
+
+        if (updatedCount > 0) {
+          saveAndSync();
+          render();
+          showToast(`Updated ${updatedCount} Boss(es) (-${totalSubtractedSecs}s)`, "success");
+        } else {
+          showToast("No matching Boss timers found", "warning");
+        }
+      } catch (err) {
+        console.error("AI Parse Error:", err);
+        showToast("Failed to parse image from AI API", "error");
       }
     }
-  }
 
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible") {
-      checkAndUpdateTimers();
+    // =========================================================
+    // UI EVENTS & HELPERS
+    // =========================================================
+    function bindEvents() {
+      // Collapse active card & blur focus when clicking/tapping outside the selected card
+      document.addEventListener("click", (e) => {
+        if (!expandedCardId) return;
+
+        const activeCardEl = document.getElementById(`card_${expandedCardId}`);
+        if (activeCardEl && !activeCardEl.contains(e.target)) {
+          expandedCardId = null;
+          if (document.activeElement && activeCardEl.contains(document.activeElement)) {
+            document.activeElement.blur();
+          }
+          render();
+        }
+      });
+
+      // Global Ctrl+V Paste listener
+      window.addEventListener("paste", (e) => {
+        const items = e.clipboardData?.items;
+        if (!items) return;
+        for (let i = 0; i < items.length; i++) {
+          if (items[i].type.indexOf("image") !== -1) {
+            const blob = items[i].getAsFile();
+            if (blob) handleImageBlob(blob);
+            break;
+          }
+        }
+      });
+
+      // Manual Paste Button
+      document.getElementById("btnPasteClipboard").addEventListener("click", async () => {
+        try {
+          const clipboardItems = await navigator.clipboard.read();
+          for (const item of clipboardItems) {
+            const imageType = item.types.find(t => t.startsWith("image/"));
+            if (imageType) {
+              const blob = await item.getType(imageType);
+              await handleImageBlob(blob);
+              return;
+            }
+          }
+          showToast("No image found in clipboard", "warning");
+        } catch (err) {
+          showToast("Press Ctrl + V directly on the page to paste image", "info");
+        }
+      });
+
+      // Add Card
+      document.getElementById("btnAddCard").addEventListener("click", () => {
+        const name = prompt("Enter Boss name:");
+        if (!name || !name.trim()) return;
+        cards.push({
+          id: "boss_" + Date.now(),
+          name: name.trim(),
+          target: null,
+          originalIndex: cards.length,
+          warned60s: false,
+          warnedDone: false
+        });
+        saveAndSync();
+        render();
+        showToast(`Added ${name.trim()}`, "success");
+      });
+
+      // Wipe All
+      document.getElementById("btnWipeAll").addEventListener("click", () => {
+        if (!confirm("Wipe all active timers?")) return;
+        cards.forEach(c => {
+          c.target = null;
+          c.warned60s = false;
+          c.warnedDone = false;
+        });
+        expandedCardId = null;
+        if (document.activeElement) document.activeElement.blur();
+        saveAndSync();
+        render();
+        showToast("All timers wiped", "info");
+      });
+
+      // Toggle Settings
+      document.getElementById("btnToggleConfig").addEventListener("click", () => {
+        document.getElementById("configPanel").classList.toggle("open");
+      });
+
+      // Save Settings
+      document.getElementById("btnSaveConfig").addEventListener("click", () => {
+        config.geminiKey = document.getElementById("cfgGeminiKey").value.trim();
+        config.firebaseUrl = document.getElementById("cfgFirebaseUrl").value.trim();
+        config.roomId = document.getElementById("cfgRoomId").value.trim() || "lander-default";
+        config.tgToken = document.getElementById("cfgTgToken").value.trim();
+        config.tgChatId = document.getElementById("cfgTgChatId").value.trim();
+
+        localStorage.setItem(STORAGE_KEY_CFG, JSON.stringify(config));
+        document.getElementById("configPanel").classList.remove("open");
+        showToast("Settings saved", "success");
+        initFirebase();
+      });
+
+      // Theme Toggle
+      document.getElementById("btnThemeToggle").addEventListener("click", () => {
+        const isLight = document.body.classList.toggle("light-mode");
+        localStorage.setItem(STORAGE_KEY_THEME, isLight ? "light" : "dark");
+        document.getElementById("btnThemeToggle").textContent = isLight ? "Dark Mode" : "Light Mode";
+      });
+
+      // NOW Jump Button
+      document.getElementById("btnNowJump").addEventListener("click", () => {
+        timelineOffsetMs = -30 * 60 * 1000;
+        renderTimeline(Date.now());
+      });
+
+      // Timeline Drag-to-Pan
+      const viewport = document.getElementById("timelineViewport");
+      viewport.addEventListener("mousedown", (e) => {
+        isDraggingTimeline = true;
+        dragStartX = e.clientX;
+        dragStartOffsetMs = timelineOffsetMs;
+      });
+
+      window.addEventListener("mousemove", (e) => {
+        if (!isDraggingTimeline) return;
+        const dx = e.clientX - dragStartX;
+        const width = viewport.clientWidth || 800;
+        const deltaMs = -(dx / width) * TIMELINE_WINDOW_MS;
+        timelineOffsetMs = dragStartOffsetMs + deltaMs;
+        renderTimeline(Date.now());
+      });
+
+      window.addEventListener("mouseup", () => {
+        isDraggingTimeline = false;
+      });
+
+      // Touch support for Timeline Drag
+      viewport.addEventListener("touchstart", (e) => {
+        if (e.touches.length === 1) {
+          isDraggingTimeline = true;
+          dragStartX = e.touches[0].clientX;
+          dragStartOffsetMs = timelineOffsetMs;
+        }
+      }, { passive: true });
+
+      viewport.addEventListener("touchmove", (e) => {
+        if (!isDraggingTimeline || e.touches.length !== 1) return;
+        const dx = e.touches[0].clientX - dragStartX;
+        const width = viewport.clientWidth || 800;
+        const deltaMs = -(dx / width) * TIMELINE_WINDOW_MS;
+        timelineOffsetMs = dragStartOffsetMs + deltaMs;
+        renderTimeline(Date.now());
+      }, { passive: true });
+
+      viewport.addEventListener("touchend", () => {
+        isDraggingTimeline = false;
+      });
     }
-  });
-</script>
+
+    function showToast(message, type = "info") {
+      const container = document.getElementById("toastContainer");
+      const item = document.createElement("div");
+      item.className = `toast-item ${type}`;
+      item.textContent = message;
+      container.prepend(item);
+
+      // Keep max 30 items
+      while (container.children.length > 30) {
+        container.removeChild(container.lastChild);
+      }
+
+      setTimeout(() => {
+        if (item.parentNode) item.remove();
+      }, 6500);
+    }
+
+    function formatClockTime(ts) {
+      const d = new Date(ts);
+      const hh = String(d.getHours()).padStart(2, "0");
+      const mm = String(d.getMinutes()).padStart(2, "0");
+      const ss = String(d.getSeconds()).padStart(2, "0");
+      return `${hh}:${mm}:${ss}`;
+    }
+
+    function formatShortTime(ts) {
+      const d = new Date(ts);
+      const hh = String(d.getHours()).padStart(2, "0");
+      const mm = String(d.getMinutes()).padStart(2, "0");
+      return `${hh}:${mm}`;
+    }
+
+    function formatDuration(ms) {
+      const totalSecs = Math.max(0, Math.floor(ms / 1000));
+      const h = Math.floor(totalSecs / 3600);
+      const m = Math.floor((totalSecs % 3600) / 60);
+      const s = totalSecs % 60;
+      return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    // Start Application
+    init();
+  </script>
 </body>
 </html>
