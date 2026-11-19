@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Lander Timer Web v7.2</title>
+  <title>Lander Timer Web v7.21</title>
   <!-- Firebase SDK v9 Compat -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -604,7 +604,7 @@
   <div class="top-bar">
     <div class="brand-section">
       <span class="brand-title">Lander Timer</span>
-      <span class="version-badge">v7.2</span>
+      <span class="version-badge">v7.21</span>
       <span id="liveClock" class="clock-display">00:00:00</span>
     </div>
 
@@ -689,13 +689,14 @@
 
   <script>
     // =========================================================
-    // STATE & STORAGE (v7.2 SNAPSHOT)
+    // STATE & STORAGE (v7.21)
     // =========================================================
     const DEFAULT_FIREBASE_URL = "https://lander-timer-sync-default-rtdb.asia-southeast1.firebasedatabase.app";
     const STORAGE_KEY_CARDS = "lander_timer_cards_v72";
     const STORAGE_KEY_CFG = "lander_timer_cfg_v72";
     const STORAGE_KEY_THEME = "lander_theme";
     const MAX_TOAST_ITEMS = 30;
+    const TOAST_AUTO_HIDE_MS = 15000;
 
     let config = {
       geminiKey: "",
@@ -708,6 +709,7 @@
     let cards = [];
     let expandedCardId = null;
     let lastRenderedOrderSignature = "";
+    let toastAutoHideTimer = null;
     let db = null;
     let cardsRef = null;
     let isRemoteUpdate = false;
@@ -936,16 +938,21 @@
     // =========================================================
     function getSortedCards(now) {
       return [...cards].sort((a, b) => {
-        const aExpired = a.target !== null && a.target <= now;
-        const bExpired = b.target !== null && b.target <= now;
+        const aHasTarget = a.target !== null;
+        const bHasTarget = b.target !== null;
 
-        // Expired cards jump to top immediately
-        if (aExpired && !bExpired) return -1;
-        if (!aExpired && bExpired) return 1;
+        // Cards with active/expired timers always appear before unset cards
+        if (aHasTarget && !bHasTarget) return -1;
+        if (!aHasTarget && bHasTarget) return 1;
 
-        if (aExpired && bExpired) return a.target - b.target;
+        // Both have target: sort ascending by remaining time (expired <= 0 first, then shortest remaining time)
+        if (aHasTarget && bHasTarget) {
+          const aRem = Math.max(0, a.target - now);
+          const bRem = Math.max(0, b.target - now);
+          if (aRem !== bRem) return aRem - bRem;
+          if (a.target !== b.target) return a.target - b.target;
+        }
 
-        // Otherwise maintain default originalIndex position
         return (a.originalIndex ?? 0) - (b.originalIndex ?? 0);
       });
     }
@@ -1483,6 +1490,10 @@ Example: [{"name": "Fafurion", "hours": 1, "minutes": 42, "seconds": 15}]`;
       // Clear Toast-list
       document.getElementById("btnClearToasts").addEventListener("click", (e) => {
         e.stopPropagation();
+        if (toastAutoHideTimer) {
+          clearTimeout(toastAutoHideTimer);
+          toastAutoHideTimer = null;
+        }
         const listEl = document.getElementById("toastList");
         const wrapper = document.getElementById("toastListWrapper");
         listEl.innerHTML = "";
@@ -1539,7 +1550,7 @@ Example: [{"name": "Fafurion", "hours": 1, "minutes": 42, "seconds": 15}]`;
       });
     }
 
-    // Toast-list: Bottom-Right, Auto-Height, Max 30 Items, No Scrollbar
+    // Toast-list: Bottom-Right, Auto-Height, Max 30 Items, Auto-hide 15s after last change
     function addToast(message, type = "info") {
       const wrapper = document.getElementById("toastListWrapper");
       const listEl = document.getElementById("toastList");
@@ -1555,6 +1566,14 @@ Example: [{"name": "Fafurion", "hours": 1, "minutes": 42, "seconds": 15}]`;
       while (listEl.children.length > MAX_TOAST_ITEMS) {
         listEl.removeChild(listEl.lastChild);
       }
+
+      if (toastAutoHideTimer) {
+        clearTimeout(toastAutoHideTimer);
+      }
+      toastAutoHideTimer = setTimeout(() => {
+        wrapper.classList.remove("has-items");
+        toastAutoHideTimer = null;
+      }, TOAST_AUTO_HIDE_MS);
     }
 
     function formatClockTime(ts) {
