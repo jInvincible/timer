@@ -711,7 +711,6 @@
         if (raw) {
           cards = JSON.parse(raw);
         } else {
-          // Default sample bosses
           const defaultNames = ["Fafurion", "Antharas", "Valakas", "Baium", "Queen Ant", "Orfen", "Core", "Zaken"];
           cards = defaultNames.map((name, idx) => ({
             id: "boss_" + idx + "_" + Date.now(),
@@ -748,7 +747,11 @@
 
         dbRef.child("cards").on("value", (snapshot) => {
           const val = snapshot.val();
-          if (!val) return;
+          if (!val) {
+            // Seed initial local cards if room is brand new on server
+            if (cards.length > 0) saveAndSync();
+            return;
+          }
           isRemoteUpdate = true;
           cards = Array.isArray(val) ? val : Object.values(val);
           normalizeOriginalIndices();
@@ -782,7 +785,9 @@
         const cardNodeRef = dbRef.child(`cards/${cardIndex}`);
 
         cardNodeRef.transaction((currentData) => {
-          if (!currentData) return currentData;
+          if (!currentData) {
+            return { ...card, warned60s: true, warnedDone: true };
+          }
           if (currentData.warned60s) return; // Abort if another browser already claimed it
           currentData.warned60s = true;
           currentData.warnedDone = true;
@@ -794,7 +799,6 @@
           }
         });
       } else {
-        // Offline / Local-only fallback
         card.warned60s = true;
         card.warnedDone = true;
         saveAndSync();
@@ -931,13 +935,11 @@
       render();
 
       // Auto-focus and select Hour input box immediately
-      requestAnimationFrame(() => {
-        const hInput = document.getElementById(`in_h_${id}`);
-        if (hInput) {
-          hInput.focus();
-          hInput.select();
-        }
-      });
+      const hInput = document.getElementById(`in_h_${id}`);
+      if (hInput) {
+        hInput.focus();
+        hInput.select();
+      }
     }
 
     function render() {
@@ -961,7 +963,7 @@
         const remStr = isUnset ? "--:--:--" : (isExpired ? "00:00:00" : formatDuration(card.target - now));
 
         cardEl.innerHTML = `
-          <button class="btn-card-close" title="Remove card" data-action="delete" data-id="${card.id}">x</button>
+          <button type="button" class="btn-card-close" title="Remove card" data-action="delete" data-id="${card.id}">x</button>
           <div class="card-summary" data-action="toggle" data-id="${card.id}">
             <div class="card-name">${escapeHtml(card.name)}</div>
             <div class="card-times-row">
@@ -976,17 +978,18 @@
               <input type="number" min="0" max="59" placeholder="S" id="in_s_${card.id}" />
             </div>
             <div class="card-action-btns">
-              <button class="primary" data-action="set" data-id="${card.id}">Set</button>
-              <button data-action="wipe" data-id="${card.id}">Wipe</button>
-              <button data-action="rename" data-id="${card.id}">Rename</button>
+              <button type="button" class="primary" data-action="set" data-id="${card.id}">Set</button>
+              <button type="button" data-action="wipe" data-id="${card.id}">Wipe</button>
+              <button type="button" data-action="rename" data-id="${card.id}">Rename</button>
             </div>
           </div>
         `;
 
         // Handle card click/tap
         cardEl.addEventListener("click", (e) => {
+          e.stopPropagation(); // Prevent bubbling up to document outside-click handler
+
           if (e.target.tagName === "INPUT") {
-            e.stopPropagation();
             return;
           }
 
@@ -994,7 +997,6 @@
           if (actionBtn) {
             const action = actionBtn.getAttribute("data-action");
             const id = actionBtn.getAttribute("data-id");
-            e.stopPropagation();
 
             if (action === "toggle") {
               openOrToggleCard(id);
@@ -1011,7 +1013,6 @@
           }
 
           // Clicking anywhere else inside an unselected card expands it and auto-focuses Hour
-          e.stopPropagation();
           if (expandedCardId !== card.id) {
             openOrToggleCard(card.id);
           }
@@ -1229,7 +1230,8 @@ Example: [{"name": "Fafurion", "hours": 1, "minutes": 42, "seconds": 15}]`;
         });
 
         if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
+          const errBody = await response.text();
+          throw new Error(`HTTP ${response.status}: ${errBody.slice(0, 80)}`);
         }
 
         const data = await response.json();
@@ -1241,7 +1243,8 @@ Example: [{"name": "Fafurion", "hours": 1, "minutes": 42, "seconds": 15}]`;
         const totalSubtractedSecs = ((apiLatencyMs + fixedCaptureOffsetMs) / 1000).toFixed(1);
 
         const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
-        const cleanedJson = rawText.replace(/```json|```/gi, "").trim();
+        const jsonMatch = rawText.match(/\[[\s\S]*\]/);
+        const cleanedJson = jsonMatch ? jsonMatch[0] : "[]";
         const parsedList = JSON.parse(cleanedJson);
 
         let updatedCount = 0;
@@ -1279,7 +1282,7 @@ Example: [{"name": "Fafurion", "hours": 1, "minutes": 42, "seconds": 15}]`;
         }
       } catch (err) {
         console.error("AI Parse Error:", err);
-        showToast("Failed to parse image from AI API", "error");
+        showToast(`AI Error: ${err.message}`, "error");
       }
     }
 
@@ -1291,10 +1294,10 @@ Example: [{"name": "Fafurion", "hours": 1, "minutes": 42, "seconds": 15}]`;
       document.addEventListener("click", (e) => {
         if (!expandedCardId) return;
 
-        const activeCardEl = document.getElementById(`card_${expandedCardId}`);
-        if (activeCardEl && !activeCardEl.contains(e.target)) {
+        const clickedCard = e.target.closest(".boss-card");
+        if (!clickedCard || clickedCard.id !== `card_${expandedCardId}`) {
           expandedCardId = null;
-          if (document.activeElement && activeCardEl.contains(document.activeElement)) {
+          if (document.activeElement) {
             document.activeElement.blur();
           }
           render();
