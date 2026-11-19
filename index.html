@@ -852,7 +852,7 @@
       const settingsIds = ["cfgGeminiKey", "cfgFirebaseUrl", "cfgCardsPath", "cfgTgToken", "cfgTgChatId"];
 
       if (isAdminAuthenticated) {
-        adminBtn.textContent = `Admin: ${activeAdminName} (Logout)`;
+        adminBtn.textContent = `Welcome Admin (Logout)`;
         adminBtn.classList.add("admin-unlocked");
         if (lockHint) {
           lockHint.textContent = "Admin unlocked. Press Ctrl + V anywhere to parse Raidboss screenshot via Gemini AI.";
