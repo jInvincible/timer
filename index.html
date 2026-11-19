@@ -588,11 +588,11 @@
       </div>
       <div class="config-item">
         <label for="cfgFirebaseUrl">Firebase Realtime Database URL</label>
-        <input type="text" id="cfgFirebaseUrl" placeholder="https://your-project.firebaseio.com" />
+        <input type="text" id="cfgFirebaseUrl" placeholder="https://lander-timer-sync-default-rtdb.asia-southeast1.firebasedatabase.app" />
       </div>
       <div class="config-item">
-        <label for="cfgRoomId">Sync Room ID</label>
-        <input type="text" id="cfgRoomId" placeholder="lander-boss-room" />
+        <label for="cfgCardsPath">Firebase Cards Path (default: cards)</label>
+        <input type="text" id="cfgCardsPath" placeholder="cards" />
       </div>
       <div class="config-item">
         <label for="cfgTgToken">Telegram Bot Token</label>
@@ -647,14 +647,15 @@
     // =========================================================
     // STATE & STORAGE
     // =========================================================
+    const DEFAULT_FIREBASE_URL = "https://lander-timer-sync-default-rtdb.asia-southeast1.firebasedatabase.app";
     const STORAGE_KEY_CARDS = "lander_timer_cards_v717";
     const STORAGE_KEY_CFG = "lander_timer_cfg_v717";
-    const STORAGE_KEY_THEME = "lander_timer_theme_v717";
+    const STORAGE_KEY_THEME = "lander_theme";
 
     let config = {
       geminiKey: "",
-      firebaseUrl: "",
-      roomId: "lander-default",
+      firebaseUrl: DEFAULT_FIREBASE_URL,
+      cardsPath: "cards",
       tgToken: "",
       tgChatId: ""
     };
@@ -662,12 +663,13 @@
     let cards = [];
     let expandedCardId = null;
     let lastRenderedOrderSignature = "";
-    let dbRef = null;
+    let db = null;
+    let cardsRef = null;
     let isRemoteUpdate = false;
 
     // Timeline Pan State (6 hours window = 21600000 ms)
     const TIMELINE_WINDOW_MS = 6 * 3600 * 1000;
-    let timelineOffsetMs = -30 * 60 * 1000; // Start 30 mins before NOW
+    let timelineOffsetMs = -30 * 60 * 1000;
     let isDraggingTimeline = false;
     let dragStartX = 0;
     let dragStartOffsetMs = 0;
@@ -696,11 +698,17 @@
     function loadConfig() {
       try {
         const raw = localStorage.getItem(STORAGE_KEY_CFG);
-        if (raw) config = { ...config, ...JSON.parse(raw) };
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          config = { ...config, ...parsed };
+        }
       } catch (e) {}
+      if (!config.firebaseUrl) config.firebaseUrl = DEFAULT_FIREBASE_URL;
+      if (!config.cardsPath) config.cardsPath = "cards";
+
       document.getElementById("cfgGeminiKey").value = config.geminiKey || "";
-      document.getElementById("cfgFirebaseUrl").value = config.firebaseUrl || "";
-      document.getElementById("cfgRoomId").value = config.roomId || "lander-default";
+      document.getElementById("cfgFirebaseUrl").value = config.firebaseUrl;
+      document.getElementById("cfgCardsPath").value = config.cardsPath;
       document.getElementById("cfgTgToken").value = config.tgToken || "";
       document.getElementById("cfgTgChatId").value = config.tgChatId || "";
     }
@@ -710,67 +718,105 @@
         const raw = localStorage.getItem(STORAGE_KEY_CARDS);
         if (raw) {
           cards = JSON.parse(raw);
-        } else {
-          const defaultNames = ["Fafurion", "Antharas", "Valakas", "Baium", "Queen Ant", "Orfen", "Core", "Zaken"];
-          cards = defaultNames.map((name, idx) => ({
-            id: "boss_" + idx + "_" + Date.now(),
-            name,
-            target: null,
-            originalIndex: idx,
-            warned60s: false,
-            warnedDone: false
-          }));
         }
       } catch (e) {
         cards = [];
       }
-      normalizeOriginalIndices();
+      normalizeCards(cards);
     }
 
-    function normalizeOriginalIndices() {
-      cards.forEach((c, idx) => {
+    function normalizeCards(list) {
+      if (!Array.isArray(list)) return [];
+      list.forEach((c, idx) => {
+        if (!c.id) c.id = "boss_" + idx + "_" + (c.name || idx);
         if (typeof c.originalIndex !== "number") c.originalIndex = idx;
+        if (typeof c.target === "string") c.target = Number(c.target) || null;
+        if (c.target === undefined) c.target = null;
       });
+      return list;
     }
 
     // =========================================================
-    // FIREBASE SYNC & TRANSACTION LOCK
+    // FIREBASE SYNC (COMPATIBLE WITH ROOT PATHS & TELEGRAM CONFIG)
     // =========================================================
     function initFirebase() {
-      if (!config.firebaseUrl || !config.roomId) return;
+      if (!config.firebaseUrl) return;
       try {
         if (!firebase.apps.length) {
           firebase.initializeApp({ databaseURL: config.firebaseUrl });
         }
-        const db = firebase.database();
-        dbRef = db.ref("rooms/" + config.roomId.replace(/[^a-zA-Z0-9_-]/g, "_"));
+        db = firebase.database();
 
-        dbRef.child("cards").on("value", (snapshot) => {
-          const val = snapshot.val();
-          if (!val) {
-            // Seed initial local cards if room is brand new on server
-            if (cards.length > 0) saveAndSync();
-            return;
+        // 1. Auto-load Telegram & Gemini config from Firebase 'telegram_config' if present
+        db.ref("telegram_config").on("value", (snap) => {
+          const tgVal = snap.val();
+          if (!tgVal) return;
+          let updated = false;
+          if (!config.tgToken && (tgVal.botToken || tgVal.tgToken)) {
+            config.tgToken = tgVal.botToken || tgVal.tgToken;
+            document.getElementById("cfgTgToken").value = config.tgToken;
+            updated = true;
           }
-          isRemoteUpdate = true;
-          cards = Array.isArray(val) ? val : Object.values(val);
-          normalizeOriginalIndices();
-          localStorage.setItem(STORAGE_KEY_CARDS, JSON.stringify(cards));
-          render();
-          isRemoteUpdate = false;
+          if (!config.tgChatId && (tgVal.chatId || tgVal.tgChatId)) {
+            config.tgChatId = tgVal.chatId || tgVal.tgChatId;
+            document.getElementById("cfgTgChatId").value = config.tgChatId;
+            updated = true;
+          }
+          if (!config.geminiKey && (tgVal.geminiKey || tgVal.apiKey)) {
+            config.geminiKey = tgVal.geminiKey || tgVal.apiKey;
+            document.getElementById("cfgGeminiKey").value = config.geminiKey;
+            updated = true;
+          }
+          if (updated) {
+            localStorage.setItem(STORAGE_KEY_CFG, JSON.stringify(config));
+          }
         });
 
-        showToast("Connected to Firebase Sync", "success");
+        // 2. Listen to main cards path (default 'cards')
+        attachCardsListener(config.cardsPath || "cards");
+
+        // 3. Auto-fallback check: if 'cards' is empty on server, check 'timers' node
+        db.ref("cards").once("value", (snap) => {
+          if (!snap.exists()) {
+            db.ref("timers").once("value", (timerSnap) => {
+              if (timerSnap.exists() && config.cardsPath === "cards") {
+                config.cardsPath = "timers";
+                document.getElementById("cfgCardsPath").value = "timers";
+                localStorage.setItem(STORAGE_KEY_CFG, JSON.stringify(config));
+                attachCardsListener("timers");
+              }
+            });
+          }
+        });
+
       } catch (err) {
         console.error(err);
-        showToast("Firebase connection error", "error");
+        showToast("Firebase connection error: " + err.message, "error");
       }
+    }
+
+    function attachCardsListener(path) {
+      if (cardsRef) cardsRef.off();
+      cardsRef = db.ref(path);
+
+      cardsRef.on("value", (snapshot) => {
+        const val = snapshot.val();
+        if (!val) return;
+        isRemoteUpdate = true;
+        const arr = Array.isArray(val) ? val.filter(Boolean) : Object.keys(val).map(k => ({ id: k, ...val[k] }));
+        cards = normalizeCards(arr);
+        localStorage.setItem(STORAGE_KEY_CARDS, JSON.stringify(cards));
+        render();
+        isRemoteUpdate = false;
+      }, (err) => {
+        showToast("Firebase Read Error: " + err.message, "error");
+      });
     }
 
     function saveAndSync() {
       localStorage.setItem(STORAGE_KEY_CARDS, JSON.stringify(cards));
-      if (dbRef && !isRemoteUpdate) {
-        dbRef.child("cards").set(cards).catch(err => console.error("Sync error:", err));
+      if (cardsRef && !isRemoteUpdate) {
+        cardsRef.set(cards).catch(err => console.error("Sync error:", err));
       }
     }
 
@@ -779,15 +825,13 @@
       const secsLabel = Math.max(1, Math.ceil(remainingSecs));
       const message = `${card.name}: Sắp đến giờ! (Còn ${secsLabel} giây)`;
 
-      if (dbRef) {
+      if (cardsRef) {
         const cardIndex = cards.findIndex(c => c.id === card.id);
         if (cardIndex === -1) return;
-        const cardNodeRef = dbRef.child(`cards/${cardIndex}`);
+        const cardNodeRef = cardsRef.child(`${cardIndex}`);
 
         cardNodeRef.transaction((currentData) => {
-          if (!currentData) {
-            return { ...card, warned60s: true, warnedDone: true };
-          }
+          if (!currentData) return currentData;
           if (currentData.warned60s) return; // Abort if another browser already claimed it
           currentData.warned60s = true;
           currentData.warnedDone = true;
@@ -950,6 +994,12 @@
       const container = document.getElementById("cardContainer");
       container.innerHTML = "";
 
+      if (sorted.length === 0) {
+        container.innerHTML = `<div style="color:var(--text-secondary); font-size:0.85rem; padding:12px;">Syncing data from Firebase... (or click Add Card)</div>`;
+        renderTimeline(now);
+        return;
+      }
+
       sorted.forEach(card => {
         const isExpired = card.target !== null && card.target <= now;
         const isUnset = card.target === null;
@@ -987,7 +1037,7 @@
 
         // Handle card click/tap
         cardEl.addEventListener("click", (e) => {
-          e.stopPropagation(); // Prevent bubbling up to document outside-click handler
+          e.stopPropagation();
 
           if (e.target.tagName === "INPUT") {
             return;
@@ -1012,13 +1062,11 @@
             return;
           }
 
-          // Clicking anywhere else inside an unselected card expands it and auto-focuses Hour
           if (expandedCardId !== card.id) {
             openOrToggleCard(card.id);
           }
         });
 
-        // Allow Enter key inside inputs to trigger Set
         cardEl.querySelectorAll("input").forEach(inp => {
           inp.addEventListener("keydown", (e) => {
             if (e.key === "Enter") {
@@ -1113,7 +1161,6 @@
       document.getElementById("timelineStartLabel").textContent = formatShortTime(viewStart);
       document.getElementById("timelineEndLabel").textContent = formatShortTime(viewEnd);
 
-      // Position NOW marker
       const nowPct = ((now - viewStart) / TIMELINE_WINDOW_MS) * 100;
       if (nowPct >= 0 && nowPct <= 100) {
         nowMarker.style.display = "block";
@@ -1122,7 +1169,6 @@
         nowMarker.style.display = "none";
       }
 
-      // Filter visible bosses (hide overdue > 65 mins)
       const sixtyFiveMinsMs = 65 * 60 * 1000;
       const activeNodes = cards
         .filter(c => c.target !== null && (now - c.target) <= sixtyFiveMinsMs)
@@ -1142,14 +1188,12 @@
           nodesLayer.appendChild(node);
         }
 
-        // Interval pill between consecutive future/visible nodes
         if (idx < activeNodes.length - 1) {
           const nextCard = activeNodes[idx + 1];
           const midTime = (card.target + nextCard.target) / 2;
           const midPct = ((midTime - viewStart) / TIMELINE_WINDOW_MS) * 100;
           const gapPx = ((nextCard.target - card.target) / TIMELINE_WINDOW_MS) * viewportWidth;
 
-          // Auto-hide pill if nodes are too close (< 52px)
           if (midPct >= 0 && midPct <= 100 && gapPx >= 52) {
             const gapMs = nextCard.target - card.target;
             const gapMins = Math.round(gapMs / 60000);
@@ -1166,7 +1210,6 @@
         }
       });
 
-      // 4-tier Peak Density Graph (24 buckets of 15 mins across 6h window)
       const buckets = 24;
       const bucketMs = TIMELINE_WINDOW_MS / buckets;
       let peakHtml = "";
@@ -1237,7 +1280,7 @@ Example: [{"name": "Fafurion", "hours": 1, "minutes": 42, "seconds": 15}]`;
         const data = await response.json();
         const apiEndTime = Date.now();
 
-        // Latency waiting for Gemini API + fixed 15s capture-to-paste offset
+        // Remaining time = Gemini API data - API latency - 15s
         const apiLatencyMs = apiEndTime - apiStartTime;
         const fixedCaptureOffsetMs = 15 * 1000;
         const totalSubtractedSecs = ((apiLatencyMs + fixedCaptureOffsetMs) / 1000).toFixed(1);
@@ -1262,7 +1305,6 @@ Example: [{"name": "Fafurion", "hours": 1, "minutes": 42, "seconds": 15}]`;
           );
 
           if (matchedCard) {
-            // Remaining time = Gemini API data - API latency - 15s
             const rawRemainingMs = ((h * 3600) + (m * 60) + s) * 1000;
             const adjustedRemainingMs = Math.max(0, rawRemainingMs - apiLatencyMs - fixedCaptureOffsetMs);
 
@@ -1375,8 +1417,8 @@ Example: [{"name": "Fafurion", "hours": 1, "minutes": 42, "seconds": 15}]`;
       // Save Settings
       document.getElementById("btnSaveConfig").addEventListener("click", () => {
         config.geminiKey = document.getElementById("cfgGeminiKey").value.trim();
-        config.firebaseUrl = document.getElementById("cfgFirebaseUrl").value.trim();
-        config.roomId = document.getElementById("cfgRoomId").value.trim() || "lander-default";
+        config.firebaseUrl = document.getElementById("cfgFirebaseUrl").value.trim() || DEFAULT_FIREBASE_URL;
+        config.cardsPath = document.getElementById("cfgCardsPath").value.trim() || "cards";
         config.tgToken = document.getElementById("cfgTgToken").value.trim();
         config.tgChatId = document.getElementById("cfgTgChatId").value.trim();
 
@@ -1450,7 +1492,6 @@ Example: [{"name": "Fafurion", "hours": 1, "minutes": 42, "seconds": 15}]`;
       item.textContent = message;
       container.prepend(item);
 
-      // Keep max 30 items
       while (container.children.length > 30) {
         container.removeChild(container.lastChild);
       }
