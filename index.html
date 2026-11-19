@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Lander Timer Web v7.25</title>
+  <title>Lander Timer Web v7.26</title>
   <!-- Firebase SDK v9 Compat -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -377,6 +377,7 @@
 
     .timeline-footer-row {
       display: flex;
+      flex-wrap: wrap;
       justify-content: space-between;
       align-items: center;
       margin-top: 7px;
@@ -390,7 +391,25 @@
       align-items: center;
       gap: 8px;
     }
+    .boss-density-row {
+      flex-basis: 100%;
+      width: 100%;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 14px;
+      margin-top: 7px;
+      padding-top: 6px;
+      border-top: 1px dashed var(--border-color);
+      font-size: 0.74rem;
+      color: var(--text-secondary);
+      font-variant-numeric: tabular-nums;
+    }
 
+    .boss-density-row strong {
+      color: var(--text-primary);
+    }
+    
     .btn-now-jump {
       padding: 2px 8px;
       font-size: 0.68rem;
@@ -644,7 +663,7 @@
   <div class="top-bar">
     <div class="brand-section">
       <span class="brand-title">Lander Timer</span>
-      <span class="version-badge">v7.25</span>
+      <span class="version-badge">v7.26</span>
       <span id="liveClock" class="clock-display">00:00:00</span>
     </div>
 
@@ -709,6 +728,12 @@
         <button type="button" id="btnNowJump" class="btn-now-jump">NOW</button>
       </div>
       <span id="timelineEndLabel">--:--</span>
+      <div id="bossDensityRow" class="boss-density-row">
+        <span>Peak Density (90m): <strong id="densityPeakRange">--:-- – --:--</strong></span>
+        <span>Bosses: <strong id="densityPeakCount">0</strong></span>
+        <span>Min Delta: <strong id="densityMinDelta">--</strong></span>
+        <span>Max Delta: <strong id="densityMaxDelta">--</strong></span>
+      </div>
     </div>
   </div>
 
@@ -1422,6 +1447,73 @@
       const m = gapMins % 60;
       return h > 0 ? `${h}h${m > 0 ? m + "m" : ""}` : `${m}m`;
     }
+    function formatDensityDelta(ms) {
+      const totalSecs = Math.max(0, Math.round(ms / 1000));
+      const h = Math.floor(totalSecs / 3600);
+      const m = Math.floor((totalSecs % 3600) / 60);
+      const s = totalSecs % 60;
+      if (h > 0) return `${h}h ${m}m`;
+      if (m > 0) return s > 0 ? `${m}m ${s}s` : `${m}m`;
+      return `${s}s`;
+    }
+
+    function updateBossDensitySummary(now) {
+      const WINDOW_90M_MS = 90 * 60 * 1000;
+      // Lấy toàn bộ các card đang có Remaining time (> 0), độc lập với timeline pan/range
+      const activeTargets = cards
+        .filter(c => c.target !== null && c.target > now)
+        .map(c => c.target)
+        .sort((a, b) => a - b);
+
+      const rangeEl = document.getElementById("densityPeakRange");
+      const countEl = document.getElementById("densityPeakCount");
+      const minEl = document.getElementById("densityMinDelta");
+      const maxEl = document.getElementById("densityMaxDelta");
+      if (!rangeEl || !countEl || !minEl || !maxEl) return;
+
+      if (activeTargets.length === 0) {
+        rangeEl.textContent = "--:-- – --:--";
+        countEl.textContent = "0";
+        minEl.textContent = "--";
+        maxEl.textContent = "--";
+        return;
+      }
+
+      let bestCluster = [];
+      for (let i = 0; i < activeTargets.length; i++) {
+        const startTs = activeTargets[i];
+        const endTs = startTs + WINDOW_90M_MS;
+        const cluster = activeTargets.filter(t => t >= startTs && t <= endTs);
+
+        const bestSpan = bestCluster.length > 0 ? (bestCluster[bestCluster.length - 1] - bestCluster[0]) : Infinity;
+        const curSpan = cluster[cluster.length - 1] - cluster[0];
+
+        if (cluster.length > bestCluster.length || (cluster.length === bestCluster.length && curSpan < bestSpan)) {
+          bestCluster = cluster;
+        }
+      }
+
+      const firstTs = bestCluster[0];
+      const lastTs = bestCluster[bestCluster.length - 1];
+      rangeEl.textContent = bestCluster.length === 1
+        ? formatShortTime(firstTs)
+        : `${formatShortTime(firstTs)} – ${formatShortTime(lastTs)}`;
+      countEl.textContent = String(bestCluster.length);
+
+      if (bestCluster.length < 2) {
+        minEl.textContent = "--";
+        maxEl.textContent = "--";
+        return;
+      }
+
+      const deltas = [];
+      for (let i = 0; i < bestCluster.length - 1; i++) {
+        deltas.push(bestCluster[i + 1] - bestCluster[i]);
+      }
+      minEl.textContent = formatDensityDelta(Math.min(...deltas));
+      maxEl.textContent = formatDensityDelta(Math.max(...deltas));
+    }
+
 
     function renderDeltaPill(container, startTs, endTs, viewStart, viewportWidth) {
       if (endTs <= startTs) return;
@@ -1448,7 +1540,9 @@
 
       document.getElementById("timelineStartLabel").textContent = formatShortTime(viewStart);
       document.getElementById("timelineEndLabel").textContent = formatShortTime(viewEnd);
-
+      
+      updateBossDensitySummary(now);
+      
       const nowPct = ((now - viewStart) / timelineWindowMs) * 100;
       if (nowPct >= 0 && nowPct <= 100) {
         nowMarker.style.display = "block";
