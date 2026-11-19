@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Lander Timer Web v7.23</title>
+  <title>Lander Timer Web v7.24</title>
   <!-- Firebase SDK v9 Compat -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -644,7 +644,7 @@
   <div class="top-bar">
     <div class="brand-section">
       <span class="brand-title">Lander Timer</span>
-      <span class="version-badge">v7.23</span>
+      <span class="version-badge">v7.24</span>
       <span id="liveClock" class="clock-display">00:00:00</span>
     </div>
 
@@ -809,7 +809,7 @@
     const MAX_TIMELINE_RANGE_MS = 9 * 3600 * 1000;
     const DEFAULT_TIMELINE_RANGE_MS = 2 * 3600 * 1000;
     let timelineWindowMs = DEFAULT_TIMELINE_RANGE_MS;
-    let timelineOffsetMs = -30 * 60 * 1000;
+    let timelineOffsetMs = -2 * 60 * 1000; // Đưa đường đỏ NOW về gần sát mép trái
     let isDraggingTimeline = false;
     let dragStartX = 0;
     let dragStartOffsetMs = 0;
@@ -1755,7 +1755,7 @@ Example: [{"name": "Fafurion", "hours": 1, "minutes": 42, "seconds": 15}]`;
 
       // NOW Jump Button
       document.getElementById("btnNowJump").addEventListener("click", () => {
-        timelineOffsetMs = -30 * 60 * 1000;
+        timelineOffsetMs = -2 * 60 * 1000;
         renderTimeline(Date.now());
       });
 
