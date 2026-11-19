@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Lander Timer Web v7.21</title>
+  <title>Lander Timer Web v7.22</title>
   <!-- Firebase SDK v9 Compat -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -145,6 +145,17 @@
     button.danger:hover {
       background-color: var(--danger-color);
       color: #ffffff;
+    }
+
+    button.admin-unlocked {
+      border-color: var(--success-color);
+      color: var(--success-color);
+    }
+
+    input:disabled {
+      opacity: 0.52;
+      cursor: not-allowed;
+      background-color: rgba(15, 23, 42, 0.55);
     }
 
     /* Config Drawer */
@@ -604,11 +615,12 @@
   <div class="top-bar">
     <div class="brand-section">
       <span class="brand-title">Lander Timer</span>
-      <span class="version-badge">v7.21</span>
+      <span class="version-badge">v7.22</span>
       <span id="liveClock" class="clock-display">00:00:00</span>
     </div>
 
     <div class="toolbar-actions">
+      <button type="button" id="btnAdminAuth">Admin Login</button>
       <button type="button" id="btnAddCard" class="primary">Add Card</button>
       <button type="button" id="btnPasteClipboard">Paste Image</button>
       <button type="button" id="btnWipeAll" class="danger">Wipe All</button>
@@ -622,27 +634,27 @@
     <div class="config-grid">
       <div class="config-item">
         <label for="cfgGeminiKey">Gemini API Key (gemini-3.1-flash-lite)</label>
-        <input type="password" id="cfgGeminiKey" placeholder="AIzaSy..." />
+        <input type="password" id="cfgGeminiKey" placeholder="Locked - Admin login required" disabled readonly />
       </div>
       <div class="config-item">
         <label for="cfgFirebaseUrl">Firebase Realtime Database URL</label>
-        <input type="text" id="cfgFirebaseUrl" placeholder="https://lander-timer-sync-default-rtdb.asia-southeast1.firebasedatabase.app" />
+        <input type="text" id="cfgFirebaseUrl" placeholder="Locked - Admin login required" disabled readonly />
       </div>
       <div class="config-item">
         <label for="cfgCardsPath">Firebase Cards Path (default: cards)</label>
-        <input type="text" id="cfgCardsPath" placeholder="cards" />
+        <input type="text" id="cfgCardsPath" placeholder="Locked - Admin login required" disabled readonly />
       </div>
       <div class="config-item">
         <label for="cfgTgToken">Telegram Bot Token</label>
-        <input type="password" id="cfgTgToken" placeholder="123456:ABC-DEF..." />
+        <input type="password" id="cfgTgToken" placeholder="Locked - Admin login required" disabled readonly />
       </div>
       <div class="config-item">
         <label for="cfgTgChatId">Telegram Chat ID</label>
-        <input type="text" id="cfgTgChatId" placeholder="-100123456789" />
+        <input type="text" id="cfgTgChatId" placeholder="Locked - Admin login required" disabled readonly />
       </div>
     </div>
     <div class="config-footer">
-      <span class="paste-hint">Press Ctrl + V anywhere to parse Raidboss screenshot via Gemini AI.</span>
+      <span id="settingsLockHint" class="paste-hint">All input boxes are locked &amp; encrypted. Click Admin Login to unlock.</span>
       <button type="button" id="btnSaveConfig" class="primary">Save Settings</button>
     </div>
   </div>
@@ -689,18 +701,71 @@
 
   <script>
     // =========================================================
-    // STATE & STORAGE (v7.21)
+    // ADMIN AUTH & SETTINGS ENCRYPTION (v7.22)
     // =========================================================
-    const DEFAULT_FIREBASE_URL = "https://lander-timer-sync-default-rtdb.asia-southeast1.firebasedatabase.app";
+    const ADMIN_HASH = "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9"; // SHA-256("admin123")
+    const CRYPTO_SALT = "LanderTimer_v722_KeySalt";
+    // Encrypted default Settings bound to Admin_name ("admin123")
+    const ENCRYPTED_DEFAULT_SETTINGS = {
+      geminiKey: "",
+      firebaseUrl: "KQYWBw4eE09qDhhqHhcGTR4ZCRhKDx01DRkCHB0WFF1KAAoYHw8bGR0QExsFGB4pAxw3HR4dGR8GFA1PFRwQ",
+      cardsPath: "LwQBBhM=",
+      tgToken: "",
+      tgChatId: ""
+    };
+
+    let activeAdminName = "";
+    let isAdminAuthenticated = false;
+
+    async function sha256Hex(str) {
+      const buf = new TextEncoder().encode(str);
+      const hashBuf = await crypto.subtle.digest("SHA-256", buf);
+      return Array.from(new Uint8Array(hashBuf))
+        .map(b => b.toString(16).padStart(2, "0"))
+        .join("");
+    }
+
+    function encryptWithAdmin(plainText, adminName) {
+      if (!plainText) return "";
+      const key = `${adminName}:${CRYPTO_SALT}`;
+      const bytes = new TextEncoder().encode(plainText);
+      const out = new Uint8Array(bytes.length);
+      for (let i = 0; i < bytes.length; i++) {
+        out[i] = bytes[i] ^ key.charCodeAt(i % key.length);
+      }
+      let bin = "";
+      for (let i = 0; i < out.length; i++) bin += String.fromCharCode(out[i]);
+      return btoa(bin);
+    }
+
+    function decryptWithAdmin(cipherBase64, adminName) {
+      if (!cipherBase64 || !adminName) return "";
+      try {
+        const key = `${adminName}:${CRYPTO_SALT}`;
+        const bin = atob(cipherBase64);
+        const out = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) {
+          out[i] = bin.charCodeAt(i) ^ key.charCodeAt(i % key.length);
+        }
+        return new TextDecoder().decode(out);
+      } catch (e) {
+        return "";
+      }
+    }
+
+    // =========================================================
+    // STATE & STORAGE (v7.22)
+    // =========================================================
     const STORAGE_KEY_CARDS = "lander_timer_cards_v72";
-    const STORAGE_KEY_CFG = "lander_timer_cfg_v72";
+    const STORAGE_KEY_CFG_ENC = "lander_timer_cfg_v722_enc";
     const STORAGE_KEY_THEME = "lander_theme";
     const MAX_TOAST_ITEMS = 30;
     const TOAST_AUTO_HIDE_MS = 15000;
 
+    let encryptedConfig = { ...ENCRYPTED_DEFAULT_SETTINGS };
     let config = {
       geminiKey: "",
-      firebaseUrl: DEFAULT_FIREBASE_URL,
+      firebaseUrl: "",
       cardsPath: "cards",
       tgToken: "",
       tgChatId: ""
@@ -726,11 +791,11 @@
     // =========================================================
     function init() {
       loadTheme();
-      loadConfig();
+      loadEncryptedConfig();
       loadLocalCards();
+      applyInputLockState();
       bindEvents();
       render();
-      initFirebase();
       setInterval(tickLoop, 200);
     }
 
@@ -742,22 +807,123 @@
       }
     }
 
-    function loadConfig() {
+    function loadEncryptedConfig() {
       try {
-        const raw = localStorage.getItem(STORAGE_KEY_CFG) || localStorage.getItem("lander_timer_cfg_v717");
-        if (raw) {
-          config = { ...config, ...JSON.parse(raw) };
-          localStorage.setItem(STORAGE_KEY_CFG, JSON.stringify(config));
+        const rawEnc = localStorage.getItem(STORAGE_KEY_CFG_ENC);
+        if (rawEnc) {
+          encryptedConfig = { ...ENCRYPTED_DEFAULT_SETTINGS, ...JSON.parse(rawEnc) };
         }
-      } catch (e) {}
-      if (!config.firebaseUrl) config.firebaseUrl = DEFAULT_FIREBASE_URL;
-      if (!config.cardsPath) config.cardsPath = "cards";
+      } catch (e) {
+        encryptedConfig = { ...ENCRYPTED_DEFAULT_SETTINGS };
+      }
+    }
 
-      document.getElementById("cfgGeminiKey").value = config.geminiKey || "";
-      document.getElementById("cfgFirebaseUrl").value = config.firebaseUrl;
-      document.getElementById("cfgCardsPath").value = config.cardsPath;
-      document.getElementById("cfgTgToken").value = config.tgToken || "";
-      document.getElementById("cfgTgChatId").value = config.tgChatId || "";
+    function applyInputLockState() {
+      const adminBtn = document.getElementById("btnAdminAuth");
+      const lockHint = document.getElementById("settingsLockHint");
+      const settingsIds = ["cfgGeminiKey", "cfgFirebaseUrl", "cfgCardsPath", "cfgTgToken", "cfgTgChatId"];
+
+      if (isAdminAuthenticated) {
+        adminBtn.textContent = `Admin: ${activeAdminName} (Logout)`;
+        adminBtn.classList.add("admin-unlocked");
+        if (lockHint) {
+          lockHint.textContent = "Admin unlocked. Press Ctrl + V anywhere to parse Raidboss screenshot via Gemini AI.";
+        }
+
+        // Decrypt settings using Admin_name
+        config.geminiKey = decryptWithAdmin(encryptedConfig.geminiKey, activeAdminName);
+        config.firebaseUrl = decryptWithAdmin(encryptedConfig.firebaseUrl, activeAdminName);
+        config.cardsPath = decryptWithAdmin(encryptedConfig.cardsPath, activeAdminName) || "cards";
+        config.tgToken = decryptWithAdmin(encryptedConfig.tgToken, activeAdminName);
+        config.tgChatId = decryptWithAdmin(encryptedConfig.tgChatId, activeAdminName);
+
+        document.getElementById("cfgGeminiKey").value = config.geminiKey;
+        document.getElementById("cfgFirebaseUrl").value = config.firebaseUrl;
+        document.getElementById("cfgCardsPath").value = config.cardsPath;
+        document.getElementById("cfgTgToken").value = config.tgToken;
+        document.getElementById("cfgTgChatId").value = config.tgChatId;
+
+        settingsIds.forEach(id => {
+          const el = document.getElementById(id);
+          if (el) {
+            el.disabled = false;
+            el.readOnly = false;
+          }
+        });
+      } else {
+        adminBtn.textContent = "Admin Login";
+        adminBtn.classList.remove("admin-unlocked");
+        if (lockHint) {
+          lockHint.textContent = "All input boxes are locked & encrypted. Click Admin Login to unlock.";
+        }
+
+        config = { geminiKey: "", firebaseUrl: "", cardsPath: "cards", tgToken: "", tgChatId: "" };
+
+        // Display encrypted values in locked state
+        document.getElementById("cfgGeminiKey").value = encryptedConfig.geminiKey || "";
+        document.getElementById("cfgFirebaseUrl").value = encryptedConfig.firebaseUrl || "";
+        document.getElementById("cfgCardsPath").value = encryptedConfig.cardsPath || "";
+        document.getElementById("cfgTgToken").value = encryptedConfig.tgToken || "";
+        document.getElementById("cfgTgChatId").value = encryptedConfig.tgChatId || "";
+
+        settingsIds.forEach(id => {
+          const el = document.getElementById(id);
+          if (el) {
+            el.disabled = true;
+            el.readOnly = true;
+          }
+        });
+      }
+
+      // Enforce lock state on all <input> elements across the document
+      document.querySelectorAll("input").forEach(inp => {
+        inp.disabled = !isAdminAuthenticated;
+        inp.readOnly = !isAdminAuthenticated;
+      });
+    }
+
+    async function handleAdminAuthToggle() {
+      if (isAdminAuthenticated) {
+        isAdminAuthenticated = false;
+        activeAdminName = "";
+        collapseActiveCard();
+        applyInputLockState();
+        render();
+        addToast("Admin logged out. All input boxes locked.", "info");
+        return;
+      }
+
+      const entered = prompt("Enter Admin_name to unlock:");
+      if (entered === null) return;
+
+      const trimmed = entered.trim();
+      const hashed = await sha256Hex(trimmed);
+      if (hashed !== ADMIN_HASH) {
+        addToast("Invalid Admin_name. Input boxes remain locked.", "error");
+        return;
+      }
+
+      activeAdminName = trimmed;
+      isAdminAuthenticated = true;
+
+      // Migrate legacy plaintext config if present
+      const legacyRaw = localStorage.getItem("lander_timer_cfg_v72") || localStorage.getItem("lander_timer_cfg_v717");
+      if (legacyRaw && !localStorage.getItem(STORAGE_KEY_CFG_ENC)) {
+        try {
+          const leg = JSON.parse(legacyRaw);
+          if (leg.geminiKey) encryptedConfig.geminiKey = encryptWithAdmin(leg.geminiKey, activeAdminName);
+          if (leg.firebaseUrl) encryptedConfig.firebaseUrl = encryptWithAdmin(leg.firebaseUrl, activeAdminName);
+          if (leg.cardsPath) encryptedConfig.cardsPath = encryptWithAdmin(leg.cardsPath, activeAdminName);
+          if (leg.tgToken) encryptedConfig.tgToken = encryptWithAdmin(leg.tgToken, activeAdminName);
+          if (leg.tgChatId) encryptedConfig.tgChatId = encryptWithAdmin(leg.tgChatId, activeAdminName);
+          localStorage.setItem(STORAGE_KEY_CFG_ENC, JSON.stringify(encryptedConfig));
+        } catch (e) {}
+      }
+
+      applyInputLockState();
+      render();
+      initFirebase();
+      addToast(`Admin "${activeAdminName}" authenticated. Input boxes unlocked.`, "success");
     }
 
     function loadLocalCards() {
@@ -787,7 +953,7 @@
     // FIREBASE SYNC & UNIFIED NOTIFICATION TRANSACTION
     // =========================================================
     function initFirebase() {
-      if (!config.firebaseUrl) return;
+      if (!isAdminAuthenticated || !config.firebaseUrl) return;
       try {
         if (!firebase.apps.length) {
           firebase.initializeApp({ databaseURL: config.firebaseUrl });
@@ -796,26 +962,30 @@
 
         // Auto-load Telegram & Gemini keys from Firebase 'telegram_config' if available
         db.ref("telegram_config").on("value", (snap) => {
+          if (!isAdminAuthenticated) return;
           const tgVal = snap.val();
           if (!tgVal) return;
           let updated = false;
           if (!config.tgToken && (tgVal.botToken || tgVal.tgToken)) {
             config.tgToken = tgVal.botToken || tgVal.tgToken;
+            encryptedConfig.tgToken = encryptWithAdmin(config.tgToken, activeAdminName);
             document.getElementById("cfgTgToken").value = config.tgToken;
             updated = true;
           }
           if (!config.tgChatId && (tgVal.chatId || tgVal.tgChatId)) {
             config.tgChatId = tgVal.chatId || tgVal.tgChatId;
+            encryptedConfig.tgChatId = encryptWithAdmin(config.tgChatId, activeAdminName);
             document.getElementById("cfgTgChatId").value = config.tgChatId;
             updated = true;
           }
           if (!config.geminiKey && (tgVal.geminiKey || tgVal.apiKey)) {
             config.geminiKey = tgVal.geminiKey || tgVal.apiKey;
+            encryptedConfig.geminiKey = encryptWithAdmin(config.geminiKey, activeAdminName);
             document.getElementById("cfgGeminiKey").value = config.geminiKey;
             updated = true;
           }
           if (updated) {
-            localStorage.setItem(STORAGE_KEY_CFG, JSON.stringify(config));
+            localStorage.setItem(STORAGE_KEY_CFG_ENC, JSON.stringify(encryptedConfig));
           }
         });
 
@@ -827,8 +997,9 @@
             db.ref("timers").once("value", (timerSnap) => {
               if (timerSnap.exists() && config.cardsPath === "cards") {
                 config.cardsPath = "timers";
+                encryptedConfig.cardsPath = encryptWithAdmin("timers", activeAdminName);
                 document.getElementById("cfgCardsPath").value = "timers";
-                localStorage.setItem(STORAGE_KEY_CFG, JSON.stringify(config));
+                localStorage.setItem(STORAGE_KEY_CFG_ENC, JSON.stringify(encryptedConfig));
                 attachCardsListener("timers");
               }
             });
@@ -884,7 +1055,7 @@
 
         cardNodeRef.transaction((currentData) => {
           if (!currentData) return currentData;
-          if (currentData.warned60s) return; // Already pushed by another client
+          if (currentData.warned60s) return;
           currentData.warned60s = true;
           currentData.warnedDone = true;
           return currentData;
@@ -941,11 +1112,9 @@
         const aHasTarget = a.target !== null;
         const bHasTarget = b.target !== null;
 
-        // Cards with active/expired timers always appear before unset cards
         if (aHasTarget && !bHasTarget) return -1;
         if (!aHasTarget && bHasTarget) return 1;
 
-        // Both have target: sort ascending by remaining time (expired <= 0 first, then shortest remaining time)
         if (aHasTarget && bHasTarget) {
           const aRem = Math.max(0, a.target - now);
           const bRem = Math.max(0, b.target - now);
@@ -961,7 +1130,6 @@
       const now = Date.now();
       document.getElementById("liveClock").textContent = formatClockTime(now);
 
-      // Check priority 60s notifications
       cards.forEach(card => {
         if (!card.target) return;
         const diffSecs = (card.target - now) / 1000;
@@ -1022,6 +1190,11 @@
       expandedCardId = id;
       render();
 
+      if (!isAdminAuthenticated) {
+        addToast("Input boxes are locked. Login as Admin to edit.", "warning");
+        return;
+      }
+
       const hInput = document.getElementById(`in_h_${id}`);
       if (hInput) {
         hInput.focus();
@@ -1049,10 +1222,12 @@
       container.innerHTML = "";
 
       if (sorted.length === 0) {
-        container.innerHTML = `<div style="color:var(--text-secondary); font-size:0.84rem; padding:10px;">Waiting for Firebase data or click Add Card...</div>`;
+        container.innerHTML = `<div style="color:var(--text-secondary); font-size:0.84rem; padding:10px;">Waiting for Admin login / Firebase data or click Add Card...</div>`;
         renderTimeline(now);
         return;
       }
+
+      const lockAttrs = isAdminAuthenticated ? "" : "disabled readonly";
 
       sorted.forEach(card => {
         const isExpired = card.target !== null && card.target <= now;
@@ -1077,9 +1252,9 @@
           </div>
           <div class="card-controls">
             <div class="hms-inputs">
-              <input type="number" inputmode="numeric" min="0" max="99" placeholder="H" id="in_h_${card.id}" />
-              <input type="number" inputmode="numeric" min="0" max="59" placeholder="M" id="in_m_${card.id}" />
-              <input type="number" inputmode="numeric" min="0" max="59" placeholder="S" id="in_s_${card.id}" />
+              <input type="number" inputmode="numeric" min="0" max="99" placeholder="H" id="in_h_${card.id}" ${lockAttrs} />
+              <input type="number" inputmode="numeric" min="0" max="59" placeholder="M" id="in_m_${card.id}" ${lockAttrs} />
+              <input type="number" inputmode="numeric" min="0" max="59" placeholder="S" id="in_s_${card.id}" ${lockAttrs} />
             </div>
             <div class="card-action-btns">
               <button type="button" class="primary" data-action="set" data-id="${card.id}">Set</button>
@@ -1115,6 +1290,7 @@
 
         cardEl.querySelectorAll("input").forEach(inp => {
           inp.addEventListener("keydown", (e) => {
+            if (!isAdminAuthenticated) return;
             if (e.key === "Enter") {
               e.preventDefault();
               setCardTimerFromInputs(card.id);
@@ -1135,6 +1311,10 @@
     // CARD ACTIONS
     // =========================================================
     function setCardTimerFromInputs(id) {
+      if (!isAdminAuthenticated) {
+        addToast("Admin login required to edit timers", "warning");
+        return;
+      }
       const h = parseInt(document.getElementById(`in_h_${id}`)?.value || "0", 10) || 0;
       const m = parseInt(document.getElementById(`in_m_${id}`)?.value || "0", 10) || 0;
       const s = parseInt(document.getElementById(`in_s_${id}`)?.value || "0", 10) || 0;
@@ -1294,6 +1474,10 @@ If a boss has no timer or is already alive/spawned, omit it or set hours/minutes
 Example: [{"name": "Fafurion", "hours": 1, "minutes": 42, "seconds": 15}]`;
 
     async function handleImageBlob(blob) {
+      if (!isAdminAuthenticated) {
+        addToast("Admin login required before pasting image", "warning");
+        return;
+      }
       if (!config.geminiKey) {
         addToast("Configure Gemini API Key in Settings first", "warning");
         document.getElementById("configPanel").classList.add("open");
@@ -1388,6 +1572,9 @@ Example: [{"name": "Fafurion", "hours": 1, "minutes": 42, "seconds": 15}]`;
     // UI EVENTS & TOAST-LIST HELPERS
     // =========================================================
     function bindEvents() {
+      // Admin Login / Logout
+      document.getElementById("btnAdminAuth").addEventListener("click", handleAdminAuthToggle);
+
       // Collapse active card & remove focus when clicking/tapping outside the active card
       document.addEventListener("click", (e) => {
         if (!expandedCardId) return;
@@ -1466,17 +1653,29 @@ Example: [{"name": "Fafurion", "hours": 1, "minutes": 42, "seconds": 15}]`;
         document.getElementById("configPanel").classList.toggle("open");
       });
 
-      // Save Settings
+      // Save Settings (Encrypted with Admin_name)
       document.getElementById("btnSaveConfig").addEventListener("click", () => {
+        if (!isAdminAuthenticated) {
+          addToast("Admin login required to save Settings", "warning");
+          return;
+        }
         config.geminiKey = document.getElementById("cfgGeminiKey").value.trim();
-        config.firebaseUrl = document.getElementById("cfgFirebaseUrl").value.trim() || DEFAULT_FIREBASE_URL;
+        config.firebaseUrl = document.getElementById("cfgFirebaseUrl").value.trim();
         config.cardsPath = document.getElementById("cfgCardsPath").value.trim() || "cards";
         config.tgToken = document.getElementById("cfgTgToken").value.trim();
         config.tgChatId = document.getElementById("cfgTgChatId").value.trim();
 
-        localStorage.setItem(STORAGE_KEY_CFG, JSON.stringify(config));
+        encryptedConfig = {
+          geminiKey: encryptWithAdmin(config.geminiKey, activeAdminName),
+          firebaseUrl: encryptWithAdmin(config.firebaseUrl, activeAdminName),
+          cardsPath: encryptWithAdmin(config.cardsPath, activeAdminName),
+          tgToken: encryptWithAdmin(config.tgToken, activeAdminName),
+          tgChatId: encryptWithAdmin(config.tgChatId, activeAdminName)
+        };
+
+        localStorage.setItem(STORAGE_KEY_CFG_ENC, JSON.stringify(encryptedConfig));
         document.getElementById("configPanel").classList.remove("open");
-        addToast("Settings saved", "success");
+        addToast("Encrypted settings saved", "success");
         initFirebase();
       });
 
