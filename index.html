@@ -845,10 +845,15 @@
     function init() {
       loadTheme();
       loadEncryptedConfig();
+      const publicFirebaseUrl = "https://lander-timer-sync-default-rtdb.asia-southeast1.firebasedatabase.app";
+      const publicCardsPath = "lander_cards";
+      config.firebaseUrl = publicFirebaseUrl;
+      config.cardsPath = publicCardsPath;
       loadLocalCards();
       applyInputLockState();
       bindEvents();
       render();
+      initFirebase();
       setInterval(tickLoop, 200);
     }
 
@@ -910,7 +915,9 @@
           lockHint.textContent = "All input boxes are locked & encrypted. Click Admin Login to unlock.";
         }
 
-        config = { geminiKey: "", firebaseUrl: "", cardsPath: "cards", tgToken: "", tgChatId: "" };
+        const publicFirebaseUrl = "https://lander-timer-sync-default-rtdb.asia-southeast1.firebasedatabase.app";
+        const publicCardsPath = "lander_cards";
+        config = { geminiKey: "", firebaseUrl: publicFirebaseUrl, cardsPath: publicCardsPath, tgToken: "", tgChatId: "" };
 
         // Display encrypted values in locked state
         document.getElementById("cfgGeminiKey").value = encryptedConfig.geminiKey || "";
@@ -1011,7 +1018,7 @@
     // FIREBASE SYNC & UNIFIED NOTIFICATION TRANSACTION
     // =========================================================
     function initFirebase() {
-      if (!isAdminAuthenticated || !config.firebaseUrl) return;
+      if (!config.firebaseUrl) return;
       try {
         if (!firebase.apps.length) {
           firebase.initializeApp({ databaseURL: config.firebaseUrl });
