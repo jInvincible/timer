@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Lander Timer Web v7.24</title>
+  <title>Lander Timer Web v7.25</title>
   <!-- Firebase SDK v9 Compat -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -644,7 +644,7 @@
   <div class="top-bar">
     <div class="brand-section">
       <span class="brand-title">Lander Timer</span>
-      <span class="version-badge">v7.24</span>
+      <span class="version-badge">v7.25</span>
       <span id="liveClock" class="clock-display">00:00:00</span>
     </div>
 
@@ -1511,8 +1511,8 @@
           nodesLayer.appendChild(node);
         }
 
-        // Delta remaining time giữa hai Boss liên tiếp
-        if (idx < activeNodes.length - 1) {
+        // Delta remaining time giữa hai Boss liên tiếp (bỏ qua nếu Boss hiện tại đã đến giờ / quá giờ)
+        if (card.target > now && idx < activeNodes.length - 1) {
           const nextCard = activeNodes[idx + 1];
           renderDeltaPill(nodesLayer, card.target, nextCard.target, viewStart, viewportWidth);
         }
