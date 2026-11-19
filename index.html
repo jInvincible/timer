@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Lander Timer Web v7.17</title>
+  <title>Lander Timer Web v7.2</title>
   <!-- Firebase SDK v9 Compat -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -366,7 +366,7 @@
       color: #ffffff;
     }
 
-    /* Card Grid (v7.17 Minimalist Collapsible Cards) */
+    /* Card Grid (Minimalist Collapsible Cards) */
     .card-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(235px, 1fr));
@@ -604,7 +604,7 @@
   <div class="top-bar">
     <div class="brand-section">
       <span class="brand-title">Lander Timer</span>
-      <span class="version-badge">v7.17</span>
+      <span class="version-badge">v7.2</span>
       <span id="liveClock" class="clock-display">00:00:00</span>
     </div>
 
@@ -689,11 +689,11 @@
 
   <script>
     // =========================================================
-    // STATE & STORAGE
+    // STATE & STORAGE (v7.2 SNAPSHOT)
     // =========================================================
     const DEFAULT_FIREBASE_URL = "https://lander-timer-sync-default-rtdb.asia-southeast1.firebasedatabase.app";
-    const STORAGE_KEY_CARDS = "lander_timer_cards_v717";
-    const STORAGE_KEY_CFG = "lander_timer_cfg_v717";
+    const STORAGE_KEY_CARDS = "lander_timer_cards_v72";
+    const STORAGE_KEY_CFG = "lander_timer_cfg_v72";
     const STORAGE_KEY_THEME = "lander_theme";
     const MAX_TOAST_ITEMS = 30;
 
@@ -742,9 +742,10 @@
 
     function loadConfig() {
       try {
-        const raw = localStorage.getItem(STORAGE_KEY_CFG);
+        const raw = localStorage.getItem(STORAGE_KEY_CFG) || localStorage.getItem("lander_timer_cfg_v717");
         if (raw) {
           config = { ...config, ...JSON.parse(raw) };
+          localStorage.setItem(STORAGE_KEY_CFG, JSON.stringify(config));
         }
       } catch (e) {}
       if (!config.firebaseUrl) config.firebaseUrl = DEFAULT_FIREBASE_URL;
@@ -759,9 +760,10 @@
 
     function loadLocalCards() {
       try {
-        const raw = localStorage.getItem(STORAGE_KEY_CARDS);
+        const raw = localStorage.getItem(STORAGE_KEY_CARDS) || localStorage.getItem("lander_timer_cards_v717");
         if (raw) {
           cards = normalizeCards(JSON.parse(raw));
+          localStorage.setItem(STORAGE_KEY_CARDS, JSON.stringify(cards));
         }
       } catch (e) {
         cards = [];
@@ -850,7 +852,6 @@
         cards = normalizeCards(arr);
         localStorage.setItem(STORAGE_KEY_CARDS, JSON.stringify(cards));
 
-        // Only re-render DOM immediately if user is not currently editing a card
         if (!expandedCardId) {
           render();
         } else {
@@ -964,7 +965,6 @@
         }
       });
 
-      // Only re-render full grid when order changes AND no card is currently expanded/focused
       const sorted = getSortedCards(now);
       const currentSignature = sorted
         .map(c => `${c.id}:${c.target !== null && c.target <= now ? 1 : 0}`)
@@ -1082,11 +1082,9 @@
           </div>
         `;
 
-        // Card Click / Tap Interaction
         cardEl.addEventListener("click", (e) => {
           e.stopPropagation();
 
-          // Ignore clicks directly on H/M/S inputs so user can type/select freely
           if (e.target.tagName === "INPUT") {
             return;
           }
@@ -1103,13 +1101,11 @@
             return;
           }
 
-          // Selecting this card: collapses previous card, expands this one, and auto-focuses Hour input
           if (expandedCardId !== card.id) {
             expandCardAndFocusHour(card.id);
           }
         });
 
-        // Keyboard shortcuts inside H/M/S inputs
         cardEl.querySelectorAll("input").forEach(inp => {
           inp.addEventListener("keydown", (e) => {
             if (e.key === "Enter") {
