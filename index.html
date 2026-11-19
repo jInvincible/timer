@@ -689,7 +689,7 @@
         <input type="text" id="cfgFirebaseUrl" placeholder="Locked - Admin login required" disabled readonly />
       </div>
       <div class="config-item">
-        <label for="cfgCardsPath">Firebase Cards Path</label>
+        <label for="cfgCardsPath">Firebase Cards Path (default: cards)</label>
         <input type="text" id="cfgCardsPath" placeholder="Locked - Admin login required" disabled readonly />
       </div>
       <div class="config-item">
@@ -753,13 +753,13 @@
     // =========================================================
     // ADMIN AUTH & SETTINGS ENCRYPTION (v7.22)
     // =========================================================
-    const ADMIN_HASH = "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9"; // SHA-256
+    const ADMIN_HASH = "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9"; // SHA-256("admin123")
     const CRYPTO_SALT = "LanderTimer_v722_KeySalt";
-    // Encrypted default Settings bound to Admin_name
+    // Encrypted default Settings bound to Admin_name ("admin123")
     const ENCRYPTED_DEFAULT_SETTINGS = {
       geminiKey: "",
       firebaseUrl: "KQYWBw4eE09qDhhqHhcGTR4ZCRhKDx01DRkCHB0WFF1KAAoYHw8bGR0QExsFGB4pAxw3HR4dGR8GFA1PFRwQ",
-      cardsPath: "DQUNVEAUXjISMwQ=",
+      cardsPath: "LwQBBhM=",
       tgToken: "",
       tgChatId: ""
     };
@@ -816,7 +816,7 @@
     let config = {
       geminiKey: "",
       firebaseUrl: "",
-      cardsPath: "lander_cards",
+      cardsPath: "cards",
       tgToken: "",
       tgChatId: ""
     };
@@ -886,7 +886,7 @@
         // Decrypt settings using Admin_name
         config.geminiKey = decryptWithAdmin(encryptedConfig.geminiKey, activeAdminName);
         config.firebaseUrl = decryptWithAdmin(encryptedConfig.firebaseUrl, activeAdminName);
-        config.cardsPath = decryptWithAdmin(encryptedConfig.cardsPath, activeAdminName) || "lander_cards";
+        config.cardsPath = decryptWithAdmin(encryptedConfig.cardsPath, activeAdminName) || "cards";
         config.tgToken = decryptWithAdmin(encryptedConfig.tgToken, activeAdminName);
         config.tgChatId = decryptWithAdmin(encryptedConfig.tgChatId, activeAdminName);
 
@@ -910,7 +910,7 @@
           lockHint.textContent = "All input boxes are locked & encrypted. Click Admin Login to unlock.";
         }
 
-        config = { geminiKey: "", firebaseUrl: "", cardsPath: "lander_cards", tgToken: "", tgChatId: "" };
+        config = { geminiKey: "", firebaseUrl: "", cardsPath: "cards", tgToken: "", tgChatId: "" };
 
         // Display encrypted values in locked state
         document.getElementById("cfgGeminiKey").value = encryptedConfig.geminiKey || "";
@@ -1047,7 +1047,7 @@
           }
         });
 
-        attachCardsListener(config.cardsPath || "lander_cards");
+        attachCardsListener(config.cardsPath || "cards");
 
         // Auto-check fallback path 'timers' if 'cards' does not exist
         db.ref("cards").once("value", (snap) => {
