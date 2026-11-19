@@ -234,6 +234,33 @@
       color: var(--text-secondary);
     }
 
+    .timeline-range-control {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.74rem;
+    }
+
+    .timeline-range-control input[type="number"] {
+      width: 68px;
+      background-color: var(--bg-color);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      padding: 2px 6px;
+      border-radius: 5px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+      user-select: text;
+    }
+
+    .timeline-range-control input[type="number"]:focus {
+      outline: none;
+      border-color: var(--accent-color);
+    }
+
+
     .timeline-viewport {
       position: relative;
       width: 100%;
@@ -269,12 +296,11 @@
       color: var(--danger-color);
     }
 
-    /* Vertical Dot Line marking exact Boss target time */
+    /* Vertical Dot Line aligned with the left edge of Boss node box */
     .vertical-dot-line {
       position: absolute;
       bottom: 0;
       width: 0;
-      transform: translateX(-50%);
       border-left: 1.5px dotted rgba(56, 189, 248, 0.72);
       z-index: 6;
       pointer-events: none;
@@ -296,7 +322,6 @@
     .timeline-node {
       position: absolute;
       top: 44px; /* Tầng 1: vị trí bình thường */
-      transform: translateX(-50%);
       background-color: var(--surface-color);
       border: 1px solid var(--accent-color);
       color: var(--text-primary);
@@ -667,6 +692,10 @@
   <div class="timeline-wrapper">
     <div class="timeline-header">
       <span>Timeline (Drag to pan)</span>
+      <div class="timeline-range-control">
+        <label for="timelineRangeHours">Range (h):</label>
+        <input type="number" id="timelineRangeHours" min="0.5" max="9" step="0.5" value="2" />
+      </div>
     </div>
 
     <div id="timelineViewport" class="timeline-viewport">
@@ -775,8 +804,11 @@
     let cardsRef = null;
     let isRemoteUpdate = false;
 
-    // Timeline Pan State (6 hours window = 21600000 ms)
-    const TIMELINE_WINDOW_MS = 6 * 3600 * 1000;
+    // Timeline Pan & Range State (Default: 2 hours; Min: 30m = 0.5h; Max: 9h)
+    const MIN_TIMELINE_RANGE_MS = 0.5 * 3600 * 1000;
+    const MAX_TIMELINE_RANGE_MS = 9 * 3600 * 1000;
+    const DEFAULT_TIMELINE_RANGE_MS = 2 * 3600 * 1000;
+    let timelineWindowMs = DEFAULT_TIMELINE_RANGE_MS;
     let timelineOffsetMs = -30 * 60 * 1000;
     let isDraggingTimeline = false;
     let dragStartX = 0;
@@ -873,8 +905,13 @@
 
       // Enforce lock state on all <input> elements across the document
       document.querySelectorAll("input").forEach(inp => {
-        inp.disabled = !isAdminAuthenticated;
-        inp.readOnly = !isAdminAuthenticated;
+        if (inp.id === "timelineRangeHours") {
+          inp.disabled = false;
+          inp.readOnly = false;
+        } else {
+          inp.disabled = !isAdminAuthenticated;
+          inp.readOnly = !isAdminAuthenticated;
+        }
       });
     }
 
@@ -1389,8 +1426,8 @@
     function renderDeltaPill(container, startTs, endTs, viewStart, viewportWidth) {
       if (endTs <= startTs) return;
       const midTime = (startTs + endTs) / 2;
-      const midPct = ((midTime - viewStart) / TIMELINE_WINDOW_MS) * 100;
-      const gapPx = ((endTs - startTs) / TIMELINE_WINDOW_MS) * viewportWidth;
+      const midPct = ((midTime - viewStart) / timelineWindowMs) * 100;
+      const gapPx = ((endTs - startTs) / timelineWindowMs) * viewportWidth;
 
       if (midPct >= 0 && midPct <= 100 && gapPx >= 36) {
         const pill = document.createElement("div");
@@ -1407,12 +1444,12 @@
       const nowMarker = document.getElementById("nowMarker");
 
       const viewStart = now + timelineOffsetMs;
-      const viewEnd = viewStart + TIMELINE_WINDOW_MS;
+      const viewEnd = viewStart + timelineWindowMs;
 
       document.getElementById("timelineStartLabel").textContent = formatShortTime(viewStart);
       document.getElementById("timelineEndLabel").textContent = formatShortTime(viewEnd);
 
-      const nowPct = ((now - viewStart) / TIMELINE_WINDOW_MS) * 100;
+      const nowPct = ((now - viewStart) / timelineWindowMs) * 100;
       if (nowPct >= 0 && nowPct <= 100) {
         nowMarker.style.display = "block";
         nowMarker.style.left = `${nowPct}%`;
@@ -1439,7 +1476,7 @@
       const MIN_HORIZONTAL_GAP_PX = 92;
 
       activeNodes.forEach((card, idx) => {
-        const pct = ((card.target - viewStart) / TIMELINE_WINDOW_MS) * 100;
+        const pct = ((card.target - viewStart) / timelineWindowMs) * 100;
         const xPx = (pct / 100) * viewportWidth;
 
         if (pct >= -15 && pct <= 115) {
@@ -1466,7 +1503,7 @@
           dotLine.style.left = `${pct}%`;
           nodesLayer.appendChild(dotLine);
 
-          // Boss node
+          // Boss node (left edge aligned at pct)
           const node = document.createElement("div");
           node.className = `timeline-node ${tier === 2 ? "tier-2" : ""} ${isOverdue ? "overdue" : ""}`;
           node.style.left = `${pct}%`;
@@ -1722,6 +1759,24 @@ Example: [{"name": "Fafurion", "hours": 1, "minutes": 42, "seconds": 15}]`;
         renderTimeline(Date.now());
       });
 
+      // Timeline Range Input (0.5h = 30m min, 9h max)
+      const rangeInput = document.getElementById("timelineRangeHours");
+      function applyTimelineRangeFromInput() {
+        const rawVal = parseFloat(rangeInput.value);
+        if (Number.isNaN(rawVal)) {
+          rangeInput.value = String(timelineWindowMs / 3600000);
+          return;
+        }
+        const clampedMs = Math.min(MAX_TIMELINE_RANGE_MS, Math.max(MIN_TIMELINE_RANGE_MS, rawVal * 3600000));
+        timelineWindowMs = clampedMs;
+        rangeInput.value = String(clampedMs / 3600000);
+        renderTimeline(Date.now());
+      }
+      rangeInput.addEventListener("change", applyTimelineRangeFromInput);
+      rangeInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") applyTimelineRangeFromInput();
+      });
+
       // Timeline Drag-to-Pan
       const viewport = document.getElementById("timelineViewport");
       viewport.addEventListener("mousedown", (e) => {
@@ -1734,7 +1789,7 @@ Example: [{"name": "Fafurion", "hours": 1, "minutes": 42, "seconds": 15}]`;
         if (!isDraggingTimeline) return;
         const dx = e.clientX - dragStartX;
         const width = viewport.clientWidth || 800;
-        const deltaMs = -(dx / width) * TIMELINE_WINDOW_MS;
+        const deltaMs = -(dx / width) * timelineWindowMs;
         timelineOffsetMs = dragStartOffsetMs + deltaMs;
         renderTimeline(Date.now());
       });
@@ -1756,7 +1811,7 @@ Example: [{"name": "Fafurion", "hours": 1, "minutes": 42, "seconds": 15}]`;
         if (!isDraggingTimeline || e.touches.length !== 1) return;
         const dx = e.touches[0].clientX - dragStartX;
         const width = viewport.clientWidth || 800;
-        const deltaMs = -(dx / width) * TIMELINE_WINDOW_MS;
+        const deltaMs = -(dx / width) * timelineWindowMs;
         timelineOffsetMs = dragStartOffsetMs + deltaMs;
         renderTimeline(Date.now());
       }, { passive: true });
