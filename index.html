@@ -234,25 +234,10 @@
       color: var(--text-secondary);
     }
 
-    .peak-legend {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 0.72rem;
-    }
-
-    .legend-dot {
-      display: inline-block;
-      width: 8px;
-      height: 8px;
-      border-radius: 2px;
-      margin-right: 3px;
-    }
-
     .timeline-viewport {
       position: relative;
       width: 100%;
-      height: 84px;
+      height: 104px;
       background-color: var(--bg-color);
       border: 1px solid var(--border-color);
       border-radius: 7px;
@@ -262,21 +247,6 @@
 
     .timeline-viewport:active {
       cursor: grabbing;
-    }
-
-    .peak-density-bar {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      height: 9px;
-      display: flex;
-      pointer-events: none;
-      opacity: 0.85;
-    }
-
-    .peak-segment {
-      height: 100%;
     }
 
     .now-marker {
@@ -299,20 +269,26 @@
       color: var(--danger-color);
     }
 
+    /* 2-Tier Boss Name Nodes on Timeline */
     .timeline-node {
       position: absolute;
-      top: 20px;
+      top: 44px; /* Tầng 1: vị trí bình thường */
       transform: translateX(-50%);
       background-color: var(--surface-color);
       border: 1px solid var(--accent-color);
       color: var(--text-primary);
-      padding: 3px 7px;
+      padding: 2px 7px;
       border-radius: 5px;
-      font-size: 0.73rem;
+      font-size: 0.72rem;
       font-weight: 600;
       white-space: nowrap;
       z-index: 10;
       box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25);
+    }
+
+    .timeline-node.tier-2 {
+      top: 8px; /* Tầng 2: cao hơn vị trí bình thường và không che tầng 1 */
+      z-index: 11;
     }
 
     .timeline-node.overdue {
@@ -323,15 +299,16 @@
 
     .timeline-node .node-time {
       display: block;
-      font-size: 0.65rem;
+      font-size: 0.64rem;
       color: var(--text-secondary);
       font-variant-numeric: tabular-nums;
+      line-height: 1.1;
     }
 
     /* Interval Pill (65% scale, +10% font, no icon) */
     .interval-pill {
       position: absolute;
-      top: 54px;
+      top: 78px;
       transform: translateX(-50%) scale(0.65);
       background-color: rgba(56, 189, 248, 0.16);
       border: 1px solid rgba(56, 189, 248, 0.45);
@@ -663,17 +640,9 @@
   <div class="timeline-wrapper">
     <div class="timeline-header">
       <span>Timeline (Drag to pan)</span>
-      <div class="peak-legend">
-        <span>Density:</span>
-        <span><i class="legend-dot" style="background:#38bdf8;"></i>1</span>
-        <span><i class="legend-dot" style="background:#22c55e;"></i>2</span>
-        <span><i class="legend-dot" style="background:#f59e0b;"></i>3</span>
-        <span><i class="legend-dot" style="background:#ef4444;"></i>4+</span>
-      </div>
     </div>
 
     <div id="timelineViewport" class="timeline-viewport">
-      <div id="peakDensityBar" class="peak-density-bar"></div>
       <div id="nowMarker" class="now-marker"></div>
       <div id="timelineNodesLayer"></div>
     </div>
@@ -1381,13 +1350,12 @@
     }
 
     // =========================================================
-    // TIMELINE RENDERING & PEAK DENSITY
+    // TIMELINE RENDERING (2-TIER BOSS NAMES, NO DENSITY)
     // =========================================================
     function renderTimeline(now) {
       const viewport = document.getElementById("timelineViewport");
       const nodesLayer = document.getElementById("timelineNodesLayer");
       const nowMarker = document.getElementById("nowMarker");
-      const peakBar = document.getElementById("peakDensityBar");
 
       const viewStart = now + timelineOffsetMs;
       const viewEnd = viewStart + TIMELINE_WINDOW_MS;
@@ -1411,12 +1379,37 @@
       nodesLayer.innerHTML = "";
       const viewportWidth = viewport.clientWidth || 800;
 
+      // Theo dõi vị trí X (px) gần nhất của từng tầng để tránh chồng lấn
+      // Tầng 1 (tier = 1): vị trí bình thường
+      // Tầng 2 (tier = 2): cao hơn vị trí bình thường và không che tầng 1
+      let lastTier1Px = -Infinity;
+      let lastTier2Px = -Infinity;
+      const MIN_HORIZONTAL_GAP_PX = 92;
+
       activeNodes.forEach((card, idx) => {
         const pct = ((card.target - viewStart) / TIMELINE_WINDOW_MS) * 100;
-        if (pct >= -10 && pct <= 110) {
+        const xPx = (pct / 100) * viewportWidth;
+
+        if (pct >= -15 && pct <= 115) {
+          let tier = 1;
+          if (xPx - lastTier1Px < MIN_HORIZONTAL_GAP_PX) {
+            if (xPx - lastTier2Px >= MIN_HORIZONTAL_GAP_PX) {
+              tier = 2;
+            } else {
+              // Nếu cả 2 tầng đều sát nhau, ưu tiên tầng ít bị che hơn
+              tier = (xPx - lastTier2Px) > (xPx - lastTier1Px) ? 2 : 1;
+            }
+          }
+
+          if (tier === 2) {
+            lastTier2Px = xPx;
+          } else {
+            lastTier1Px = xPx;
+          }
+
           const isOverdue = card.target <= now;
           const node = document.createElement("div");
-          node.className = `timeline-node ${isOverdue ? "overdue" : ""}`;
+          node.className = `timeline-node ${tier === 2 ? "tier-2" : ""} ${isOverdue ? "overdue" : ""}`;
           node.style.left = `${pct}%`;
           node.innerHTML = `${escapeHtml(card.name)}<span class="node-time">${formatShortTime(card.target)}</span>`;
           nodesLayer.appendChild(node);
@@ -1443,26 +1436,6 @@
           }
         }
       });
-
-      // 4-tier Peak Density Graph
-      const buckets = 24;
-      const bucketMs = TIMELINE_WINDOW_MS / buckets;
-      let peakHtml = "";
-
-      for (let i = 0; i < buckets; i++) {
-        const bStart = viewStart + i * bucketMs;
-        const bEnd = bStart + bucketMs;
-        const count = activeNodes.filter(c => c.target >= bStart && c.target < bEnd).length;
-
-        let color = "transparent";
-        if (count === 1) color = "#38bdf8";
-        else if (count === 2) color = "#22c55e";
-        else if (count === 3) color = "#f59e0b";
-        else if (count >= 4) color = "#ef4444";
-
-        peakHtml += `<div class="peak-segment" style="flex:1; background:${color};"></div>`;
-      }
-      peakBar.innerHTML = peakHtml;
     }
 
     // =========================================================
