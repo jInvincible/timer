@@ -9,11 +9,11 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
   <style>
     :root {
-      --bg-color: #0f172a;
-      --surface-color: #1e293b;
-      --surface-hover: #273549;
-      --border-color: #334155;
-      --text-primary: #f8fafc;
+      --bg-color: #0b1120;
+      --surface-color: #151f32;
+      --surface-hover: #1e2b45;
+      --border-color: #293854;
+      --text-primary: #f1f5f9;
       --text-secondary: #94a3b8;
       --accent-color: #38bdf8;
       --accent-hover: #0284c7;
@@ -21,9 +21,9 @@
       --danger-hover: #dc2626;
       --success-color: #22c55e;
       --warning-color: #f59e0b;
-      --expired-bg: rgba(239, 68, 68, 0.14);
+      --expired-bg: rgba(239, 68, 68, 0.15);
       --expired-border: #ef4444;
-      --shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+      --shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
     }
 
     body.light-mode {
@@ -54,7 +54,7 @@
     body {
       background-color: var(--bg-color);
       color: var(--text-primary);
-      padding: 16px 20px 60px;
+      padding: 14px 18px 80px;
       transition: background-color 0.2s, color 0.2s;
       user-select: none;
     }
@@ -65,9 +65,9 @@
       flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
-      margin-bottom: 14px;
-      padding-bottom: 12px;
+      gap: 10px;
+      margin-bottom: 12px;
+      padding-bottom: 10px;
       border-bottom: 1px solid var(--border-color);
     }
 
@@ -78,16 +78,16 @@
     }
 
     .brand-title {
-      font-size: 1.25rem;
+      font-size: 1.2rem;
       font-weight: 700;
       letter-spacing: -0.02em;
     }
 
     .version-badge {
-      font-size: 0.75rem;
-      font-weight: 600;
+      font-size: 0.74rem;
+      font-weight: 700;
       color: var(--accent-color);
-      background: rgba(56, 189, 248, 0.12);
+      background: rgba(56, 189, 248, 0.14);
       padding: 2px 8px;
       border-radius: 999px;
     }
@@ -103,19 +103,19 @@
       display: flex;
       flex-wrap: wrap;
       align-items: center;
-      gap: 8px;
+      gap: 7px;
     }
 
     button {
       background-color: var(--surface-color);
       color: var(--text-primary);
       border: 1px solid var(--border-color);
-      padding: 6px 12px;
+      padding: 6px 11px;
       border-radius: 6px;
-      font-size: 0.82rem;
+      font-size: 0.8rem;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.15s ease;
+      transition: background-color 0.15s, border-color 0.15s;
     }
 
     button:hover {
@@ -139,7 +139,7 @@
 
     button.danger {
       color: var(--danger-color);
-      border-color: rgba(239, 68, 68, 0.4);
+      border-color: rgba(239, 68, 68, 0.45);
     }
 
     button.danger:hover {
@@ -153,8 +153,8 @@
       background-color: var(--surface-color);
       border: 1px solid var(--border-color);
       border-radius: 8px;
-      padding: 14px;
-      margin-bottom: 16px;
+      padding: 12px 14px;
+      margin-bottom: 14px;
       box-shadow: var(--shadow);
     }
 
@@ -164,8 +164,8 @@
 
     .config-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 12px;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 10px;
     }
 
     .config-item {
@@ -175,7 +175,7 @@
     }
 
     .config-item label {
-      font-size: 0.75rem;
+      font-size: 0.74rem;
       font-weight: 600;
       color: var(--text-secondary);
     }
@@ -184,14 +184,14 @@
       background-color: var(--bg-color);
       border: 1px solid var(--border-color);
       color: var(--text-primary);
-      padding: 6px 10px;
+      padding: 6px 9px;
       border-radius: 6px;
       font-size: 0.82rem;
       user-select: text;
     }
 
     .config-footer {
-      margin-top: 12px;
+      margin-top: 10px;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -200,7 +200,7 @@
     }
 
     .paste-hint {
-      font-size: 0.78rem;
+      font-size: 0.76rem;
       color: var(--text-secondary);
     }
 
@@ -208,19 +208,18 @@
     .timeline-wrapper {
       background-color: var(--surface-color);
       border: 1px solid var(--border-color);
-      border-radius: 10px;
-      padding: 12px 14px;
-      margin-bottom: 18px;
+      border-radius: 9px;
+      padding: 10px 14px;
+      margin-bottom: 16px;
       box-shadow: var(--shadow);
-      position: relative;
     }
 
     .timeline-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 8px;
-      font-size: 0.78rem;
+      margin-bottom: 6px;
+      font-size: 0.76rem;
       color: var(--text-secondary);
     }
 
@@ -242,10 +241,10 @@
     .timeline-viewport {
       position: relative;
       width: 100%;
-      height: 88px;
+      height: 84px;
       background-color: var(--bg-color);
       border: 1px solid var(--border-color);
-      border-radius: 8px;
+      border-radius: 7px;
       overflow: hidden;
       cursor: grab;
     }
@@ -259,7 +258,7 @@
       bottom: 0;
       left: 0;
       right: 0;
-      height: 10px;
+      height: 9px;
       display: flex;
       pointer-events: none;
       opacity: 0.85;
@@ -267,7 +266,6 @@
 
     .peak-segment {
       height: 100%;
-      transition: background-color 0.2s;
     }
 
     .now-marker {
@@ -285,26 +283,25 @@
       position: absolute;
       top: 2px;
       left: 4px;
-      font-size: 0.65rem;
+      font-size: 0.64rem;
       font-weight: 800;
       color: var(--danger-color);
     }
 
     .timeline-node {
       position: absolute;
-      top: 22px;
+      top: 20px;
       transform: translateX(-50%);
       background-color: var(--surface-color);
       border: 1px solid var(--accent-color);
       color: var(--text-primary);
       padding: 3px 7px;
       border-radius: 5px;
-      font-size: 0.74rem;
+      font-size: 0.73rem;
       font-weight: 600;
       white-space: nowrap;
       z-index: 10;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.25);
-      transition: opacity 0.2s, border-color 0.2s;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25);
     }
 
     .timeline-node.overdue {
@@ -315,7 +312,7 @@
 
     .timeline-node .node-time {
       display: block;
-      font-size: 0.66rem;
+      font-size: 0.65rem;
       color: var(--text-secondary);
       font-variant-numeric: tabular-nums;
     }
@@ -323,7 +320,7 @@
     /* Interval Pill (65% scale, +10% font, no icon) */
     .interval-pill {
       position: absolute;
-      top: 56px;
+      top: 54px;
       transform: translateX(-50%) scale(0.65);
       background-color: rgba(56, 189, 248, 0.16);
       border: 1px solid rgba(56, 189, 248, 0.45);
@@ -342,8 +339,8 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-top: 8px;
-      font-size: 0.75rem;
+      margin-top: 7px;
+      font-size: 0.74rem;
       color: var(--text-secondary);
       font-variant-numeric: tabular-nums;
     }
@@ -356,7 +353,7 @@
 
     .btn-now-jump {
       padding: 2px 8px;
-      font-size: 0.7rem;
+      font-size: 0.68rem;
       font-weight: 700;
       border-radius: 4px;
       background-color: rgba(239, 68, 68, 0.15);
@@ -369,11 +366,11 @@
       color: #ffffff;
     }
 
-    /* Card Container (v7.17 Minimalist Collapsible Cards) */
+    /* Card Grid (v7.17 Minimalist Collapsible Cards) */
     .card-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(245px, 1fr));
-      gap: 12px;
+      grid-template-columns: repeat(auto-fill, minmax(235px, 1fr));
+      gap: 11px;
     }
 
     .boss-card {
@@ -381,15 +378,21 @@
       background-color: var(--surface-color);
       border: 1px solid var(--border-color);
       border-radius: 8px;
-      padding: 12px 14px;
+      padding: 11px 13px;
       box-shadow: var(--shadow);
       cursor: pointer;
-      transition: border-color 0.15s, background-color 0.15s, transform 0.1s;
+      transition: border-color 0.15s, background-color 0.15s;
     }
 
     .boss-card:hover {
       border-color: var(--accent-color);
       background-color: var(--surface-hover);
+    }
+
+    .boss-card.expanded {
+      border-color: var(--accent-color);
+      background-color: var(--surface-hover);
+      box-shadow: 0 0 0 1px var(--accent-color), var(--shadow);
     }
 
     .boss-card.expired {
@@ -405,8 +408,8 @@
 
     .btn-card-close {
       position: absolute;
-      top: 6px;
-      right: 6px;
+      top: 5px;
+      right: 5px;
       width: 22px;
       height: 22px;
       padding: 0;
@@ -424,7 +427,7 @@
     }
 
     .btn-card-close:hover {
-      background-color: rgba(239, 68, 68, 0.2);
+      background-color: rgba(239, 68, 68, 0.22);
       color: var(--danger-color);
       opacity: 1;
     }
@@ -437,7 +440,7 @@
     }
 
     .card-name {
-      font-size: 0.98rem;
+      font-size: 0.96rem;
       font-weight: 700;
       color: var(--text-primary);
       white-space: nowrap;
@@ -454,13 +457,13 @@
     }
 
     .card-target {
-      font-size: 0.8rem;
+      font-size: 0.79rem;
       color: var(--text-secondary);
       font-weight: 500;
     }
 
     .card-remaining {
-      font-size: 0.95rem;
+      font-size: 0.94rem;
       font-weight: 700;
       color: var(--accent-color);
     }
@@ -474,11 +477,11 @@
       font-weight: 500;
     }
 
-    /* Expandable Controls inside Card */
+    /* Expandable Edit Panel inside Card */
     .card-controls {
       display: none;
       margin-top: 10px;
-      padding-top: 10px;
+      padding-top: 9px;
       border-top: 1px dashed var(--border-color);
       cursor: default;
     }
@@ -498,9 +501,10 @@
       background-color: var(--bg-color);
       border: 1px solid var(--border-color);
       color: var(--text-primary);
-      padding: 5px 6px;
+      padding: 6px 4px;
       border-radius: 5px;
-      font-size: 0.84rem;
+      font-size: 0.86rem;
+      font-weight: 600;
       text-align: center;
       font-variant-numeric: tabular-nums;
       user-select: text;
@@ -509,6 +513,7 @@
     .hms-inputs input:focus {
       outline: none;
       border-color: var(--accent-color);
+      box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.25);
     }
 
     .card-action-btns {
@@ -522,41 +527,74 @@
       font-size: 0.78rem;
     }
 
-    /* Toast List (Bottom Right, Auto-height, Max 30 items, No Scrollbar) */
-    .toast-container {
+    /* Toast-list (Bottom-Right, Auto-Height, Max 30 Items, No Scrollbar) */
+    .toast-list-wrapper {
       position: fixed;
       bottom: 14px;
       right: 14px;
-      display: flex;
-      flex-direction: column-reverse;
-      gap: 6px;
+      width: 320px;
+      max-width: calc(100vw - 28px);
+      background-color: var(--surface-color);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
       z-index: 9999;
-      pointer-events: none;
-      max-width: 340px;
+      overflow: hidden;
+      display: none;
+    }
+
+    .toast-list-wrapper.has-items {
+      display: block;
+    }
+
+    .toast-list-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 10px;
+      background-color: rgba(15, 23, 42, 0.35);
+      border-bottom: 1px solid var(--border-color);
+      font-size: 0.73rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+    }
+
+    .btn-clear-toasts {
+      padding: 2px 7px;
+      font-size: 0.68rem;
+      border-radius: 4px;
+    }
+
+    .toast-list {
+      display: flex;
+      flex-direction: column;
+      height: auto;
+      overflow: hidden;
     }
 
     .toast-item {
-      background-color: var(--surface-color);
+      padding: 6px 10px;
+      font-size: 0.77rem;
+      line-height: 1.35;
       color: var(--text-primary);
-      border-left: 4px solid var(--accent-color);
-      border-top: 1px solid var(--border-color);
-      border-right: 1px solid var(--border-color);
-      border-bottom: 1px solid var(--border-color);
-      padding: 8px 12px;
-      border-radius: 6px;
-      font-size: 0.8rem;
-      box-shadow: var(--shadow);
-      animation: slideIn 0.2s ease-out;
-      pointer-events: auto;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+      border-left: 3px solid var(--accent-color);
+      word-break: break-word;
+    }
+
+    .toast-item:last-child {
+      border-bottom: none;
     }
 
     .toast-item.success { border-left-color: var(--success-color); }
     .toast-item.warning { border-left-color: var(--warning-color); }
     .toast-item.error { border-left-color: var(--danger-color); }
 
-    @keyframes slideIn {
-      from { transform: translateX(20px); opacity: 0; }
-      to { transform: translateX(0); opacity: 1; }
+    .toast-time {
+      color: var(--text-secondary);
+      font-size: 0.71rem;
+      font-variant-numeric: tabular-nums;
+      margin-right: 5px;
     }
   </style>
 </head>
@@ -571,11 +609,11 @@
     </div>
 
     <div class="toolbar-actions">
-      <button id="btnAddCard" class="primary">Add Card</button>
-      <button id="btnPasteClipboard">Paste Image</button>
-      <button id="btnWipeAll" class="danger">Wipe All</button>
-      <button id="btnToggleConfig">Settings</button>
-      <button id="btnThemeToggle">Light Mode</button>
+      <button type="button" id="btnAddCard" class="primary">Add Card</button>
+      <button type="button" id="btnPasteClipboard">Paste Image</button>
+      <button type="button" id="btnWipeAll" class="danger">Wipe All</button>
+      <button type="button" id="btnToggleConfig">Settings</button>
+      <button type="button" id="btnThemeToggle">Light Mode</button>
     </div>
   </div>
 
@@ -604,8 +642,8 @@
       </div>
     </div>
     <div class="config-footer">
-      <span class="paste-hint">Tip: Press Ctrl + V anywhere to parse Raidboss screenshot via Gemini AI.</span>
-      <button id="btnSaveConfig" class="primary">Save Settings</button>
+      <span class="paste-hint">Press Ctrl + V anywhere to parse Raidboss screenshot via Gemini AI.</span>
+      <button type="button" id="btnSaveConfig" class="primary">Save Settings</button>
     </div>
   </div>
 
@@ -631,7 +669,7 @@
     <div class="timeline-footer-row">
       <div class="timeline-start-group">
         <span id="timelineStartLabel">--:--</span>
-        <button id="btnNowJump" class="btn-now-jump">NOW</button>
+        <button type="button" id="btnNowJump" class="btn-now-jump">NOW</button>
       </div>
       <span id="timelineEndLabel">--:--</span>
     </div>
@@ -640,8 +678,14 @@
   <!-- Cards Grid -->
   <div id="cardContainer" class="card-grid"></div>
 
-  <!-- Toast Container -->
-  <div id="toastContainer" class="toast-container"></div>
+  <!-- Toast-list (Bottom-Right, Auto-Height, Max 30 Items, No Scrollbar) -->
+  <div id="toastListWrapper" class="toast-list-wrapper">
+    <div class="toast-list-header">
+      <span>Activity Log</span>
+      <button type="button" id="btnClearToasts" class="btn-clear-toasts">Clear</button>
+    </div>
+    <div id="toastList" class="toast-list"></div>
+  </div>
 
   <script>
     // =========================================================
@@ -651,6 +695,7 @@
     const STORAGE_KEY_CARDS = "lander_timer_cards_v717";
     const STORAGE_KEY_CFG = "lander_timer_cfg_v717";
     const STORAGE_KEY_THEME = "lander_theme";
+    const MAX_TOAST_ITEMS = 30;
 
     let config = {
       geminiKey: "",
@@ -681,9 +726,9 @@
       loadTheme();
       loadConfig();
       loadLocalCards();
-      initFirebase();
       bindEvents();
       render();
+      initFirebase();
       setInterval(tickLoop, 200);
     }
 
@@ -699,8 +744,7 @@
       try {
         const raw = localStorage.getItem(STORAGE_KEY_CFG);
         if (raw) {
-          const parsed = JSON.parse(raw);
-          config = { ...config, ...parsed };
+          config = { ...config, ...JSON.parse(raw) };
         }
       } catch (e) {}
       if (!config.firebaseUrl) config.firebaseUrl = DEFAULT_FIREBASE_URL;
@@ -717,18 +761,17 @@
       try {
         const raw = localStorage.getItem(STORAGE_KEY_CARDS);
         if (raw) {
-          cards = JSON.parse(raw);
+          cards = normalizeCards(JSON.parse(raw));
         }
       } catch (e) {
         cards = [];
       }
-      normalizeCards(cards);
     }
 
     function normalizeCards(list) {
       if (!Array.isArray(list)) return [];
       list.forEach((c, idx) => {
-        if (!c.id) c.id = "boss_" + idx + "_" + (c.name || idx);
+        if (!c.id) c.id = "boss_" + idx + "_" + String(c.name || idx).replace(/\s+/g, "_");
         if (typeof c.originalIndex !== "number") c.originalIndex = idx;
         if (typeof c.target === "string") c.target = Number(c.target) || null;
         if (c.target === undefined) c.target = null;
@@ -737,7 +780,7 @@
     }
 
     // =========================================================
-    // FIREBASE SYNC (COMPATIBLE WITH ROOT PATHS & TELEGRAM CONFIG)
+    // FIREBASE SYNC & UNIFIED NOTIFICATION TRANSACTION
     // =========================================================
     function initFirebase() {
       if (!config.firebaseUrl) return;
@@ -747,7 +790,7 @@
         }
         db = firebase.database();
 
-        // 1. Auto-load Telegram & Gemini config from Firebase 'telegram_config' if present
+        // Auto-load Telegram & Gemini keys from Firebase 'telegram_config' if available
         db.ref("telegram_config").on("value", (snap) => {
           const tgVal = snap.val();
           if (!tgVal) return;
@@ -772,10 +815,9 @@
           }
         });
 
-        // 2. Listen to main cards path (default 'cards')
         attachCardsListener(config.cardsPath || "cards");
 
-        // 3. Auto-fallback check: if 'cards' is empty on server, check 'timers' node
+        // Auto-check fallback path 'timers' if 'cards' does not exist
         db.ref("cards").once("value", (snap) => {
           if (!snap.exists()) {
             db.ref("timers").once("value", (timerSnap) => {
@@ -788,10 +830,9 @@
             });
           }
         });
-
       } catch (err) {
         console.error(err);
-        showToast("Firebase connection error: " + err.message, "error");
+        addToast("Firebase connection error: " + err.message, "error");
       }
     }
 
@@ -803,24 +844,32 @@
         const val = snapshot.val();
         if (!val) return;
         isRemoteUpdate = true;
-        const arr = Array.isArray(val) ? val.filter(Boolean) : Object.keys(val).map(k => ({ id: k, ...val[k] }));
+        const arr = Array.isArray(val)
+          ? val.filter(Boolean)
+          : Object.keys(val).map(k => ({ id: k, ...val[k] }));
         cards = normalizeCards(arr);
         localStorage.setItem(STORAGE_KEY_CARDS, JSON.stringify(cards));
-        render();
+
+        // Only re-render DOM immediately if user is not currently editing a card
+        if (!expandedCardId) {
+          render();
+        } else {
+          updateLiveCountdowns(Date.now());
+          renderTimeline(Date.now());
+        }
         isRemoteUpdate = false;
       }, (err) => {
-        showToast("Firebase Read Error: " + err.message, "error");
+        addToast("Firebase Read Error: " + err.message, "error");
       });
     }
 
     function saveAndSync() {
       localStorage.setItem(STORAGE_KEY_CARDS, JSON.stringify(cards));
       if (cardsRef && !isRemoteUpdate) {
-        cardsRef.set(cards).catch(err => console.error("Sync error:", err));
+        cardsRef.set(cards).catch(err => addToast("Sync error: " + err.message, "error"));
       }
     }
 
-    // Unified Notification: Priority 60s alert, single push across all browsers
     function triggerUnifiedNotification(card, remainingSecs) {
       const secsLabel = Math.max(1, Math.ceil(remainingSecs));
       const message = `${card.name}: Sắp đến giờ! (Còn ${secsLabel} giây)`;
@@ -832,7 +881,7 @@
 
         cardNodeRef.transaction((currentData) => {
           if (!currentData) return currentData;
-          if (currentData.warned60s) return; // Abort if another browser already claimed it
+          if (currentData.warned60s) return; // Already pushed by another client
           currentData.warned60s = true;
           currentData.warnedDone = true;
           return currentData;
@@ -869,7 +918,7 @@
     }
 
     function showBrowserNotification(text) {
-      showToast(text, "warning");
+      addToast(text, "warning");
       if ("Notification" in window) {
         if (Notification.permission === "granted") {
           new Notification("Lander Timer", { body: text });
@@ -893,10 +942,9 @@
         if (aExpired && !bExpired) return -1;
         if (!aExpired && bExpired) return 1;
 
-        // If both expired, sort by earliest target first
         if (aExpired && bExpired) return a.target - b.target;
 
-        // Otherwise return strictly to default originalIndex
+        // Otherwise maintain default originalIndex position
         return (a.originalIndex ?? 0) - (b.originalIndex ?? 0);
       });
     }
@@ -905,13 +953,10 @@
       const now = Date.now();
       document.getElementById("liveClock").textContent = formatClockTime(now);
 
-      // Check notifications
+      // Check priority 60s notifications
       cards.forEach(card => {
         if (!card.target) return;
-        const diffMs = card.target - now;
-        const diffSecs = diffMs / 1000;
-
-        // Priority 60s alert (single notification per cycle)
+        const diffSecs = (card.target - now) / 1000;
         if (diffSecs <= 60 && diffSecs > -15 && !card.warned60s) {
           card.warned60s = true;
           card.warnedDone = true;
@@ -919,20 +964,17 @@
         }
       });
 
-      // Check if card order changed (e.g. a card just expired)
+      // Only re-render full grid when order changes AND no card is currently expanded/focused
       const sorted = getSortedCards(now);
-      const currentSignature = sorted.map(c => `${c.id}:${c.target !== null && c.target <= now ? 1 : 0}`).join("|");
+      const currentSignature = sorted
+        .map(c => `${c.id}:${c.target !== null && c.target <= now ? 1 : 0}`)
+        .join("|");
 
-      if (currentSignature !== lastRenderedOrderSignature) {
-        const activeEl = document.activeElement;
-        const isTyping = activeEl && activeEl.tagName === "INPUT" && activeEl.closest(".boss-card");
-        if (!isTyping) {
-          render();
-          return;
-        }
+      if (currentSignature !== lastRenderedOrderSignature && !expandedCardId) {
+        render();
+        return;
       }
 
-      // Fast text-only update for countdowns & timeline
       updateLiveCountdowns(now);
       renderTimeline(now);
     }
@@ -940,10 +982,12 @@
     function updateLiveCountdowns(now) {
       cards.forEach(card => {
         const remEl = document.getElementById(`rem_${card.id}`);
+        const targetEl = document.getElementById(`tgt_${card.id}`);
         const cardEl = document.getElementById(`card_${card.id}`);
         if (!remEl || !cardEl) return;
 
         if (!card.target) {
+          if (targetEl) targetEl.textContent = "Target: --:--:--";
           remEl.textContent = "--:--:--";
           cardEl.classList.remove("expired");
           cardEl.classList.add("unset");
@@ -951,8 +995,9 @@
         }
 
         cardEl.classList.remove("unset");
-        const diff = card.target - now;
+        if (targetEl) targetEl.textContent = `Target: ${formatClockTime(card.target)}`;
 
+        const diff = card.target - now;
         if (diff <= 0) {
           remEl.textContent = "00:00:00";
           cardEl.classList.add("expired");
@@ -964,21 +1009,12 @@
     }
 
     // =========================================================
-    // RENDER & SINGLE-EXPANDED CARD FOCUS LOGIC
+    // CARD RENDERING & SINGLE-EXPANDED FOCUS MANAGEMENT
     // =========================================================
-    function openOrToggleCard(id) {
-      if (expandedCardId === id) {
-        expandedCardId = null;
-        if (document.activeElement) document.activeElement.blur();
-        render();
-        return;
-      }
-
-      // Select new card (automatically collapses previously expanded card)
+    function expandCardAndFocusHour(id) {
       expandedCardId = id;
       render();
 
-      // Auto-focus and select Hour input box immediately
       const hInput = document.getElementById(`in_h_${id}`);
       if (hInput) {
         hInput.focus();
@@ -986,16 +1022,27 @@
       }
     }
 
+    function collapseActiveCard() {
+      if (!expandedCardId) return;
+      expandedCardId = null;
+      if (document.activeElement && typeof document.activeElement.blur === "function") {
+        document.activeElement.blur();
+      }
+      render();
+    }
+
     function render() {
       const now = Date.now();
       const sorted = getSortedCards(now);
-      lastRenderedOrderSignature = sorted.map(c => `${c.id}:${c.target !== null && c.target <= now ? 1 : 0}`).join("|");
+      lastRenderedOrderSignature = sorted
+        .map(c => `${c.id}:${c.target !== null && c.target <= now ? 1 : 0}`)
+        .join("|");
 
       const container = document.getElementById("cardContainer");
       container.innerHTML = "";
 
       if (sorted.length === 0) {
-        container.innerHTML = `<div style="color:var(--text-secondary); font-size:0.85rem; padding:12px;">Syncing data from Firebase... (or click Add Card)</div>`;
+        container.innerHTML = `<div style="color:var(--text-secondary); font-size:0.84rem; padding:10px;">Waiting for Firebase data or click Add Card...</div>`;
         renderTimeline(now);
         return;
       }
@@ -1014,18 +1061,18 @@
 
         cardEl.innerHTML = `
           <button type="button" class="btn-card-close" title="Remove card" data-action="delete" data-id="${card.id}">x</button>
-          <div class="card-summary" data-action="toggle" data-id="${card.id}">
+          <div class="card-summary">
             <div class="card-name">${escapeHtml(card.name)}</div>
             <div class="card-times-row">
-              <span class="card-target">Target: ${targetStr}</span>
+              <span id="tgt_${card.id}" class="card-target">Target: ${targetStr}</span>
               <span id="rem_${card.id}" class="card-remaining">${remStr}</span>
             </div>
           </div>
           <div class="card-controls">
             <div class="hms-inputs">
-              <input type="number" min="0" max="99" placeholder="H" id="in_h_${card.id}" />
-              <input type="number" min="0" max="59" placeholder="M" id="in_m_${card.id}" />
-              <input type="number" min="0" max="59" placeholder="S" id="in_s_${card.id}" />
+              <input type="number" inputmode="numeric" min="0" max="99" placeholder="H" id="in_h_${card.id}" />
+              <input type="number" inputmode="numeric" min="0" max="59" placeholder="M" id="in_m_${card.id}" />
+              <input type="number" inputmode="numeric" min="0" max="59" placeholder="S" id="in_s_${card.id}" />
             </div>
             <div class="card-action-btns">
               <button type="button" class="primary" data-action="set" data-id="${card.id}">Set</button>
@@ -1035,10 +1082,11 @@
           </div>
         `;
 
-        // Handle card click/tap
+        // Card Click / Tap Interaction
         cardEl.addEventListener("click", (e) => {
           e.stopPropagation();
 
+          // Ignore clicks directly on H/M/S inputs so user can type/select freely
           if (e.target.tagName === "INPUT") {
             return;
           }
@@ -1048,30 +1096,28 @@
             const action = actionBtn.getAttribute("data-action");
             const id = actionBtn.getAttribute("data-id");
 
-            if (action === "toggle") {
-              openOrToggleCard(id);
-            } else if (action === "delete") {
-              deleteCard(id);
-            } else if (action === "set") {
-              setCardTimerFromInputs(id);
-            } else if (action === "wipe") {
-              wipeCardTimer(id);
-            } else if (action === "rename") {
-              renameCard(id);
-            }
+            if (action === "delete") deleteCard(id);
+            else if (action === "set") setCardTimerFromInputs(id);
+            else if (action === "wipe") wipeCardTimer(id);
+            else if (action === "rename") renameCard(id);
             return;
           }
 
+          // Selecting this card: collapses previous card, expands this one, and auto-focuses Hour input
           if (expandedCardId !== card.id) {
-            openOrToggleCard(card.id);
+            expandCardAndFocusHour(card.id);
           }
         });
 
+        // Keyboard shortcuts inside H/M/S inputs
         cardEl.querySelectorAll("input").forEach(inp => {
           inp.addEventListener("keydown", (e) => {
             if (e.key === "Enter") {
               e.preventDefault();
               setCardTimerFromInputs(card.id);
+            } else if (e.key === "Escape") {
+              e.preventDefault();
+              collapseActiveCard();
             }
           });
         });
@@ -1092,7 +1138,9 @@
 
       const totalMs = ((h * 3600) + (m * 60) + s) * 1000;
       if (totalMs <= 0) {
-        showToast("Enter a valid duration greater than 0", "warning");
+        addToast("Enter a valid duration greater than 0", "warning");
+        const hInput = document.getElementById(`in_h_${id}`);
+        if (hInput) hInput.focus();
         return;
       }
 
@@ -1107,7 +1155,7 @@
 
       saveAndSync();
       render();
-      showToast(`${card.name} set to ${formatClockTime(card.target)}`, "success");
+      addToast(`${card.name} set to ${formatClockTime(card.target)}`, "success");
     }
 
     function wipeCardTimer(id) {
@@ -1121,7 +1169,7 @@
 
       saveAndSync();
       render();
-      showToast(`Wiped ${card.name}`, "info");
+      addToast(`Wiped ${card.name}`, "info");
     }
 
     function renameCard(id) {
@@ -1129,9 +1177,11 @@
       if (!card) return;
       const newName = prompt("Enter new Boss name:", card.name);
       if (newName && newName.trim()) {
+        const oldName = card.name;
         card.name = newName.trim();
         saveAndSync();
         render();
+        addToast(`Renamed "${oldName}" to "${card.name}"`, "info");
       }
     }
 
@@ -1144,6 +1194,7 @@
       if (expandedCardId === id) expandedCardId = null;
       saveAndSync();
       render();
+      addToast(`Deleted ${card.name}`, "warning");
     }
 
     // =========================================================
@@ -1210,6 +1261,7 @@
         }
       });
 
+      // 4-tier Peak Density Graph
       const buckets = 24;
       const bucketMs = TIMELINE_WINDOW_MS / buckets;
       let peakHtml = "";
@@ -1240,7 +1292,7 @@ Example: [{"name": "Fafurion", "hours": 1, "minutes": 42, "seconds": 15}]`;
 
     async function handleImageBlob(blob) {
       if (!config.geminiKey) {
-        showToast("Please configure Gemini API Key in Settings first", "warning");
+        addToast("Configure Gemini API Key in Settings first", "warning");
         document.getElementById("configPanel").classList.add("open");
         return;
       }
@@ -1255,7 +1307,7 @@ Example: [{"name": "Fafurion", "hours": 1, "minutes": 42, "seconds": 15}]`;
 
     async function parseAiDataAndSync(base64Image, mimeType) {
       const apiStartTime = Date.now();
-      showToast("Analyzing clipboard image via Gemini 3.1 Flash Lite...", "info");
+      addToast("Analyzing clipboard image via Gemini...", "info");
 
       try {
         const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${encodeURIComponent(config.geminiKey)}`;
@@ -1274,7 +1326,7 @@ Example: [{"name": "Fafurion", "hours": 1, "minutes": 42, "seconds": 15}]`;
 
         if (!response.ok) {
           const errBody = await response.text();
-          throw new Error(`HTTP ${response.status}: ${errBody.slice(0, 80)}`);
+          throw new Error(`HTTP ${response.status}: ${errBody.slice(0, 70)}`);
         }
 
         const data = await response.json();
@@ -1316,33 +1368,31 @@ Example: [{"name": "Fafurion", "hours": 1, "minutes": 42, "seconds": 15}]`;
         });
 
         if (updatedCount > 0) {
+          expandedCardId = null;
           saveAndSync();
           render();
-          showToast(`Updated ${updatedCount} Boss(es) (-${totalSubtractedSecs}s)`, "success");
+          addToast(`OCR updated ${updatedCount} Boss(es) (-${totalSubtractedSecs}s)`, "success");
         } else {
-          showToast("No matching Boss timers found", "warning");
+          addToast("No matching Boss timers found in image", "warning");
         }
       } catch (err) {
         console.error("AI Parse Error:", err);
-        showToast(`AI Error: ${err.message}`, "error");
+        addToast(`AI Error: ${err.message}`, "error");
       }
     }
 
     // =========================================================
-    // UI EVENTS & HELPERS
+    // UI EVENTS & TOAST-LIST HELPERS
     // =========================================================
     function bindEvents() {
-      // Collapse active card & blur focus when clicking/tapping outside the selected card
+      // Collapse active card & remove focus when clicking/tapping outside the active card
       document.addEventListener("click", (e) => {
         if (!expandedCardId) return;
+        if (e.target.closest("#toastListWrapper")) return;
 
         const clickedCard = e.target.closest(".boss-card");
         if (!clickedCard || clickedCard.id !== `card_${expandedCardId}`) {
-          expandedCardId = null;
-          if (document.activeElement) {
-            document.activeElement.blur();
-          }
-          render();
+          collapseActiveCard();
         }
       });
 
@@ -1371,9 +1421,9 @@ Example: [{"name": "Fafurion", "hours": 1, "minutes": 42, "seconds": 15}]`;
               return;
             }
           }
-          showToast("No image found in clipboard", "warning");
+          addToast("No image found in clipboard", "warning");
         } catch (err) {
-          showToast("Press Ctrl + V directly on the page to paste image", "info");
+          addToast("Press Ctrl + V anywhere on the page to paste image", "info");
         }
       });
 
@@ -1391,7 +1441,7 @@ Example: [{"name": "Fafurion", "hours": 1, "minutes": 42, "seconds": 15}]`;
         });
         saveAndSync();
         render();
-        showToast(`Added ${name.trim()}`, "success");
+        addToast(`Added ${name.trim()}`, "success");
       });
 
       // Wipe All
@@ -1402,11 +1452,10 @@ Example: [{"name": "Fafurion", "hours": 1, "minutes": 42, "seconds": 15}]`;
           c.warned60s = false;
           c.warnedDone = false;
         });
-        expandedCardId = null;
-        if (document.activeElement) document.activeElement.blur();
+        collapseActiveCard();
         saveAndSync();
         render();
-        showToast("All timers wiped", "info");
+        addToast("All timers wiped", "info");
       });
 
       // Toggle Settings
@@ -1424,7 +1473,7 @@ Example: [{"name": "Fafurion", "hours": 1, "minutes": 42, "seconds": 15}]`;
 
         localStorage.setItem(STORAGE_KEY_CFG, JSON.stringify(config));
         document.getElementById("configPanel").classList.remove("open");
-        showToast("Settings saved", "success");
+        addToast("Settings saved", "success");
         initFirebase();
       });
 
@@ -1433,6 +1482,15 @@ Example: [{"name": "Fafurion", "hours": 1, "minutes": 42, "seconds": 15}]`;
         const isLight = document.body.classList.toggle("light-mode");
         localStorage.setItem(STORAGE_KEY_THEME, isLight ? "light" : "dark");
         document.getElementById("btnThemeToggle").textContent = isLight ? "Dark Mode" : "Light Mode";
+      });
+
+      // Clear Toast-list
+      document.getElementById("btnClearToasts").addEventListener("click", (e) => {
+        e.stopPropagation();
+        const listEl = document.getElementById("toastList");
+        const wrapper = document.getElementById("toastListWrapper");
+        listEl.innerHTML = "";
+        wrapper.classList.remove("has-items");
       });
 
       // NOW Jump Button
@@ -1485,20 +1543,22 @@ Example: [{"name": "Fafurion", "hours": 1, "minutes": 42, "seconds": 15}]`;
       });
     }
 
-    function showToast(message, type = "info") {
-      const container = document.getElementById("toastContainer");
+    // Toast-list: Bottom-Right, Auto-Height, Max 30 Items, No Scrollbar
+    function addToast(message, type = "info") {
+      const wrapper = document.getElementById("toastListWrapper");
+      const listEl = document.getElementById("toastList");
+      if (!wrapper || !listEl) return;
+
       const item = document.createElement("div");
       item.className = `toast-item ${type}`;
-      item.textContent = message;
-      container.prepend(item);
+      item.innerHTML = `<span class="toast-time">[${formatClockTime(Date.now())}]</span>${escapeHtml(message)}`;
 
-      while (container.children.length > 30) {
-        container.removeChild(container.lastChild);
+      listEl.prepend(item);
+      wrapper.classList.add("has-items");
+
+      while (listEl.children.length > MAX_TOAST_ITEMS) {
+        listEl.removeChild(listEl.lastChild);
       }
-
-      setTimeout(() => {
-        if (item.parentNode) item.remove();
-      }, 6500);
     }
 
     function formatClockTime(ts) {
