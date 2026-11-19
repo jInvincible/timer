@@ -1047,18 +1047,18 @@
           }
         });
 
-        attachCardsListener(config.cardsPath || "cards");
+        attachCardsListener(config.cardsPath || "lander_cards");
 
-        // Auto-check fallback path 'timers' if 'cards' does not exist
-        db.ref("cards").once("value", (snap) => {
+        // Auto-check fallback path 'cards' if 'lander_cards' does not exist
+        db.ref(config.cardsPath || "lander_cards").once("value", (snap) => {
           if (!snap.exists()) {
-            db.ref("timers").once("value", (timerSnap) => {
-              if (timerSnap.exists() && config.cardsPath === "cards") {
-                config.cardsPath = "timers";
-                encryptedConfig.cardsPath = encryptWithAdmin("timers", activeAdminName);
-                document.getElementById("cfgCardsPath").value = "timers";
+            db.ref("cards").once("value", (fallbackSnap) => {
+              if (fallbackSnap.exists() && config.cardsPath === "lander_cards") {
+                config.cardsPath = "cards";
+                encryptedConfig.cardsPath = encryptWithAdmin("cards", activeAdminName);
+                document.getElementById("cfgCardsPath").value = "cards";
                 localStorage.setItem(STORAGE_KEY_CFG_ENC, JSON.stringify(encryptedConfig));
-                attachCardsListener("timers");
+                attachCardsListener("cards");
               }
             });
           }
@@ -1808,8 +1808,8 @@ Example: [{"name": "Fafurion", "hours": 1, "minutes": 42, "seconds": 15}]`;
           return;
         }
         config.geminiKey = document.getElementById("cfgGeminiKey").value.trim();
-        config.firebaseUrl = document.getElementById("cfgFirebaseUrl").value.trim();
-        config.cardsPath = document.getElementById("cfgCardsPath").value.trim() || "cards";
+        config.firebaseUrl = document.getElementById("cfgFirebaseUrl").value.trim().replace(/\/+$/, "");
+        config.cardsPath = document.getElementById("cfgCardsPath").value.trim() || "lander_cards";
         config.tgToken = document.getElementById("cfgTgToken").value.trim();
         config.tgChatId = document.getElementById("cfgTgChatId").value.trim();
 
