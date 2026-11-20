@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Lander Timer Web v7.29</title>
+  <title>Lander Timer Web v7.30</title>
   <!-- Firebase SDK v9 Compat -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -458,7 +458,51 @@
       background-color: var(--expired-bg);
       border-color: var(--expired-border);
       animation: pulseBorder 1.8s infinite;
+     }
+ 
+    /* Remaining Time Color Tiers inside #cardContainer */
+    .boss-card.soon-5m {
+      background-color: rgba(249, 115, 22, 0.22);
+      border-color: #f97316;
     }
+    .boss-card.soon-5m .card-remaining {
+      color: #fb923c;
+    }
+    body.light-mode .boss-card.soon-5m {
+      background-color: rgba(249, 115, 22, 0.14);
+    }
+    body.light-mode .boss-card.soon-5m .card-remaining {
+      color: #ea580c;
+    }
+
+    .boss-card.soon-15m {
+      background-color: rgba(250, 204, 21, 0.14);
+      border-color: rgba(250, 204, 21, 0.65);
+    }
+    .boss-card.soon-15m .card-remaining {
+      color: #fde047;
+    }
+    body.light-mode .boss-card.soon-15m {
+      background-color: rgba(250, 204, 21, 0.18);
+    }
+    body.light-mode .boss-card.soon-15m .card-remaining {
+      color: #ca8a04;
+    }
+
+    .boss-card.soon-61m {
+      background-color: rgba(74, 222, 128, 0.13);
+      border-color: rgba(74, 222, 128, 0.6);
+    }
+    .boss-card.soon-61m .card-remaining {
+      color: #86efac;
+    }
+    body.light-mode .boss-card.soon-61m {
+      background-color: rgba(34, 197, 94, 0.12);
+    }
+    body.light-mode .boss-card.soon-61m .card-remaining {
+      color: #16a34a;
+    }
+
 
     @keyframes pulseBorder {
       0%, 100% { border-color: var(--expired-border); }
@@ -663,7 +707,7 @@
   <div class="top-bar">
     <div class="brand-section">
       <span class="brand-title">Lander Timer</span>
-      <span class="version-badge">v7.29</span>
+      <span class="version-badge">v7.30</span>
       <span id="liveClock" class="clock-display">00:00:00</span>
     </div>
 
@@ -1253,6 +1297,14 @@
 
       updateLiveCountdowns(now);
       renderTimeline(now);
+     }
+ 
+    function getCardRemainingTierClass(diffMs) {
+      if (diffMs <= 0) return "";
+      if (diffMs < 5 * 60 * 1000) return "soon-5m";
+      if (diffMs < 15 * 60 * 1000) return "soon-15m";
+      if (diffMs < 61 * 60 * 1000) return "soon-61m";
+      return "";
     }
 
     function updateLiveCountdowns(now) {
@@ -1265,7 +1317,7 @@
         if (!card.target) {
           if (targetEl) targetEl.textContent = "Target: --:--:--";
           remEl.textContent = "--:--:--";
-          cardEl.classList.remove("expired");
+          cardEl.classList.remove("expired", "soon-5m", "soon-15m", "soon-61m");
           cardEl.classList.add("unset");
           return;
         }
@@ -1274,12 +1326,15 @@
         if (targetEl) targetEl.textContent = `Target: ${formatClockTime(card.target)}`;
 
         const diff = card.target - now;
+        cardEl.classList.remove("soon-5m", "soon-15m", "soon-61m");
         if (diff <= 0) {
           remEl.textContent = "00:00:00";
           cardEl.classList.add("expired");
         } else {
           remEl.textContent = formatDuration(diff);
           cardEl.classList.remove("expired");
+          const tierClass = getCardRemainingTierClass(diff);
+          if (tierClass) cardEl.classList.add(tierClass);
         }
       });
     }
@@ -1334,10 +1389,12 @@
         const isExpired = card.target !== null && card.target <= now;
         const isUnset = card.target === null;
         const isExpanded = expandedCardId === card.id;
+        const diffMs = (!isUnset && !isExpired) ? (card.target - now) : 0;
+        const tierClass = (!isUnset && !isExpired) ? getCardRemainingTierClass(diffMs) : "";
 
         const cardEl = document.createElement("div");
         cardEl.id = `card_${card.id}`;
-        cardEl.className = `boss-card ${isExpired ? "expired" : ""} ${isUnset ? "unset" : ""} ${isExpanded ? "expanded" : ""}`;
+        cardEl.className = `boss-card ${isExpired ? "expired" : ""} ${isUnset ? "unset" : ""} ${isExpanded ? "expanded" : ""} ${tierClass}`;
 
         const targetStr = card.target ? formatClockTime(card.target) : "--:--:--";
         const remStr = isUnset ? "--:--:--" : (isExpired ? "00:00:00" : formatDuration(card.target - now));
