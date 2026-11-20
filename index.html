@@ -1112,6 +1112,15 @@
     function triggerUnifiedNotification(card, remainingSecs) {
       const secsLabel = Math.max(1, Math.ceil(remainingSecs));
       const message = `${card.name}: Sắp đến giờ! (Còn ${secsLabel} giây)`;
+      
+      // Nếu chưa đăng nhập admin, phát web notification trực tiếp và lưu trạng thái cảnh báo cục bộ
+      if (!isAdminAuthenticated) {
+        card.warned60s = true;
+        card.warnedDone = true;
+        localStorage.setItem(STORAGE_KEY_CARDS, JSON.stringify(cards));
+        showBrowserNotification(message);
+        return;
+      }
 
       if (cardsRef) {
         const cardIndex = cards.findIndex(c => c.id === card.id);
@@ -1160,12 +1169,28 @@
       addToast(text, "warning");
       if ("Notification" in window) {
         if (Notification.permission === "granted") {
-          new Notification("Lander Timer", { body: text });
+          try {
+            new Notification("Lander Timer", { body: text });
+          } catch (e) {
+            console.error("Notification Error:", e);
+          }
         } else if (Notification.permission !== "denied") {
           Notification.requestPermission().then(perm => {
-            if (perm === "granted") new Notification("Lander Timer", { body: text });
+           if (perm === "granted") {
+              try {
+                new Notification("Lander Timer", { body: text });
+              } catch (e) {
+                console.error("Notification Error:", e);
+              }
+            }
           });
         }
+      }
+    }
+    
+    function ensureNotificationPermissionOnGesture() {
+      if ("Notification" in window && Notification.permission === "default") {
+        Notification.requestPermission().catch(() => {});
       }
     }
 
@@ -1727,6 +1752,9 @@ Example: [{"name": "Fafurion", "hours": 1, "minutes": 42, "seconds": 15}]`;
     // UI EVENTS & TOAST-LIST HELPERS
     // =========================================================
     function bindEvents() {
+      // Xin quyền Web Notification khi người dùng có thao tác đầu tiên trên trang
+      document.addEventListener("pointerdown", ensureNotificationPermissionOnGesture, { once: true });
+
       // Admin Login / Logout
       document.getElementById("btnAdminAuth").addEventListener("click", handleAdminAuthToggle);
 
