@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Lander Timer Web v7.30</title>
+  <title>Lander Timer Web v7.31</title>
   <!-- Firebase SDK v9 Compat -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -707,7 +707,7 @@
   <div class="top-bar">
     <div class="brand-section">
       <span class="brand-title">Lander Timer</span>
-      <span class="version-badge">v7.30</span>
+      <span class="version-badge">v7.31</span>
       <span id="liveClock" class="clock-display">00:00:00</span>
     </div>
 
@@ -1565,7 +1565,7 @@
     }
 
     function updateBossDensitySummary(now) {
-      const WINDOW_90M_MS = 90 * 60 * 1000;
+      const WINDOW_90M_MS = 60 * 60 * 1000;
       // Lấy toàn bộ các card đang có Remaining time (> 0), độc lập với timeline pan/range
       const activeTargets = cards
         .filter(c => c.target !== null && c.target > now)
@@ -1589,7 +1589,7 @@
       let bestCluster = [];
       for (let i = 0; i < activeTargets.length; i++) {
         const startTs = activeTargets[i];
-        const endTs = startTs + WINDOW_90M_MS;
+        const endTs = startTs + WINDOW_60M_MS;
         const cluster = activeTargets.filter(t => t >= startTs && t <= endTs);
 
         const bestSpan = bestCluster.length > 0 ? (bestCluster[bestCluster.length - 1] - bestCluster[0]) : Infinity;
