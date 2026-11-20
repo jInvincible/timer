@@ -1150,12 +1150,11 @@
         
       }
     }
-
     async function sendTelegramMessage(text) {
       if (!isAdminAuthenticated || !config.tgToken || !config.tgChatId) return;
       try {
         const url = `https://api.telegram.org/bot${config.tgToken}/sendMessage`;
-        await fetch(url, {
+        const res = await fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
