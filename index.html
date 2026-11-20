@@ -506,7 +506,7 @@
 
 
     @keyframes pulseBorder {
-      0%, 100% { border-color: var(--soon-5m-border); }
+      0%, 100% { border-color: var(--expired-border); }
       50% { border-color: rgba(239, 68, 68, 0.35); }
     }
 
@@ -1578,7 +1578,7 @@
     }
 
     function updateBossDensitySummary(now) {
-      const WINDOW_90M_MS = 60 * 60 * 1000;
+      const WINDOW_60M_MS = 60 * 60 * 1000;
       // Lấy toàn bộ các card đang có Remaining time (> 0), độc lập với timeline pan/range
       const activeTargets = cards
         .filter(c => c.target !== null && c.target > now)
