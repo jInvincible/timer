@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Lander Timer Web v7.31</title>
+  <title>Lander Timer Web v7.32</title>
   <!-- Firebase SDK v9 Compat -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -455,15 +455,16 @@
     }
 
     .boss-card.expired {
-      background-color: var(--expired-bg);
-      border-color: var(--expired-border);
-      animation: pulseBorder 1.8s infinite;
+      background-color: rgba(148, 163, 184, 0.14);
+      border-color: rgba(148, 163, 184, 0.45);
+      animation: none;
      }
  
     /* Remaining Time Color Tiers inside #cardContainer */
     .boss-card.soon-5m {
       background-color: rgba(249, 115, 22, 0.22);
       border-color: #f97316;
+      animation: pulseBorder 2s infinite;
     }
     .boss-card.soon-5m .card-remaining {
       color: #fb923c;
@@ -508,6 +509,18 @@
       0%, 100% { border-color: var(--expired-border); }
       50% { border-color: rgba(239, 68, 68, 0.35); }
     }
+
+    body.light-mode .boss-card.expired {
+      background-color: rgba(100, 116, 139, 0.14);
+      border-color: rgba(100, 116, 139, 0.45);
+    }
+
+    .boss-card.expired .card-remaining {
+      color: var(--text-secondary);
+    }
+
+    body.light-mode .boss-card.expired .card-remaining {
+      color: var(--text-secondary);
 
     .btn-card-close {
       position: absolute;
@@ -707,7 +720,7 @@
   <div class="top-bar">
     <div class="brand-section">
       <span class="brand-title">Lander Timer</span>
-      <span class="version-badge">v7.31</span>
+      <span class="version-badge">v7.32</span>
       <span id="liveClock" class="clock-display">00:00:00</span>
     </div>
 
