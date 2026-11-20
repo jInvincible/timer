@@ -828,7 +828,8 @@
     let db = null;
     let cardsRef = null;
     let isRemoteUpdate = false;
-
+    
+    const localNotifiedKeys = new Set();
     // Timeline Pan & Range State (Default: 2 hours; Min: 30m = 0.5h; Max: 9h)
     const MIN_TIMELINE_RANGE_MS = 0.5 * 3600 * 1000;
     const MAX_TIMELINE_RANGE_MS = 9 * 3600 * 1000;
@@ -1112,7 +1113,18 @@
     function triggerUnifiedNotification(card, remainingSecs) {
       const secsLabel = Math.max(1, Math.ceil(remainingSecs));
       const message = `${card.name}: Sắp đến giờ! (Còn ${secsLabel} giây)`;
+      const localNotifyKey = `${card.id}:${card.target}`;
 
+      // Web Notification chạy độc lập trên từng trình duyệt cho mọi người dùng
+      if (!localNotifiedKeys.has(localNotifyKey)) {
+        localNotifiedKeys.add(localNotifyKey);
+        showBrowserNotification(message);
+      }
+
+      // Telegram Notification chỉ hoạt động khi đã đăng nhập Admin và có đủ Token + Chat ID
+      const canSendTelegram = isAdminAuthenticated && Boolean(config.tgToken) && Boolean(config.tgChatId);
+      if (!canSendTelegram) return;
+      
       if (cardsRef) {
         const cardIndex = cards.findIndex(c => c.id === card.id);
         if (cardIndex === -1) return;
@@ -1127,7 +1139,7 @@
         }, (error, committed) => {
           if (!error && committed) {
             sendTelegramMessage(message);
-            showBrowserNotification(message);
+            
           }
         });
       } else {
@@ -1135,12 +1147,12 @@
         card.warnedDone = true;
         saveAndSync();
         sendTelegramMessage(message);
-        showBrowserNotification(message);
+        
       }
     }
 
     async function sendTelegramMessage(text) {
-      if (!config.tgToken || !config.tgChatId) return;
+      if (!isAdminAuthenticated || !config.tgToken || !config.tgChatId) return;
       try {
         const url = `https://api.telegram.org/bot${config.tgToken}/sendMessage`;
         await fetch(url, {
@@ -1151,8 +1163,13 @@
             text: text
           })
         });
+        if (!res.ok) {
+          const errText = await res.text();
+          addToast(`Telegram API error (${res.status}): ${errText.slice(0, 80)}`, "error");
+        }
       } catch (e) {
         console.error("Telegram Error:", e);
+        addToast(`Telegram fetch error: ${e.message}`, "error");
       }
     }
 
@@ -1160,12 +1177,31 @@
       addToast(text, "warning");
       if ("Notification" in window) {
         if (Notification.permission === "granted") {
-          new Notification("Lander Timer", { body: text });
+          try {
+            new Notification("Lander Timer", { body: text });
+          } catch (e) {
+            console.error("Notification Error:", e);
+            addToast(`Web Notification error: ${e.message}`, "error");
+          }
+        } else if (Notification.permission === "denied") {
+          addToast("Web Notification is blocked in browser site settings.", "warning");
         } else if (Notification.permission !== "denied") {
           Notification.requestPermission().then(perm => {
-            if (perm === "granted") new Notification("Lander Timer", { body: text });
+            if (perm === "granted") {
+              try {
+                new Notification("Lander Timer", { body: text });
+              } catch (e) {
+                console.error("Notification Error:", e);
+                addToast(`Web Notification error: ${e.message}`, "error");
+              }
+            }
           });
         }
+      }
+    }
+    function ensureNotificationPermissionOnGesture() {
+      if ("Notification" in window && Notification.permission === "default") {
+        Notification.requestPermission().catch(() => {});
       }
     }
 
@@ -1198,9 +1234,10 @@
       cards.forEach(card => {
         if (!card.target) return;
         const diffSecs = (card.target - now) / 1000;
-        if (diffSecs <= 60 && diffSecs > -15 && !card.warned60s) {
-          card.warned60s = true;
-          card.warnedDone = true;
+        const localNotifyKey = `${card.id}:${card.target}`;
+        const shouldNotifyTelegram = isAdminAuthenticated && Boolean(config.tgToken) && Boolean(config.tgChatId) && !card.warned60s;
+        const shouldNotifyWeb = !localNotifiedKeys.has(localNotifyKey);
+        if (diffSecs <= 60 && diffSecs > -15 && (shouldNotifyWeb || shouldNotifyTelegram)) {
           triggerUnifiedNotification(card, diffSecs);
         }
       });
@@ -1394,6 +1431,10 @@
 
       const card = cards.find(c => c.id === id);
       if (!card) return;
+      // Xóa trạng thái đã báo cục bộ cho mốc target cũ nếu có
+      for (const key of Array.from(localNotifiedKeys)) {
+        if (key.startsWith(`${card.id}:`)) localNotifiedKeys.delete(key);
+      }
 
       card.target = Date.now() + totalMs;
       card.warned60s = false;
@@ -1409,6 +1450,9 @@
     function wipeCardTimer(id) {
       const card = cards.find(c => c.id === id);
       if (!card) return;
+      for (const key of Array.from(localNotifiedKeys)) {
+        if (key.startsWith(`${card.id}:`)) localNotifiedKeys.delete(key);
+      }
       card.target = null;
       card.warned60s = false;
       card.warnedDone = false;
@@ -1727,6 +1771,9 @@ Example: [{"name": "Fafurion", "hours": 1, "minutes": 42, "seconds": 15}]`;
     // UI EVENTS & TOAST-LIST HELPERS
     // =========================================================
     function bindEvents() {
+      // Xin quyền Web Notification khi người dùng tương tác lần đầu trên trang
+      document.addEventListener("pointerdown", ensureNotificationPermissionOnGesture, { once: true });
+      
       // Admin Login / Logout
       document.getElementById("btnAdminAuth").addEventListener("click", handleAdminAuthToggle);
 
@@ -1792,6 +1839,7 @@ Example: [{"name": "Fafurion", "hours": 1, "minutes": 42, "seconds": 15}]`;
       // Wipe All
       document.getElementById("btnWipeAll").addEventListener("click", () => {
         if (!confirm("Wipe all active timers?")) return;
+        localNotifiedKeys.clear();
         cards.forEach(c => {
           c.target = null;
           c.warned60s = false;
