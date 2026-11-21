@@ -461,6 +461,36 @@
      }
  
     /* Remaining Time Color Tiers inside #cardContainer */
+    .boss-card.soon-60s {
+      background-color: rgba(239, 68, 68, 0.24);
+      border-color: #ef4444;
+      animation: pulseWhiteRed 1.1s infinite;
+    }
+
+    .boss-card.soon-60s .card-remaining {
+      color: #fca5a5;
+    }
+
+    body.light-mode .boss-card.soon-60s {
+      background-color: rgba(220, 38, 38, 0.16);
+      border-color: #dc2626;
+      animation: pulseWhiteRedLight 1.1s infinite;
+    }
+
+    body.light-mode .boss-card.soon-60s .card-remaining {
+      color: #b91c1c;
+    }
+
+    @keyframes pulseWhiteRed {
+      0%, 100% { border-color: #ffffff; }
+      50% { border-color: #ef4444; }
+    }
+
+    @keyframes pulseWhiteRedLight {
+      0%, 100% { border-color: #ffffff; }
+      50% { border-color: #dc2626; }
+    }
+
     .boss-card.soon-5m {
       background-color: rgba(249, 115, 22, 0.22);
       border-color: #f97316;
@@ -1314,6 +1344,7 @@
  
     function getCardRemainingTierClass(diffMs) {
       if (diffMs <= 0) return "";
+      if (diffMs < 60 * 1000) return "soon-60s";
       if (diffMs < 5 * 60 * 1000) return "soon-5m";
       if (diffMs < 15 * 60 * 1000) return "soon-15m";
       if (diffMs < 61 * 60 * 1000) return "soon-61m";
@@ -1330,7 +1361,7 @@
         if (!card.target) {
           if (targetEl) targetEl.textContent = "Target: --:--:--";
           remEl.textContent = "--:--:--";
-          cardEl.classList.remove("expired", "soon-5m", "soon-15m", "soon-61m");
+          cardEl.classList.remove("expired", "soon-60s", "soon-5m", "soon-15m", "soon-61m");
           cardEl.classList.add("unset");
           return;
         }
@@ -1339,7 +1370,7 @@
         if (targetEl) targetEl.textContent = `Target: ${formatClockTime(card.target)}`;
 
         const diff = card.target - now;
-        cardEl.classList.remove("soon-5m", "soon-15m", "soon-61m");
+        cardEl.classList.remove("soon-60s", "soon-5m", "soon-15m", "soon-61m");
         if (diff <= 0) {
           remEl.textContent = "00:00:00";
           cardEl.classList.add("expired");
